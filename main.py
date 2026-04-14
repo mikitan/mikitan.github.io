@@ -17,3 +17,11 @@ def predict():
 
 if __name__ == "__main__":
         app.run(host='0.0.0.0', port=5000)
+import os  # 1行目あたりに追加してください
+
+# ...（中略）...
+
+if __name__ == "__main__":
+    # サーバーから指定されたポート番号を読み取り、なければ5000を使います
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
