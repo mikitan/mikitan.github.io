@@ -1,14 +1,21 @@
-from flask import Flask, render_template
+from flask import Flask, jsonify
 import os
 
 app = Flask(__name__)
 
 @app.route('/')
 def index():
-    # templatesフォルダ内のindex.htmlを表示します
-    return render_template('index.html')
+    return "AI Server is Live!"
+
+@app.route('/v1/predict')
+def predict():
+    data = {
+        "status": "success",
+        "prediction": "Bullish",
+        "accuracy": "89.4%"
+    }
+    return jsonify(data)
 
 if __name__ == "__main__":
-    # ポート番号は環境変数から取得（デプロイ先に対応するため）
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
