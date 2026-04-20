@@ -1,0 +1,193 @@
+import { useState } from "react";
+
+const GCAL_MCP = "https://calendarmcp.googleapis.com/mcp/v1";
+
+function Dots() {
+  return (
+    <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+      {[0, 1, 2].map((i) => (
+        <span key={i} style={{
+          width: 8, height: 8, borderRadius: "50%", background: "#4ade80",
+          display: "inline-block",
+          animation: `dot 1s ease-in-out ${i * 0.15}s infinite`,
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function Row({ label, value }) {
+  if (!value) return null;
+  return (
+    <div style={{ display: "flex", gap: 12, marginBottom: 10 }}>
+      <span style={{ color: "#6b7280", fontSize: 13, minWidth: 52 }}>{label}</span>
+      <span style={{ color: "#e5e7eb", fontSize: 13 }}>{value}</span>
+    </div>
+  );
+}
+
+function fmt(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString("ja-JP", {
+    month: "long", day: "numeric", weekday: "short",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+export default function App() {
+  const [text, setText] = useState("");
+  const [phase, setPhase] = useState("input");
+  const [parsed, setParsed] = useState(null);
+  const [msg, setMsg] = useState("");
+
+  async function doParse() {
+    if (!text.trim()) return;
+    setPhase("parsing");
+    try {
+      const now = new Date().toISOString();
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system: `今日は${now}です。入力から予定情報をJSONのみで返してください。他の文字は一切不要。形式：{"title":"","startDateTime":"2025-04-21T15:00:00","endDateTime":"2025-04-21T16:00:00","description":"","location":""}。時刻不明→12:00〜13:00。日付不明→明日。`,
+          messages: [{ role: "user", content: text }],
+        }),
+      });
+      const data = await res.json();
+      const raw = data.content?.find(b => b.type === "text")?.text || "";
+      const obj = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      setParsed(obj);
+      setPhase("confirm");
+    } catch {
+      setMsg("解析に失敗しました。もう一度お試しください。");
+      setPhase("error");
+    }
+  }
+
+  async function doAdd() {
+    setPhase("adding");
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system: "Googleカレンダーに予定を追加するアシスタントです。ツールを使って追加してください。",
+          messages: [{
+            role: "user",
+            content: `以下の予定を追加:\nタイトル: ${parsed.title}\n開始: ${parsed.startDateTime}\n終了: ${parsed.endDateTime}${parsed.description ? `\n詳細: ${parsed.description}` : ""}${parsed.location ? `\n場所: ${parsed.location}` : ""}`,
+          }],
+          mcp_servers: [{ type: "url", url: GCAL_MCP, name: "gcal" }],
+        }),
+      });
+      await res.json();
+      setMsg("Googleカレンダーに追加しました！");
+      setPhase("done");
+    } catch {
+      setMsg("追加に失敗しました。もう一度お試しください。");
+      setPhase("error");
+    }
+  }
+
+  function reset() {
+    setText(""); setParsed(null); setMsg(""); setPhase("input");
+  }
+
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Noto+Sans+JP:wght@400;500&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        @keyframes dot { 0%,100%{transform:translateY(0);opacity:.3} 50%{transform:translateY(-6px);opacity:1} }
+        @keyframes up { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+        textarea:focus { outline: none; }
+        textarea::placeholder { color: #3a3a4a; }
+      `}</style>
+      <div style={{ minHeight:"100vh", background:"#0a0a0f", fontFamily:"'Noto Sans JP',sans-serif", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+        <div style={{ width:"100%", maxWidth:500, animation:"up .5s ease" }}>
+
+          <div style={{ marginBottom:36 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+              <div style={{ width:9, height:9, borderRadius:"50%", background:"#4ade80", boxShadow:"0 0 10px #4ade80" }} />
+              <span style={{ color:"#4ade80", fontFamily:"'Syne',sans-serif", fontSize:11, letterSpacing:"0.15em" }}>CALENDAR AI</span>
+            </div>
+            <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:30, fontWeight:800, color:"#f9fafb", lineHeight:1.25, marginBottom:8 }}>
+              テキストで<br />予定を追加
+            </h1>
+            <p style={{ color:"#6b7280", fontSize:13, lineHeight:1.7 }}>
+              自然な文章を入力するだけで、AIが解析して<br />Googleカレンダーに自動追加します。
+            </p>
+          </div>
+
+          {(phase === "input" || phase === "error") && (
+            <div style={{ animation:"up .4s ease" }}>
+              <div style={{ background:"#111118", border:"1px solid #222230", borderRadius:8, padding:18, marginBottom:12 }}>
+                <textarea
+                  rows={4} value={text}
+                  onChange={e => setText(e.target.value)}
+                  onKeyDown={e => { if (e.key==="Enter" && e.metaKey) doParse(); }}
+                  placeholder={"例：明日の午後3時に田中さんとミーティング\n来週月曜10時から営業会議（渋谷オフィス）"}
+                  style={{ width:"100%", background:"transparent", border:"none", color:"#e5e7eb", fontSize:15, lineHeight:1.7, resize:"none", fontFamily:"'Noto Sans JP',sans-serif" }}
+                />
+              </div>
+              {phase === "error" && <p style={{ color:"#f87171", fontSize:13, marginBottom:10 }}>{msg}</p>}
+              <div style={{ display:"flex", justifyContent:"flex-end" }}>
+                <button onClick={doParse} disabled={!text.trim()} style={{
+                  background: text.trim() ? "#4ade80" : "#1e1e2a",
+                  color: text.trim() ? "#0a0a0f" : "#4a4a5a",
+                  border:"none", cursor: text.trim() ? "pointer" : "not-allowed",
+                  fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:14,
+                  padding:"13px 26px", borderRadius:6, letterSpacing:"0.04em",
+                }}>解析する →</button>
+              </div>
+            </div>
+          )}
+
+          {phase === "parsing" && (
+            <div style={{ textAlign:"center", padding:"52px 0" }}>
+              <Dots />
+              <p style={{ color:"#6b7280", fontSize:13, marginTop:16 }}>AIが解析中...</p>
+            </div>
+          )}
+
+          {phase === "confirm" && parsed && (
+            <div style={{ animation:"up .4s ease" }}>
+              <div style={{ background:"#111118", border:"1px solid #222230", borderRadius:8, padding:20, marginBottom:16 }}>
+                <p style={{ color:"#4ade80", fontSize:11, letterSpacing:"0.12em", marginBottom:14 }}>解析結果を確認</p>
+                <Row label="タイトル" value={parsed.title} />
+                <Row label="開始" value={fmt(parsed.startDateTime)} />
+                <Row label="終了" value={fmt(parsed.endDateTime)} />
+                <Row label="場所" value={parsed.location} />
+                <Row label="詳細" value={parsed.description} />
+              </div>
+              <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+                <button onClick={reset} style={{ background:"transparent", color:"#6b7280", border:"1px solid #222230", cursor:"pointer", fontSize:13, padding:"11px 20px", borderRadius:6 }}>やり直す</button>
+                <button onClick={doAdd} style={{ background:"#4ade80", color:"#0a0a0f", border:"none", cursor:"pointer", fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:14, padding:"11px 24px", borderRadius:6 }}>追加する →</button>
+              </div>
+            </div>
+          )}
+
+          {phase === "adding" && (
+            <div style={{ textAlign:"center", padding:"52px 0" }}>
+              <Dots />
+              <p style={{ color:"#6b7280", fontSize:13, marginTop:16 }}>カレンダーに追加中...</p>
+            </div>
+          )}
+
+          {phase === "done" && (
+            <div style={{ textAlign:"center", padding:"40px 0" }}>
+              <div style={{ fontSize:44, marginBottom:16 }}>🗓️</div>
+              <p style={{ color:"#4ade80", fontFamily:"'Syne',sans-serif", fontSize:18, fontWeight:700, marginBottom:8 }}>追加完了！</p>
+              <p style={{ color:"#6b7280", fontSize:13, marginBottom:28 }}>{msg}</p>
+              <button onClick={reset} style={{ background:"#4ade80", color:"#0a0a0f", border:"none", cursor:"pointer", fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:14, padding:"12px 28px", borderRadius:6 }}>もう一つ追加する</button>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </>
+  );
+}
