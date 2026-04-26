@@ -1,22 +1,48 @@
-@app.route('/update-site', methods=['POST'])
-def handle_update():
-    # ここで生成とアップロードを実行
-    new_content = generate_article_via_api(prompt="最新のニュース")
-    update_index_html(new_content)
-    return "Update Complete!"
-
-
 from flask import Flask, jsonify
 import os
+import ftplib # FTP操作用
 
 app = Flask(__name__)
 
-# トップページの設定（index.htmlを使わず、直接文字を出す）
+# --- 設定情報（環境に合わせて書き換えてください） ---
+FTP_HOST = 'ftp.web.fc2.com'
+FTP_USER = 'あなたのユーザー名'
+FTP_PASS = 'あなたのFTPパスワード'
+
+# 記事を生成する関数（既存のAPI連携ロジックをここに書く）
+def generate_article_via_api(prompt):
+    # ここにAPI（OpenAIやGeminiなど）を叩く処理を書く
+    # 今回はテスト用にダミーテキストを返します
+    return f"<h1>最新ニュース</h1><p>{prompt}に基づいた自動生成記事です。</p>"
+
+# FTPでFC2にアップロードする関数
+def update_index_html(html_content):
+    with open("index.html", "w", encoding="utf-8") as f:
+        f.write(html_content)
+    
+    # FTP接続
+    with ftplib.FTP(FTP_HOST, FTP_USER, FTP_PASS) as ftp:
+        with open("index.html", "rb") as f:
+            ftp.storbinary('STOR index.html', f)
+
+# --- エンドポイント設定 ---
+
 @app.route('/')
 def index():
-    return "<h1>AI Server is Live!</h1><p>予測データは /v1/predict へ</p>"
+    return "<h1>AI Server is Live!</h1><p>更新は /update-site をPOSTしてください</p>"
 
-# 予測データの設定
+# サイト更新用エンドポイント
+@app.route('/update-site', methods=['POST'])
+def handle_update():
+    try:
+        # 1. コンテンツ生成
+        new_content = generate_article_via_api(prompt="最新のニュース")
+        # 2. ファイル書き換えとアップロード
+        update_index_html(new_content)
+        return jsonify({"status": "success", "message": "FC2 site updated!"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/v1/predict')
 def predict():
     return jsonify({
