@@ -1,152 +1,47 @@
-from flask import Flask, jsonify
-import os
-import ftplib # FTP操作用
-
-app = Flask(__name__)
-
-# --- 設定情報（環境に合わせて書き換えてください） ---
-FTP_HOST = 'mikivaluejapan.web.fc2.com'
-FTP_USER = mikivaluejapan'
-FTP_PASS = 'mio3636'
-
-# 記事を生成する関数（既存のAPI連携ロジックをここに書く）
-def generate_article_via_api(prompt):
-    # ここにAPI（OpenAIやGeminiなど）を叩く処理を書く
-    # 今回はテスト用にダミーテキストを返します
-    return f"<h1>最新ニュース</h1><p>{prompt}に基づいた自動生成記事です。</p>"
-
-# FTPでFC2にアップロードする関数
-def update_index_html(html_content):
-    with open("index.html", "w", encoding="utf-8") as f:
-        f.write(html_content)
-    
-    # FTP接続
-    with ftplib.FTP(FTP_HOST, FTP_USER, FTP_PASS) as ftp:
-        with open("index.html", "rb") as f:
-            ftp.storbinary('STOR index.html', f)
-
-# --- エンドポイント設定 ---
-
-@app.route('/')
-def index():
-    return "<h1>AI Server is Live!</h1><p>更新は /update-site をPOSTしてください</p>"
-
-# サイト更新用エンドポイント
-@app.route('/update-site', methods=['POST'])
-def handle_update():
-    try:
-        # 1. コンテンツ生成
-        new_content = generate_article_via_api(prompt="最新のニュース")
-        # 2. ファイル書き換えとアップロード
-        update_index_html(new_content)
-        return jsonify({"status": "success", "message": "FC2 site updated!"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-@app.route('/v1/predict')
-def predict():
-    return jsonify({
-        "status": "success",
-        "prediction": "Bullish",
-        "accuracy": "89.4%"
-    })
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
-
-import requests
-import datetime
-
-# --- 設定（自分のIDを入れる） ---
-RAKUTEN_APP_ID = 'あなたのアプリID' # 楽天ウェブサービスで取得
-AFFILIATE_ID = 'あなたのアフィリエイトID'
-SEARCH_KEYWORD = 'DTM 機材' # 稼ぎたいジャンル
-
-def get_rakuten_items():
-    url = f"https://app.rakuten.co.jp/services/api/IchibaItem/Search/20170706?format=json&keyword={SEARCH_KEYWORD}&applicationId={RAKUTEN_APP_ID}&affiliateId={AFFILIATE_ID}&hits=5&sort=-updateTimestamp"
-    res = requests.get(url)
-    if res.status_code == 200:
-        return res.json()['Items']
-    return []
-
-def generate_html(items):
-    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    item_html = ""
-    for i in items:
-        item = i['Item']
-        item_html += f'''
-        <div class="item">
-            <img src="{item['mediumImageUrls'][0]['imageUrl']}" alt="{item['itemName']}">
-            <h3><a href="{item['affiliateUrl']}" target="_blank">{item['itemName']}</a></h3>
-            <p class="price">価格: {item['itemPrice']}円</p>
-        </div>'''
-
-    html_content = f'''
-    <!DOCTYPE html>
-    <html lang="ja">
-    <head>
-        <meta charset="UTF-8">
-        <title>Micvictory - 自動更新セレクトショップ</title>
-        <style>
-            body {{ font-family: sans-serif; background: #f4f4f4; text-align: center; }}
-            .item {{ background: white; margin: 10px auto; padding: 20px; max-width: 500px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }}
-            img {{ max-width: 150px; }}
-            .price {{ color: #e4393c; font-weight: bold; }}
-        </style>
-    </head>
-    <body>
-        <h1>Micvictory Select Shop</h1>
-        <p>最終更新: {now}</p>
-        {item_html}
-    </body>
-    </html>
-    '''
-    with open('index.html', 'w', encoding='utf-8') as f:
-        f.write(html_content)
-
-if __name__ == "__main__":
-    items = get_rakuten_items()
-    generate_html(items)
-
-
 import os
 import requests
 import base64
 from datetime import datetime
+import google.generativeai as genai
 
-# Renderの金庫から鍵を取り出す
-GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
-GH_TOKEN = os.environ.get("GITHUB_TOKEN")
-REPO = "あなたのユーザー名/mikitan.github.io" # ←ここだけ自分の名前に書き換えてください
+# 設定 (ご主人様の環境に合わせて)
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+REPO_NAME = "mikitan/mikitan.github.io"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 def generate_article():
-    """Geminiに未来予測の記事を書かせる"""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-    prompt = "最新のITトレンドに基づいた、3ヶ月後の未来予測をMarkdown形式で詳しく書いてください。タイトルは『2026年予測：〇〇』としてください。"
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-pro')
     
-    res = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]})
-    return res.json()['candidates'][0]['content']['parts'][0]['text']
+    prompt = "2026年の資産構築とAI自動化に関する専門的なブログ記事を日本語で生成して。Markdown形式で。"
+    response = model.generate_content(prompt)
+    return response.text
 
-def post_to_github(content):
-    """GitHubに記事を保存する"""
-    now = datetime.now().strftime("%Y%m%d_%H%M")
-    path = f"posts/report_{now}.md" # postsフォルダの中に保存
-    url = f"https://api.github.com/repos/{REPO}/contents/{path}"
+def commit_to_github(content):
+    date_str = datetime.now().strftime("%Y%m%d-%H%M")
+    file_path = f"posts/article-{date_str}.md"
+    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{file_path}"
     
-    headers = {"Authorization": f"token {GH_TOKEN}", "Accept": "application/vnd.github.v3+json"}
-    data = {
-        "message": f"Auto update {now}",
-        "content": base64.b64encode(content.encode()).decode()
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
     }
     
-    r = requests.put(url, headers=headers, json=data)
-    if r.status_code == 201:
-        print("成功！記事が投稿されました。")
+    # 内容をBase64エンコード
+    content_base64 = base64.b64encode(content.encode()).decode()
+    
+    data = {
+        "message": f"Auto-post: {date_str}",
+        "content": content_base64,
+        "branch": "main"
+    }
+    
+    res = requests.put(url, headers=headers, json=data)
+    if res.status_code == 201:
+        print(f"成功: {file_path} をコミットしました。")
     else:
-        print(f"失敗：{r.text}")
+        print(f"失敗: {res.json()}")
 
 if __name__ == "__main__":
     article = generate_article()
-    post_to_github(article)
-
+    commit_to_github(article)
