@@ -91,3 +91,38 @@ def update_index():
 if __name__ == "__main__":
     update_index()
 
+
+import os
+import google.generativeai as genai
+from github import Github
+
+# --- 設定（RenderのEnvironment Variablesから取得） ---
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+GH_TOKEN = os.getenv("GH_TOKEN")
+GH_REPO = os.getenv("GH_REPO")
+TARGET_FILE = "index.html"
+
+# --- Gemini設定 ---
+genai.configure(api_key=GEMINI_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash')
+
+def generate_update():
+    prompt = f"{TARGET_FILE}の内容として、2026年の未来予測、社会貢献、収益化のヒントを含むリッチな日本語コンテンツを生成してください。タグはbody内のみ。"
+    response = model.generate_content(prompt)
+    return response.text
+
+def overwrite_file(content):
+    g = Github(GH_TOKEN)
+    repo = g.get_repo(GH_REPO)
+    commit_msg = "System Overwrite: Latest Content"
+    
+    try:
+        contents = repo.get_contents(TARGET_FILE)
+        repo.update_file(contents.path, commit_msg, content, contents.sha)
+    except:
+        repo.create_file(TARGET_FILE, commit_msg, content)
+
+if __name__ == "__main__":
+    new_content = generate_update()
+    overwrite_file(new_content)
+
