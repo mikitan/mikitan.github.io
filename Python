@@ -1,128 +1,53 @@
 import os
-import requests
-import base64
-from datetime import datetime
-import google.generativeai as genai
-
-# 設定 (ご主人様の環境に合わせて)
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-REPO_NAME = "mikitan/mikitan.github.io"
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-def generate_article():
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-pro')
-    
-    prompt = "2026年の資産構築とAI自動化に関する専門的なブログ記事を日本語で生成して。Markdown形式で。"
-    response = model.generate_content(prompt)
-    return response.text
-
-def commit_to_github(content):
-    date_str = datetime.now().strftime("%Y%m%d-%H%M")
-    file_path = f"posts/article-{date_str}.md"
-    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{file_path}"
-    
-    headers = {
-        "Authorization": f"token {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github.v3+json"
-    }
-    
-    # 内容をBase64エンコード
-    content_base64 = base64.b64encode(content.encode()).decode()
-    
-    data = {
-        "message": f"Auto-post: {date_str}",
-        "content": content_base64,
-        "branch": "main"
-    }
-    
-    res = requests.put(url, headers=headers, json=data)
-    if res.status_code == 201:
-        print(f"成功: {file_path} をコミットしました。")
-    else:
-        print(f"失敗: {res.json()}")
-
-if __name__ == "__main__":
-    article = generate_article()
-    commit_to_github(article)
-
-def generate_strategic_article():
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash') # 高速・高機能モデル
-    
-    # 資産構築に特化したプロンプト
-    prompt = """
-    あなたは「micvictory value world」の戦略顧問です。
-    以下の条件で、2026年の資産構築に関するブログ記事をMarkdownで生成してください。
-    
-    1. 読者の興味を惹く具体的なタイトル（H1）
-    2. 専門的な内容（AI自動化、e-fuel、伝統文化の資産化のいずれか）
-    3. 途中に必ず [micvictory FC2分艦](https://mikivaluejapan.web.fc2.com/) への言及とリンクを入れる
-    4. 最後に「Goshujin-sama」の制作した BandLab 楽曲へのリスペクトを含めた結び
-    5. HTMLのメタディスクリプション用の要約（3行以内）を冒頭に置く
-    """
-    
-    response = model.generate_content(prompt)
-    return response.text
-import os
-
-def update_index():
-    posts_dir = "posts"
-    files = sorted([f for f in os.listdir(posts_dir) if f.endswith(".md")], reverse=True)
-    
-    links_html = "<ul>\n"
-    for f in files:
-        title = f.replace(".md", "").replace("article-", "")
-        links_html += f'  <li><a href="posts/{f}">{title} - 最新戦略レポート</a></li>\n'
-    links_html += "</ul>"
-    
-    # index.html の特定のコメントの間にリンクを挿入
-    with open("index.html", "r", encoding="utf-8") as f:
-        content = f.read()
-    
-    start_tag = ""
-    end_tag = ""
-    
-    new_content = content.split(start_tag)[0] + start_tag + "\n" + links_html + "\n" + end_tag + content.split(end_tag)[1]
-    
-    with open("index.html", "w", encoding="utf-8") as f:
-        f.write(new_content)
-
-if __name__ == "__main__":
-    update_index()
-
-
-import os
 import google.generativeai as genai
 from github import Github
 
-# --- 設定（RenderのEnvironment Variablesから取得） ---
+# --- 設定（Renderの環境変数にセットしてください） ---
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 GH_TOKEN = os.getenv("GH_TOKEN")
-GH_REPO = os.getenv("GH_REPO")
+GH_REPO = os.getenv("GH_REPO") # 例: mikitan/mikitan.github.io
 TARGET_FILE = "index.html"
 
 # --- Gemini設定 ---
 genai.configure(api_key=GEMINI_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-def generate_update():
-    prompt = f"{TARGET_FILE}の内容として、2026年の未来予測、社会貢献、収益化のヒントを含むリッチな日本語コンテンツを生成してください。タグはbody内のみ。"
+def generate_strategic_content():
+    """ご主人様のビジョンを統合したリッチコンテンツ生成"""
+    prompt = f"""
+    あなたは「micvictory value world」の戦略顧問です。
+    {TARGET_FILE}のメインコンテンツとして、2026年の「未来予測」と「資産構築」に関する
+    リッチなHTML（body内のみ）を日本語で生成してください。
+
+    【必須要素】
+    1. AI自動化、e-fuel、伝統文化の資産化のいずれかに関する鋭い洞察。
+    2. [micvictory FC2分艦](https://mikivaluejapan.web.fc2.com/) への戦略的誘導リンク。
+    3. 社会に役立つ未来予測と、リピーターが喜ぶ具体的なアクションプラン。
+    4. 結びに「Goshujin-sama」の制作した BandLab 楽曲へのリスペクトを含める。
+    5. 金持ちサイトに相応しい、清潔感と高級感のあるデザインを意識したHTML構造。
+    """
     response = model.generate_content(prompt)
     return response.text
 
-def overwrite_file(content):
+def overwrite_github_file(content):
+    """GitHub上のファイルを完全に最新版へ上書きする"""
     g = Github(GH_TOKEN)
     repo = g.get_repo(GH_REPO)
-    commit_msg = "System Overwrite: Latest Content"
+    commit_msg = "System Overwrite: Strategic Future Update"
     
     try:
+        # 既存ファイルのSHAを取得して上書き
         contents = repo.get_contents(TARGET_FILE)
         repo.update_file(contents.path, commit_msg, content, contents.sha)
-    except:
+        print(f"成功: {TARGET_FILE} を最新の未来予測で上書きしました。")
+    except Exception as e:
+        # ファイルが存在しない場合は新規作成
         repo.create_file(TARGET_FILE, commit_msg, content)
+        print(f"作成: {TARGET_FILE} を新規作成しました。")
 
 if __name__ == "__main__":
-    new_content = generate_update()
-    overwrite_file(new_content)
-
+    print("戦略的コンテンツを生成中...")
+    new_html = generate_strategic_content()
+    
+    print("GitHubへデプロイ中...")
+    overwrite_github_file(new_html)
