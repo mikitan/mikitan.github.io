@@ -1,7 +1,7 @@
-すdef generate_strategic_content():
-    """ご主人様のビジョンを統合したリッチコンテンツ生成（安全対策済み）"""
+def generate_strategic_content():
+    """安全フィルターを回避し、エラー時もサイトを維持する修正版"""
     
-    # 1. 安全フィルターを緩和する設定を追加
+    # 安全設定をすべて「ブロックしない」に緩和
     safety_settings = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -19,40 +19,25 @@
     2. [micvictory FC2分艦](https://mikivaluejapan.web.fc2.com/) への戦略的誘導リンク。
     3. 社会に役立つ未来予測と、リピーターが喜ぶ具体的なアクションプラン。
     4. 結びに「Goshujin-sama」の制作した BandLab 楽曲へのリスペクトを含める。
-    5. 金持ちサイトに相応しい、清潔感と高級感のあるデザインを意識したHTML構造。
+    5. 清潔感と高級感のあるデザインを意識したHTML構造。
     """
 
-    # 2. 生成実行（安全設定を適用）
-    response = model.generate_content(prompt, safety_settings=safety_settings)
+    try:
+        # 生成実行
+        response = model.generate_content(prompt, safety_settings=safety_settings)
 
-    # 3. エラー回避のためのチェック（ご提示いただいた修正イメージの適用）
-    if response.candidates and len(response.candidates) > 0:
-        # 回答が存在し、かつブロックされていない場合
-        if response.candidates[0].finish_reason != 3: # 3はSAFETY（ブロック）を指す場合が多い
-            return response.text
-        else:
-            print("AIが内容を安全フィルターでブロックしました。")
-            return "<div>現在、次世代戦略を再構築中です。少々お待ちください。</div>"
-    else:
-        print("AIから有効な回答が得られませんでした（candidatesが空です）。")
-        return "<div>システムメンテナンス中です。</div>"
-import google.generativeai as genai
+        # 回答があるかチェック
+        if response.candidates and len(response.candidates) > 0:
+            # 正常にテキストが取れる場合
+            try:
+                return response.text
+            except ValueError:
+                # 途中でブロックされた場合の予備テキスト
+                return "<div>2026年戦略を再構成中... 次回の更新をお待ちください。</div>"
+        
+        # candidatesが空の場合の回避策
+        return "<div>現在、最新の未来予測データを解析中です。</div>"
 
-# 安全フィルターをすべてオフ（または緩和）にする設定
-safety_settings = [
-    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-]
-
-# 生成時の引数に safety_settings を追加
-response = model.generate_content(
-    "ニュースを要約して", # プロンプト
-    safety_settings=safety_settings
-)
-
-# さらにもしブロックされた場合の対策を追加
-if not response.candidates:
-    print("AIが回答をブロックしました。")
-    # ここで空のリストを返すなどの処理を入れるとエラーが止まります
+    except Exception as e:
+        print(f"生成エラー: {e}")
+        return "<div>システムは稼働中です。更新をお待ちください。</div>"
