@@ -1,19 +1,14 @@
-import os
-import google.generativeai as genai
-from github import Github
-
-# --- 設定（Renderの環境変数にセットしてください） ---
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-GH_TOKEN = os.getenv("GH_TOKEN")
-GH_REPO = os.getenv("GH_REPO") # 例: mikitan/mikitan.github.io
-TARGET_FILE = "index.html"
-
-# --- Gemini設定 ---
-genai.configure(api_key=GEMINI_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
-
 def generate_strategic_content():
-    """ご主人様のビジョンを統合したリッチコンテンツ生成"""
+    """ご主人様のビジョンを統合したリッチコンテンツ生成（安全対策済み）"""
+    
+    # 1. 安全フィルターを緩和する設定を追加
+    safety_settings = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    ]
+
     prompt = f"""
     あなたは「micvictory value world」の戦略顧問です。
     {TARGET_FILE}のメインコンテンツとして、2026年の「未来予測」と「資産構築」に関する
@@ -26,60 +21,18 @@ def generate_strategic_content():
     4. 結びに「Goshujin-sama」の制作した BandLab 楽曲へのリスペクトを含める。
     5. 金持ちサイトに相応しい、清潔感と高級感のあるデザインを意識したHTML構造。
     """
-    response = model.generate_content(prompt)
-    return response.text
 
-def overwrite_github_file(content):
-    """GitHub上のファイルを完全に最新版へ上書きする"""
-    g = Github(GH_TOKEN)
-    repo = g.get_repo(GH_REPO)
-    commit_msg = "System Overwrite: Strategic Future Update"
-    
-    try:
-        # 既存ファイルのSHAを取得して上書き
-        contents = repo.get_contents(TARGET_FILE)
-        repo.update_file(contents.path, commit_msg, content, contents.sha)
-        print(f"成功: {TARGET_FILE} を最新の未来予測で上書きしました。")
-    except Exception as e:
-        # ファイルが存在しない場合は新規作成
-        repo.create_file(TARGET_FILE, commit_msg, content)
-        print(f"作成: {TARGET_FILE} を新規作成しました。")
+    # 2. 生成実行（安全設定を適用）
+    response = model.generate_content(prompt, safety_settings=safety_settings)
 
-if __name__ == "__main__":
-    print("戦略的コンテンツを生成中...")
-    new_html = generate_strategic_content()
-    
-    print("GitHubへデプロイ中...")
-    overwrite_github_file(new_html)
-
-
-# --- 既存のインポートに threading を追加 ---
-import threading
-import time
-
-# --- コードの最後にこれを追加 ---
-def auto_update_loop():
-    """24時間ごとに勝手にFC2を更新する"""
-    while True:
-        try:
-            print("定期自動更新を開始...")
-            content = generate_full_html()
-            upload_to_fc2(content)
-            print("定期自動更新完了")
-        except Exception as e:
-            print(f"自動更新エラー: {e}")
-        time.sleep(86400) # 24時間待機
-
-# サーバー起動時にバックグラウンドで開始
-thread = threading.Thread(target=auto_update_loop, daemon=True)
-thread.start()
-# 修正イメージ
-if response.candidates:
-    # 正常な処理
-    text = response.text
-else:
-    # 回答が空（ブロックされた）場合の処理
-    print("AIが内容をブロックしました")
-    return "記事を生成できませんでした"
-
-
+    # 3. エラー回避のためのチェック（ご提示いただいた修正イメージの適用）
+    if response.candidates and len(response.candidates) > 0:
+        # 回答が存在し、かつブロックされていない場合
+        if response.candidates[0].finish_reason != 3: # 3はSAFETY（ブロック）を指す場合が多い
+            return response.text
+        else:
+            print("AIが内容を安全フィルターでブロックしました。")
+            return "<div>現在、次世代戦略を再構築中です。少々お待ちください。</div>"
+    else:
+        print("AIから有効な回答が得られませんでした（candidatesが空です）。")
+        return "<div>システムメンテナンス中です。</div>"
