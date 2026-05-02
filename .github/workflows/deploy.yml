@@ -1,1 +1,33 @@
+name: Auto Deploy Mother-Ship
+
+on:
+  push:
+    paths:
+      - 'posts/**'
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update News
+        run: |
+          echo "<h3>【IT最新】</h3>" > news.html
+          curl -s "https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=ja&gl=JP&ceid=JP:ja" | grep -oP '(?<=<title>).*?(?=</title>)' | head -n 4 | sed 's/$/<br>/' >> news.html
+          
+          echo "<h3>【アニメ最新】</h3>" >> news.html
+          curl -s "https://news.google.com/rss/search?q=アニメ&hl=ja&gl=JP&ceid=JP:ja" | grep -oP '(?<=<title>).*?(?=</title>)' | head -n 4 | sed 's/$/<br>/' >> news.html
+
+          cat news.html >> index.html
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
 
