@@ -1,0 +1,34 @@
+name: Auto Deploy Mother-Ship
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # 6時間ごとに自動実行
+  workflow_dispatch:       # 手動で今すぐ実行したい時用
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install google-generativeai
+
+      - name: Run AI Update
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python update_site.py
+
+      - name: Commit and Push
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add index.html
+          git commit -m "24h Auto Update [skip ci]" || exit 0
+          git push
