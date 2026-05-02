@@ -3,83 +3,42 @@ name: Auto Deploy Mother-Ship
 on:
   push:
     paths:
-      - 'posts/**' # postsフォルダに記事が増えたら起動
+      - 'posts/**'        # 記事が増えたら即座に更新
+  schedule:
+    - cron: '0 0 * * *'   # 毎日日本時間AM9:00に自動更新
+  workflow_dispatch:       # ボタン一つでいつでも手動実行可能
 
 jobs:
-  build:
+  build-and-update:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Update Index
+      - name: Update News & Index
         run: |
-          # ここに記事一覧をindex.htmlに反映させるスクリプトを記述可能
-          echo "Updating index.html with latest posts..."
-          ls posts/*.md > list.txt # 簡易的なリスト作成例
+          # 1. ニュース取得（ITとアニメ）
+          echo "<h3>【IT最新】</h3>" > news.html
+          curl -s "https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=ja&gl=JP&ceid=JP:ja" | grep -oP '(?<=<title>).*?(?=</title>)' | head -n 4 | sed 's/$/<br>/' >> news.html
+          
+          echo "<h3>【アニメ最新】</h3>" >> news.html
+          curl -s "https://news.google.com/rss/search?q=アニメ&hl=ja&gl=JP&ceid=JP:ja" | grep -oP '(?<=<title>).*?(?=</title>)' | head -n 4 | sed 's/$/<br>/' >> news.html
+
+          # 2. 記事一覧（postsフォルダ）のリスト作成
+          echo "<h3>【最新記事一覧】</h3>" > list.html
+          ls posts/*.md | sed 's|posts/\(.*\)\.md|<li><a href="posts/\1.html">\1</a></li>|' >> list.html
+
+          # 3. index.html の書き換え（特定のコメントタグの間に流し込む）
+          # ※index.html内に という文字を書いておくと便利です
+          cat news.html list.html > update_content.txt
+          # 簡易的にファイルの末尾に追加するか、sedで置換します
+          # ここでは単純にニュースとリストを結合して反映させる例です
+          cat update_content.txt >> index.html 
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./
-
-name: Daily News Update
-on:
-  schedule:
-    - cron: '0 0 * * *' # 毎日日本時間の午前9時に実行
-  workflow_dispatch: # 手動で今すぐ実行したい時用
-
-jobs:
-  update:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Get News
-        run: |
-          # 例：GoogleニュースのRSSから最新5件を取得してindex.htmlに書き込む簡易コマンド
-          curl -s "https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja" | grep -oP '(?<=<title>).*?(?=</title>)' | head -n 6 > news.txt
-          # ここでindex.htmlを書き換える処理（簡易版）
-          sed -i '//,//c\\n'$(cat news.txt)'\n' index.html
-      - name: Commit and Push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "毎日ニュース更新" || exit 0
-          git push
-
-name: Daily IT & Anime News Update
-on:
-  schedule:
-    - cron: '0 0 * * *' 
-  workflow_dispatch: 
-
-jobs:
-  update:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Get IT and Anime News
-        run: |
-          # ITニュースを取得
-          echo "【IT最新】" > news.txt
-          curl -s "https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=ja&gl=JP&ceid=JP:ja" | grep -oP '(?<=<title>).*?(?=</title>)' | head -n 4 >> news.txt
-          
-          echo -e "\n【アニメ最新】" >> news.txt
-          # アニメニュースを取得
-          curl -s "https://news.google.com/rss/search?q=アニメ&hl=ja&gl=JP&ceid=JP:ja" | grep -oP '(?<=<title>).*?(?=</title>)' | head -n 4 >> news.txt
-          
-          # index.htmlの書き換え
-          # 改行を<br>に変換して流し込む
-          NEWS_CONTENT=$(cat news.txt | sed 's/$/<br>/')
-          sed -i "//,//c\\n${NEWS_CONTENT}\n" index.html
-      - name: Commit and Push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "IT & アニメニュース更新" || exit 0
-          git push
-
-
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
