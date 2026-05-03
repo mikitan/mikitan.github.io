@@ -93,5 +93,86 @@ with open(file_path, "w", encoding="utf-8") as f:
 
 print(f"Report generated: {file_path}")
 
+import requests
+import os
+
+# --- 設定（取得したIDをここに入力） ---
+RAKUTEN_APP_ID = 'あなたの楽天アプリID'
+A8_AD_CODE = 'A8.netからコピーしたバナー/テキスト広告のHTMLコード'
+
+def get_rakuten_item(keyword):
+    """
+    ニュースのキーワードから楽天商品を1つ取得する
+    """
+    url = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20170706"
+    params = {
+        "format": "json",
+        "applicationId": RAKUTEN_APP_ID,
+        "keyword": keyword,
+        "hits": 1,
+        "sort": "affiliateRate", # アフィリエイト率が高い順
+    }
+    
+    try:
+        response = requests.get(url, params=params)
+        data = response.json()
+        if "Items" in data and len(data["Items"]) > 0:
+            item = data["Items"][0]["Item"]
+            item_name = item["itemName"]
+            item_url = item["affiliateUrl"]
+            item_img = item["mediumImageUrls"][0]["imageUrl"]
+            
+            # 読みやすいカード形式のHTMLを生成
+            html = f"""
+            <div style="border: 1px solid #ddd; padding: 10px; border-radius: 8px; margin-top: 20px;">
+                <p style="font-size: 0.8em; color: #666;">おすすめ商品</p>
+                <div style="display: flex; align-items: center;">
+                    <img src="{item_img}" style="width: 100px; margin-right: 15px;">
+                    <a href="{item_url}" target="_blank" style="text-decoration: none; color: #333; font-weight: bold;">{item_name}</a>
+                </div>
+            </div>
+            """
+            return html
+    except Exception as e:
+        print(f"楽天APIエラー: {e}")
+    return ""
+
+def build_content(news_title, news_body):
+    """
+    ニュース本文に広告を合体させる
+    """
+    # 記事タイトルからキーワードを抽出（簡易版）
+    keyword = news_title.split(' ')[0] # タイトルの最初の単語を使用
+    
+    # 楽天商品の取得
+    rakuten_html = get_rakuten_item(keyword)
+    
+    # 全体の構成
+    full_content = f"""
+    <article>
+        <h1>{news_title}</h1>
+        <div class="content">
+            {news_body}
+        </div>
+        
+        <hr>
+        <div class="a8-ad" style="text-align: center; margin: 20px 0;">
+            {A8_AD_CODE}
+        </div>
+        
+        {rakuten_html}
+    </article>
+    """
+    return full_content
+
+# --- 実行イメージ ---
+title = "最新のiPhoneケースが登場"
+body = "本日、新しいデザインのスマートフォンケースが発表されました..."
+final_html = build_content(title, body)
+
+# これをGitHubのファイルとして書き出すロジックに繋げます
+print(final_html)
+
+
 
 
