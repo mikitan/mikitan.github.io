@@ -114,3 +114,64 @@ if __name__ == "__main__":
         f.write(content)
         
     print(f"レポート生成完了: {file_path}")
+
+import os
+import requests
+import json
+from datetime import datetime
+from github import Github
+
+# --- 設定 ---
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+REPO_NAME = "あなたのユーザー名/mikitan.github.io"
+
+# サイトジャンルとキーワード、アフィリエイトIDの定義
+SITES = {
+    "kensho": {"kw": "最新の懸賞・キャンペーン情報", "aff_tag": "A8ネット等のリンク"},
+    "recipe": {"kw": "時短・節約料理レシピ", "aff_tag": "楽天アフィリエイトリンク"},
+    "it_pc": {"kw": "AI・最新ガジェット・Web開発", "aff_tag": "Amazon/楽天リンク"},
+    "gourmet": {"kw": "全国のお取り寄せグルメ・スイーツ", "aff_tag": "バリューコマース等のリンク"}
+}
+
+def generate_affiliate_article(site_key):
+    config = SITES[site_key]
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    
+    prompt = f"""
+    テーマ: {config['kw']}
+    読者が読みたくなるブログ記事を1000文字程度で作成してください。
+    自然な流れで、以下の広告タグに関連する商品やサービスを勧めてください。
+    広告タグ: {config['aff_tag']}
+    出力はMarkdown形式で、1行目は必ずタイトル（# タイトル）にしてください。
+    """
+
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    response = requests.post(url, json=payload)
+    return response.json()['candidates'][0]['content']['parts'][0]['text']
+
+def push_to_hub(site_key, content):
+    g = Github(GITHUB_TOKEN)
+    repo = g.get_repo(REPO_NAME)
+    
+    # サイトごとの最新JSONを更新
+    file_path = f"data/{site_key}_latest.json"
+    title = content.split('\n')[0].replace('# ', '')
+    data = {
+        "title": title,
+        "content": content,
+        "date": datetime.now().strftime('%Y-%m-%d %H:%M')
+    }
+    
+    try:
+        contents = repo.get_contents(file_path, ref="main")
+        repo.update_file(contents.path, f"Update {site_key}", json.dumps(data, ensure_ascii=False), contents.sha)
+    except:
+        repo.create_file(file_path, f"Create {site_key}", json.dumps(data, ensure_ascii=False))
+
+if __name__ == "__main__":
+    for site_key in SITES.keys():
+        print(f"Generating for {site_key}...")
+        article = generate_affiliate_article(site_key)
+        push_to_hub(site_key, article)
+
