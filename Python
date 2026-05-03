@@ -1,178 +1,116 @@
-def generate_strategic_content():
-    """安全フィルターを回避し、エラー時もサイトを維持する修正版"""
-    
-    # 安全設定をすべて「ブロックしない」に緩和
-    safety_settings = [
-        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-    ]
-
-    prompt = f"""
-    あなたは「micvictory value world」の戦略顧問です。
-    {TARGET_FILE}のメインコンテンツとして、2026年の「未来予測」と「資産構築」に関する
-    リッチなHTML（body内のみ）を日本語で生成してください。
-
-    【必須要素】
-    1. AI自動化、e-fuel、伝統文化の資産化のいずれかに関する鋭い洞察。
-    2. [micvictory FC2分艦](https://mikivaluejapan.web.fc2.com/) への戦略的誘導リンク。
-    3. 社会に役立つ未来予測と、リピーターが喜ぶ具体的なアクションプラン。
-    4. 結びに「Goshujin-sama」の制作した BandLab 楽曲へのリスペクトを含める。
-    5. 清潔感と高級感のあるデザインを意識したHTML構造。
-    """
-
-    try:
-        # 生成実行
-        response = model.generate_content(prompt, safety_settings=safety_settings)
-
-        # 回答があるかチェック
-        if response.candidates and len(response.candidates) > 0:
-            # 正常にテキストが取れる場合
-            try:
-                return response.text
-            except ValueError:
-                # 途中でブロックされた場合の予備テキスト
-                return "<div>2026年戦略を再構成中... 次回の更新をお待ちください。</div>"
-        
-        # candidatesが空の場合の回避策
-        return "<div>現在、最新の未来予測データを解析中です。</div>"
-
-    except Exception as e:
-        print(f"生成エラー: {e}")
-        return "<div>システムは稼働中です。更新をお待ちください。</div>"
-
 import os
 import feedparser
-import google.generativeai as genai
+import requests
 from datetime import datetime
+import google.generativeai as genai
 
-# 1. 初期設定（GitHub Secretsに登録したAPIキーを使用）
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+# --- 1. 各種設定（GitHub Secrets等から読み込み） ---
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# 2. ニュース取得（IT・アニメ等のRSS）
+RAKUTEN_APP_ID = os.environ.get('RAKUTEN_APP_ID', 'あなたの楽天アプリID')
+A8_AD_CODE = 'A8.netの広告コード（ここを書き換えてください）'
+
 RSS_URLS = [
     "https://news.google.com/rss/search?q=IT+news+japan&hl=ja&gl=JP&ceid=JP:ja",
     "https://news.google.com/rss/search?q=アニメ+最新&hl=ja&gl=JP&ceid=JP:ja"
 ]
 
-def get_latest_news():
-    news_items = []
-    for url in RSS_URLS:
-        feed = feedparser.parse(url)
-        for entry in feed.entries[:3]: # 各ジャンル3件
-            news_items.append(f"タイトル: {entry.title}\nリンク: {entry.link}")
-    return "\n".join(news_items)
-
-# 3. Geminiによる要約と未来予測（あなたの口調を指示）
-news_content = get_latest_news()
-prompt = f"""
-あなたはIT技術と投資に精通した「戦略家（ストラテジスト）」です。
-以下のニュースを読み、国民が未来に希望を持てるような、鋭くも温かい口調で要約してください。
-
-【ニュース内容】
-{news_content}
-
-【出力構成】
-1. 今日の重要IT・アニメニュース（要約）
-2. 投資と未来へのヒント（成功への戦略）
-3. 一言メッセージ（河内音頭の心や情熱を込めて）
-"""
-
-response = model.generate_content(prompt)
-
-# 4. Markdownファイルとして保存
-today = datetime.now().strftime('%Y-%m-%d')
-file_path = f"posts/{today}.md"
-os.makedirs("posts", exist_ok=True)
-
-with open(file_path, "w", encoding="utf-8") as f:
-    f.write(f"# {today} の戦略レポート\n\n")
-    f.write(response.text)
-
-print(f"Report generated: {file_path}")
-
-import requests
-import os
-
-# --- 設定（取得したIDをここに入力） ---
-RAKUTEN_APP_ID = 'あなたの楽天アプリID'
-A8_AD_CODE = 'A8.netからコピーしたバナー/テキスト広告のHTMLコード'
-
+# --- 2. 収益化ロジック（楽天API連携） ---
 def get_rakuten_item(keyword):
-    """
-    ニュースのキーワードから楽天商品を1つ取得する
-    """
+    """ニュースのキーワードに連動した商品を1つ取得し、HTMLカードを返す"""
     url = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20170706"
     params = {
         "format": "json",
         "applicationId": RAKUTEN_APP_ID,
         "keyword": keyword,
         "hits": 1,
-        "sort": "affiliateRate", # アフィリエイト率が高い順
+        "sort": "affiliateRate",
     }
-    
     try:
         response = requests.get(url, params=params)
         data = response.json()
         if "Items" in data and len(data["Items"]) > 0:
             item = data["Items"][0]["Item"]
-            item_name = item["itemName"]
-            item_url = item["affiliateUrl"]
-            item_img = item["mediumImageUrls"][0]["imageUrl"]
-            
-            # 読みやすいカード形式のHTMLを生成
-            html = f"""
-            <div style="border: 1px solid #ddd; padding: 10px; border-radius: 8px; margin-top: 20px;">
-                <p style="font-size: 0.8em; color: #666;">おすすめ商品</p>
+            # 商品カードのHTML生成
+            return f"""
+            <div style="border: 2px solid #daa520; padding: 15px; border-radius: 10px; margin-top: 30px; background: #fffcf0;">
+                <p style="font-size: 0.9em; color: #b8860b; font-weight: bold; margin-bottom: 10px;">▼ この記事に関連するおすすめ資産</p>
                 <div style="display: flex; align-items: center;">
-                    <img src="{item_img}" style="width: 100px; margin-right: 15px;">
-                    <a href="{item_url}" target="_blank" style="text-decoration: none; color: #333; font-weight: bold;">{item_name}</a>
+                    <img src="{item['mediumImageUrls'][0]['imageUrl']}" style="width: 100px; margin-right: 15px; border-radius: 5px;">
+                    <a href="{item['affiliateUrl']}" target="_blank" style="text-decoration: none; color: #333; font-weight: bold; font-size: 1.1em;">{item['itemName']}</a>
                 </div>
             </div>
             """
-            return html
     except Exception as e:
-        print(f"楽天APIエラー: {e}")
+        print(f"楽天API取得エラー: {e}")
     return ""
 
-def build_content(news_title, news_body):
-    """
-    ニュース本文に広告を合体させる
-    """
-    # 記事タイトルからキーワードを抽出（簡易版）
-    keyword = news_title.split(' ')[0] # タイトルの最初の単語を使用
+# --- 3. ニュース取得と要約生成 ---
+def generate_report():
+    # ニュースの取得
+    news_list = []
+    for url in RSS_URLS:
+        feed = feedparser.parse(url)
+        for entry in feed.entries[:2]: # 各ジャンル2件
+            news_list.append(f"タイトル: {entry.title}\n要約: {entry.summary if 'summary' in entry else entry.title}")
     
-    # 楽天商品の取得
-    rakuten_html = get_rakuten_item(keyword)
+    news_content = "\n\n".join(news_list)
+
+    # Geminiによる戦略的分析
+    prompt = f"""
+    あなたはITと投資の戦略家です。以下のニュースを読み、「micvictory value world」の読者に向けた戦略レポートを作成してください。
     
-    # 全体の構成
-    full_content = f"""
-    <article>
-        <h1>{news_title}</h1>
-        <div class="content">
-            {news_body}
-        </div>
-        
-        <hr>
-        <div class="a8-ad" style="text-align: center; margin: 20px 0;">
-            {A8_AD_CODE}
-        </div>
-        
-        {rakuten_html}
-    </article>
+    【ニュース】
+    {news_content}
+    
+    【構成要件】
+    1. ニュースの鋭い分析（IT・アニメの動向）
+    2. 投資と未来へのヒント（河内音頭の情熱を込めて）
+    3. 読者が取るべきアクションプラン
+    4. 結びの言葉（BandLabの楽曲制作に触れる）
+    
+    ※HTML形式ではなく、Markdown形式の本文を出力してください。
     """
-    return full_content
+    
+    response = model.generate_content(prompt)
+    report_body = response.text
+    
+    # 代表的なキーワードで楽天商品を検索（ニュースタイトルから抽出）
+    search_keyword = news_list[0].split(':')[1].strip()[:10] if news_list else "IT 投資"
+    rakuten_html = get_rakuten_item(search_keyword)
+    
+    # 最終的なコンテンツの組み立て
+    today = datetime.now().strftime('%Y-%m-%d')
+    full_markdown = f"""
+# {today} の戦略レポート
 
-# --- 実行イメージ ---
-title = "最新のiPhoneケースが登場"
-body = "本日、新しいデザインのスマートフォンケースが発表されました..."
-final_html = build_content(title, body)
+{report_body}
 
-# これをGitHubのファイルとして書き出すロジックに繋げます
-print(final_html)
+---
 
+## 💡 収益化・支援セクション
 
+<div style="text-align: center; margin: 30px 0;">
+    <p style="font-size: 0.8em; color: #888;">スポンサーリンク</p>
+    {A8_AD_CODE}
+</div>
 
+{rakuten_html}
 
+---
+[戦略的分艦（FC2）へ移動](https://mikivaluejapan.web.fc2.com/)
+"""
+    return full_markdown, today
+
+# --- 4. 実行と保存 ---
+if __name__ == "__main__":
+    content, date_str = generate_report()
+    
+    os.makedirs("posts", exist_ok=True)
+    file_path = f"posts/{date_str}.md"
+    
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(content)
+        
+    print(f"レポート生成完了: {file_path}")
