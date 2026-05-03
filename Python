@@ -41,3 +41,57 @@ def generate_strategic_content():
     except Exception as e:
         print(f"生成エラー: {e}")
         return "<div>システムは稼働中です。更新をお待ちください。</div>"
+
+import os
+import feedparser
+import google.generativeai as genai
+from datetime import datetime
+
+# 1. 初期設定（GitHub Secretsに登録したAPIキーを使用）
+genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+model = genai.GenerativeModel('gemini-1.5-flash')
+
+# 2. ニュース取得（IT・アニメ等のRSS）
+RSS_URLS = [
+    "https://news.google.com/rss/search?q=IT+news+japan&hl=ja&gl=JP&ceid=JP:ja",
+    "https://news.google.com/rss/search?q=アニメ+最新&hl=ja&gl=JP&ceid=JP:ja"
+]
+
+def get_latest_news():
+    news_items = []
+    for url in RSS_URLS:
+        feed = feedparser.parse(url)
+        for entry in feed.entries[:3]: # 各ジャンル3件
+            news_items.append(f"タイトル: {entry.title}\nリンク: {entry.link}")
+    return "\n".join(news_items)
+
+# 3. Geminiによる要約と未来予測（あなたの口調を指示）
+news_content = get_latest_news()
+prompt = f"""
+あなたはIT技術と投資に精通した「戦略家（ストラテジスト）」です。
+以下のニュースを読み、国民が未来に希望を持てるような、鋭くも温かい口調で要約してください。
+
+【ニュース内容】
+{news_content}
+
+【出力構成】
+1. 今日の重要IT・アニメニュース（要約）
+2. 投資と未来へのヒント（成功への戦略）
+3. 一言メッセージ（河内音頭の心や情熱を込めて）
+"""
+
+response = model.generate_content(prompt)
+
+# 4. Markdownファイルとして保存
+today = datetime.now().strftime('%Y-%m-%d')
+file_path = f"posts/{today}.md"
+os.makedirs("posts", exist_ok=True)
+
+with open(file_path, "w", encoding="utf-8") as f:
+    f.write(f"# {today} の戦略レポート\n\n")
+    f.write(response.text)
+
+print(f"Report generated: {file_path}")
+
+
+
