@@ -1,206 +1,83 @@
 import os
-import feedparser
-import requests
-from datetime import datetime
-import google.generativeai as genai
-
-# --- 1. 各種設定（GitHub Secrets等から読み込み） ---
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-1.5-flash')
-
-RAKUTEN_APP_ID = os.environ.get('RAKUTEN_APP_ID', 'あなたの楽天アプリID')
-A8_AD_CODE = 'A8.netの広告コード（ここを書き換えてください）'
-
-RSS_URLS = [
-    "https://news.google.com/rss/search?q=IT+news+japan&hl=ja&gl=JP&ceid=JP:ja",
-    "https://news.google.com/rss/search?q=アニメ+最新&hl=ja&gl=JP&ceid=JP:ja"
-]
-
-# --- 2. 収益化ロジック（楽天API連携） ---
-def get_rakuten_item(keyword):
-    """ニュースのキーワードに連動した商品を1つ取得し、HTMLカードを返す"""
-    url = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20170706"
-    params = {
-        "format": "json",
-        "applicationId": RAKUTEN_APP_ID,
-        "keyword": keyword,
-        "hits": 1,
-        "sort": "affiliateRate",
-    }
-    try:
-        response = requests.get(url, params=params)
-        data = response.json()
-        if "Items" in data and len(data["Items"]) > 0:
-            item = data["Items"][0]["Item"]
-            # 商品カードのHTML生成
-            return f"""
-            <div style="border: 2px solid #daa520; padding: 15px; border-radius: 10px; margin-top: 30px; background: #fffcf0;">
-                <p style="font-size: 0.9em; color: #b8860b; font-weight: bold; margin-bottom: 10px;">▼ この記事に関連するおすすめ資産</p>
-                <div style="display: flex; align-items: center;">
-                    <img src="{item['mediumImageUrls'][0]['imageUrl']}" style="width: 100px; margin-right: 15px; border-radius: 5px;">
-                    <a href="{item['affiliateUrl']}" target="_blank" style="text-decoration: none; color: #333; font-weight: bold; font-size: 1.1em;">{item['itemName']}</a>
-                </div>
-            </div>
-            """
-    except Exception as e:
-        print(f"楽天API取得エラー: {e}")
-    return ""
-
-# --- 3. ニュース取得と要約生成 ---
-def generate_report():
-    # ニュースの取得
-    news_list = []
-    for url in RSS_URLS:
-        feed = feedparser.parse(url)
-        for entry in feed.entries[:2]: # 各ジャンル2件
-            news_list.append(f"タイトル: {entry.title}\n要約: {entry.summary if 'summary' in entry else entry.title}")
-    
-    news_content = "\n\n".join(news_list)
-
-    # Geminiによる戦略的分析
-    prompt = f"""
-    あなたはITと投資の戦略家です。以下のニュースを読み、「micvictory value world」の読者に向けた戦略レポートを作成してください。
-    
-    【ニュース】
-    {news_content}
-    
-    【構成要件】
-    1. ニュースの鋭い分析（IT・アニメの動向）
-    2. 投資と未来へのヒント（河内音頭の情熱を込めて）
-    3. 読者が取るべきアクションプラン
-    4. 結びの言葉（BandLabの楽曲制作に触れる）
-    
-    ※HTML形式ではなく、Markdown形式の本文を出力してください。
-    """
-    
-    response = model.generate_content(prompt)
-    report_body = response.text
-    
-    # 代表的なキーワードで楽天商品を検索（ニュースタイトルから抽出）
-    search_keyword = news_list[0].split(':')[1].strip()[:10] if news_list else "IT 投資"
-    rakuten_html = get_rakuten_item(search_keyword)
-    
-    # 最終的なコンテンツの組み立て
-    today = datetime.now().strftime('%Y-%m-%d')
-    full_markdown = f"""
-# {today} の戦略レポート
-
-{report_body}
-
----
-
-## 💡 収益化・支援セクション
-
-<div style="text-align: center; margin: 30px 0;">
-    <p style="font-size: 0.8em; color: #888;">スポンサーリンク</p>
-    {A8_AD_CODE}
-</div>
-
-{rakuten_html}
-
----
-[戦略的分艦（FC2）へ移動](https://mikivaluejapan.web.fc2.com/)
-"""
-    return full_markdown, today
-
-# --- 4. 実行と保存 ---
-if __name__ == "__main__":
-    content, date_str = generate_report()
-    
-    os.makedirs("posts", exist_ok=True)
-    file_path = f"posts/{date_str}.md"
-    
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write(content)
-        
-    print(f"レポート生成完了: {file_path}")
-
-import os
 import requests
 import json
 from datetime import datetime
-from github import Github
+from ftplib import FTP_TLS # 安全な暗号化通信を使用
 
-# --- 設定 ---
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-REPO_NAME = "あなたのユーザー名/mikitan.github.io"
+# --- 1. 設定（あなたの情報に書き換えてください） ---
+GEMINI_API_KEY = "あなたのGemini APIキー"
+# FTP接続情報
+FTP_HOST = "ご自身のFTPホスト名"  # 例: user.web.fc2.com
+FTP_USER = "ユーザー名"
+FTP_PASS = "パスワード"
 
-# サイトジャンルとキーワード、アフィリエイトIDの定義
-SITES = {
-    "kensho": {"kw": "最新の懸賞・キャンペーン情報", "aff_tag": "A8ネット等のリンク"},
-    "recipe": {"kw": "時短・節約料理レシピ", "aff_tag": "楽天アフィリエイトリンク"},
-    "it_pc": {"kw": "AI・最新ガジェット・Web開発", "aff_tag": "Amazon/楽天リンク"},
-    "gourmet": {"kw": "全国のお取り寄せグルメ・スイーツ", "aff_tag": "バリューコマース等のリンク"}
-}
+# ターゲットサイトの設定
+SITE_KW = "AI・最新ガジェット・Web開発"
+AFF_TAG = "あなたの楽天・A8等のアフィリエイトリンク"
 
-def generate_affiliate_article(site_key):
-    config = SITES[site_key]
+# --- 2. Geminiで記事（HTML）を生成する関数 ---
+def generate_article_html():
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
     
     prompt = f"""
-    テーマ: {config['kw']}
-    読者が読みたくなるブログ記事を1000文字程度で作成してください。
-    自然な流れで、以下の広告タグに関連する商品やサービスを勧めてください。
-    広告タグ: {config['aff_tag']}
-    出力はMarkdown形式で、1行目は必ずタイトル（# タイトル）にしてください。
+    テーマ: {SITE_KW}
+    アフィリエイトブログ記事をHTML形式で作成してください。
+    必ず以下の広告タグを自然な形で含めてください。
+    広告タグ: {AFF_TAG}
+    
+    【要件】
+    - <body>タグの内側のみを出力してください。
+    - デザインは黒を基調としたクールなスタイルにしてください。
+    - 情熱的な口調（河内音頭のような熱量）を少し混ぜてください。
     """
 
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    response = requests.post(url, json=payload)
-    return response.json()['candidates'][0]['content']['parts'][0]['text']
-
-def push_to_hub(site_key, content):
-    g = Github(GITHUB_TOKEN)
-    repo = g.get_repo(REPO_NAME)
-    
-    # サイトごとの最新JSONを更新
-    file_path = f"data/{site_key}_latest.json"
-    title = content.split('\n')[0].replace('# ', '')
-    data = {
-        "title": title,
-        "content": content,
-        "date": datetime.now().strftime('%Y-%m-%d %H:%M')
-    }
-    
     try:
-        contents = repo.get_contents(file_path, ref="main")
-        repo.update_file(contents.path, f"Update {site_key}", json.dumps(data, ensure_ascii=False), contents.sha)
-    except:
-        repo.create_file(file_path, f"Create {site_key}", json.dumps(data, ensure_ascii=False))
-
-if __name__ == "__main__":
-    for site_key in SITES.keys():
-        print(f"Generating for {site_key}...")
-        article = generate_affiliate_article(site_key)
-        push_to_hub(site_key, article)
-
-from ftplib import FTP
-
-def upload_to_server():
-    # サーバーの接続情報
-    host = "ご自身のFTPホスト名"  # 例: user.web.fc2.com
-    user = "ユーザー名"
-    password = "パスワード"
-    
-    # アップロードしたいファイル名
-    filename = "index.html" 
-
-    try:
-        # 接続開始
-        with FTP(host) as ftp:
-            ftp.login(user=user, passwd=password)
-            
-            # バイナリモードでファイルを送る
-            with open(filename, "rb") as f:
-                ftp.storbinary(f"STOR {filename}", f)
-            
-            print(f"成功: {filename} をアップロードしました。")
-            
+        response = requests.post(url, json=payload)
+        # Geminiの回答からテキストを抽出
+        article_content = response.json()['candidates'][0]['content']['parts'][0]['text']
+        return article_content
     except Exception as e:
-        print(f"エラーが発生しました: {e}")
+        print(f"記事生成エラー: {e}")
+        return None
 
+# --- 3. サーバーにアップロード（書き込み）する関数 ---
+def upload_to_fc2(html_content):
+    filename = "index.html" # サーバー上のファイル名
+    
+    # 一時的にスマホ内に保存
+    with open(filename, "w", encoding="utf-8") as f:
+        # 簡易的なHTMLテンプレートに流し込む
+        full_html = f"""<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><title>Strategic Report</title></head>
+<body style="background-color: #1a1a1a; color: #ffffff; padding: 20px;">
+{html_content}
+<hr>
+<p>Updated: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+</body>
+</html>"""
+        f.write(full_html)
+
+    # FTP転送（暗号化通信）
+    try:
+        print(f"{FTP_HOST} に接続中...")
+        with FTP_TLS(FTP_HOST) as ftps:
+            ftps.login(user=FTP_USER, passwd=FTP_PASS)
+            ftps.prot_p() # 通信を暗号化
+            
+            with open(filename, "rb") as f:
+                ftps.storbinary(f"STOR {filename}", f)
+            
+            print(f"成功: {filename} を更新しました。")
+    except Exception as e:
+        print(f"FTP転送エラー: {e}")
+
+# --- 4. 実行 ---
 if __name__ == "__main__":
-    upload_to_server()
-
-
+    print("記事を生成しています...")
+    new_article = generate_article_html()
+    
+    if new_article:
+        print("サーバーへアップロードを開始します...")
+        upload_to_fc2(new_article)
