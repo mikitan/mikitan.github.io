@@ -2,82 +2,88 @@ import os
 import requests
 import json
 from datetime import datetime
-from ftplib import FTP_TLS # 安全な暗号化通信を使用
+from ftplib import FTP_TLS
 
-# --- 1. 設定（あなたの情報に書き換えてください） ---
+# --- 1. 設定 ---
 GEMINI_API_KEY = "あなたのGemini APIキー"
-# FTP接続情報
-FTP_HOST = "ご自身のFTPホスト名"  # 例: user.web.fc2.com
+FTP_HOST = "ご自身のFTPホスト名"
 FTP_USER = "ユーザー名"
 FTP_PASS = "パスワード"
 
-# ターゲットサイトの設定
-SITE_KW = "AI・最新ガジェット・Web開発"
-AFF_TAG = "あなたの楽天・A8等のアフィリエイトリンク"
+# 【追加】MICVICTORY戦略設定
+SITE_KW = "大阪・堺のデニムブランド, ITオートメーション, スワロフスキー・カスタム"
+CATALOG_URL = "https://mikitan.github.io/micvictory/catalog_2026.pdf" # PDFカタログ
+CONSULTING_URL = "http://mikivaluejapan.web.fc2.com/" # 相談窓口
 
-# --- 2. Geminiで記事（HTML）を生成する関数 ---
+# --- 2. Geminiで「戦略的記事」を生成する関数 ---
 def generate_article_html():
+    # モデルを最新の 1.5-flash に指定
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
     
+    # 【1.2 付け足し】プロンプトにブランド戦略を組み込む
     prompt = f"""
     テーマ: {SITE_KW}
-    アフィリエイトブログ記事をHTML形式で作成してください。
-    必ず以下の広告タグを自然な形で含めてください。
-    広告タグ: {AFF_TAG}
+    ブランド名: MICVICTORY POME. (ミックビクトリー・ポメ)
     
-    【要件】
-    - <body>タグの内側のみを出力してください。
-    - デザインは黒を基調としたクールなスタイルにしてください。
-    - 情熱的な口調（河内音頭のような熱量）を少し混ぜてください。
+    以下のリンクを必ず含めて、戦略的なアピール記事をHTML形式で作成してください。
+    - 最新PDFカタログ: {CATALOG_URL}
+    - カスタム相談窓口: {CONSULTING_URL}
+    
+    【構成要件】
+    1. 「堺の職人魂 × Pythonによる自動化」がいかに成功を生むかの論理的説明。
+    2. 2026年サマーコレクション（デニム羽織、ジュエリー）の紹介。
+    3. 読者の「成功」を鼓舞する情熱的な口調（河内音頭のような勢い）。
+    4. <body>タグ内のみ出力。デザインは「紺(Navy)」と「金(Gold)」を基調にすること。
     """
 
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     try:
         response = requests.post(url, json=payload)
-        # Geminiの回答からテキストを抽出
         article_content = response.json()['candidates'][0]['content']['parts'][0]['text']
+        # Markdownのデコレーション(```html等)を削除するクリーンアップ
+        article_content = article_content.replace('```html', '').replace('```', '')
         return article_content
     except Exception as e:
         print(f"記事生成エラー: {e}")
         return None
 
-# --- 3. サーバーにアップロード（書き込み）する関数 ---
+# --- 3. アップロード関数 (修正なし) ---
 def upload_to_fc2(html_content):
-    filename = "index.html" # サーバー上のファイル名
-    
-    # 一時的にスマホ内に保存
+    filename = "index.html"
     with open(filename, "w", encoding="utf-8") as f:
-        # 簡易的なHTMLテンプレートに流し込む
+        # MICVICTORYのブランドカラー（紺 #1a2a44）を背景に設定
         full_html = f"""<!DOCTYPE html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>Strategic Report</title></head>
-<body style="background-color: #1a1a1a; color: #ffffff; padding: 20px;">
-{html_content}
-<hr>
-<p>Updated: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+<head>
+    <meta charset="UTF-8">
+    <title>MICVICTORY POME. | Strategic Update</title>
+    <style>
+        body {{ background-color: #1a2a44; color: #ffffff; font-family: sans-serif; line-height: 1.8; }}
+        a {{ color: #d4af37; font-weight: bold; }} /* 金色のリンク */
+        .container {{ max-width: 800px; margin: auto; padding: 40px; border: 1px solid #d4af37; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        {html_content}
+        <hr style="border-color: #d4af37;">
+        <p style="text-align: center;">Last Automated Update: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+    </div>
 </body>
 </html>"""
         f.write(full_html)
 
-    # FTP転送（暗号化通信）
     try:
-        print(f"{FTP_HOST} に接続中...")
         with FTP_TLS(FTP_HOST) as ftps:
             ftps.login(user=FTP_USER, passwd=FTP_PASS)
-            ftps.prot_p() # 通信を暗号化
-            
+            ftps.prot_p()
             with open(filename, "rb") as f:
                 ftps.storbinary(f"STOR {filename}", f)
-            
-            print(f"成功: {filename} を更新しました。")
+            print(f"成功: MICVICTORY公式ページを更新しました。")
     except Exception as e:
         print(f"FTP転送エラー: {e}")
 
-# --- 4. 実行 ---
 if __name__ == "__main__":
-    print("記事を生成しています...")
     new_article = generate_article_html()
-    
     if new_article:
-        print("サーバーへアップロードを開始します...")
         upload_to_fc2(new_article)
