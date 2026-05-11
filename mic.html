@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐾 ポメラニアン椅子取りゲーム</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@400;700&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap');
+
+  :root {
+    --cream: #FFF8F0;
+    --peach: #FFD4A8;
+    --orange: #FF8C42;
+    --warm: #FF6B35;
+    --brown: #5C3317;
+    --soft: #FFE4C4;
+    --pink: #FFB6C1;
+    --chair-color: #8B5E3C;
+    --grass: #7CC87A;
+    --sky: #B8E4FF;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    background: var(--sky);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Sky background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(180deg, #B8E4FF 0%, #D4F0FF 40%, #E8F8E8 70%, #7CC87A 100%);
+    z-index: -2;
+  }
+
+  /* Clouds */
+  .cloud {
+    position: fixed;
+    background: white;
+    border-radius: 50px;
+    opacity: 0.85;
+    z-index: -1;
+  }
+  .cloud::before, .cloud::after {
+    content: '';
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+  }
+  .c1 { width: 120px; height: 40px; top: 8%; left: -130px; animation: floatCloud 18s linear infinite; }
+  .c1::before { width: 60px; height: 60px; top: -30px; left: 15px; }
+  .c1::after { width: 45px; height: 45px; top: -22px; left: 50px; }
+  .c2 { width: 90px; height: 30px; top: 20%; left: -100px; animation: floatCloud 25s linear infinite 8s; }
+  .c2::before { width: 45px; height: 45px; top: -22px; left: 10px; }
+  .c2::after { width: 35px; height: 35px; top: -18px; left: 38px; }
+  .c3 { width: 150px; height: 45px; top: 5%; left: -160px; animation: floatCloud 20s linear infinite 4s; }
+  .c3::before { width: 70px; height: 70px; top: -35px; left: 20px; }
+  .c3::after { width: 55px; height: 55px; top: -28px; left: 65px; }
+
+  @keyframes floatCloud {
+    from { transform: translateX(0); }
+    to { transform: translateX(calc(100vw + 200px)); }
+  }
+
+  /* Title */
+  h1 {
+    font-family: 'Kaisei Decol', serif;
+    font-size: clamp(1.4rem, 4vw, 2rem);
+    color: var(--brown);
+    text-shadow: 3px 3px 0 rgba(255,140,66,0.4);
+    margin: 16px 0 6px;
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+
+  /* Status bar */
+  #status-bar {
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(8px);
+    border-radius: 20px;
+    padding: 8px 24px;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    font-weight: 700;
+    color: var(--brown);
+    font-size: 0.95rem;
+    box-shadow: 0 4px 16px rgba(92,51,23,0.12);
+    margin-bottom: 10px;
+    border: 2px solid rgba(255,140,66,0.3);
+  }
+
+  .stat { display: flex; align-items: center; gap: 6px; }
+  .stat-icon { font-size: 1.2em; }
+
+  /* Game arena */
+  #arena {
+    position: relative;
+    width: min(600px, 96vw);
+    height: min(440px, 56vw);
+    min-height: 300px;
+    background: radial-gradient(ellipse at 50% 80%, #5db85b 0%, #7CC87A 50%, #6ab568 100%);
+    border-radius: 40px;
+    border: 4px solid rgba(255,255,255,0.6);
+    box-shadow: 0 8px 32px rgba(92,51,23,0.2), inset 0 2px 8px rgba(255,255,255,0.3);
+    overflow: hidden;
+  }
+
+  /* Grass texture */
+  #arena::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 8px,
+      rgba(255,255,255,0.04) 8px,
+      rgba(255,255,255,0.04) 16px
+    );
+    border-radius: 36px;
+    pointer-events: none;
+  }
+
+  /* CHAIR */
+  .chair {
+    position: absolute;
+    width: 54px;
+    height: 54px;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    transition: transform 0.15s;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.25));
+    z-index: 2;
+  }
+
+  .chair:hover { transform: translate(-50%, -50%) scale(1.1); }
+  .chair.occupied { filter: drop-shadow(2px 4px 6px rgba(255,107,53,0.5)); }
+
+  .chair svg { width: 100%; height: 100%; }
+
+  /* POMERANIAN */
+  .pom {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    transform: translate(-50%, -50%);
+    transition: left 0.3s cubic-bezier(.34,1.56,.64,1), top 0.3s cubic-bezier(.34,1.56,.64,1);
+    z-index: 3;
+    cursor: default;
+    filter: drop-shadow(1px 3px 4px rgba(0,0,0,0.2));
+  }
+
+  .pom.running {
+    animation: pomBounce 0.4s ease-in-out infinite alternate;
+  }
+  .pom.eliminated {
+    animation: pomSad 0.5s ease forwards;
+  }
+  .pom.winner {
+    animation: pomWin 0.6s ease-in-out infinite alternate;
+  }
+
+  @keyframes pomBounce {
+    from { transform: translate(-50%, -50%) rotate(-5deg) scale(1); }
+    to   { transform: translate(-50%, -50%) rotate(5deg) scale(1.06); }
+  }
+  @keyframes pomSad {
+    0%   { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    30%  { transform: translate(-50%, -50%) scale(1.2) rotate(20deg); }
+    100% { transform: translate(-50%, -150%) scale(0.5) rotate(180deg); opacity: 0; }
+  }
+  @keyframes pomWin {
+    from { transform: translate(-50%, -50%) scale(1) rotate(-8deg); }
+    to   { transform: translate(-50%, -60%) scale(1.15) rotate(8deg); }
+  }
+
+  /* Controls */
+  #controls {
+    display: flex;
+    gap: 12px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  button {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 800;
+    font-size: 1rem;
+    padding: 12px 28px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.18s;
+    letter-spacing: 0.03em;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.18);
+  }
+
+  button:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.18); }
+
+  #btn-start {
+    background: linear-gradient(135deg, #FF8C42, #FF6B35);
+    color: white;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+  }
+  #btn-start:hover { background: linear-gradient(135deg, #FF9D5A, #FF7D4A); transform: translateY(-1px); box-shadow: 0 5px 0 rgba(0,0,0,0.18); }
+
+  #btn-stop {
+    background: linear-gradient(135deg, #FFB347, #FF8C00);
+    color: white;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+    display: none;
+  }
+  #btn-stop:hover { transform: translateY(-1px); box-shadow: 0 5px 0 rgba(0,0,0,0.18); }
+
+  #btn-reset {
+    background: linear-gradient(135deg, #e8e8e8, #cfcfcf);
+    color: #555;
+  }
+  #btn-reset:hover { transform: translateY(-1px); box-shadow: 0 5px 0 rgba(0,0,0,0.18); }
+
+  /* Message overlay */
+  #message {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,248,240,0.88);
+    backdrop-filter: blur(6px);
+    border-radius: 36px;
+    z-index: 10;
+    text-align: center;
+    padding: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s;
+  }
+  #message.show { opacity: 1; pointer-events: all; }
+
+  #message .msg-icon { font-size: 3.5rem; margin-bottom: 8px; }
+  #message .msg-text { font-size: 1.5rem; font-weight: 800; color: var(--brown); line-height: 1.4; }
+  #message .msg-sub  { font-size: 1rem; color: #a06535; margin-top: 6px; }
+
+  /* Music notes floating */
+  .note {
+    position: fixed;
+    font-size: 1.4rem;
+    pointer-events: none;
+    z-index: 100;
+    animation: floatNote 2s ease-out forwards;
+  }
+  @keyframes floatNote {
+    0%   { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-80px) scale(0.6) rotate(30deg); }
+  }
+
+  /* Sparkle */
+  .sparkle {
+    position: absolute;
+    font-size: 1.2rem;
+    pointer-events: none;
+    animation: sparkleAnim 0.8s ease-out forwards;
+    z-index: 20;
+  }
+  @keyframes sparkleAnim {
+    0%   { opacity: 1; transform: scale(0.5); }
+    50%  { opacity: 1; transform: scale(1.4); }
+    100% { opacity: 0; transform: scale(0.8) translateY(-20px); }
+  }
+
+  /* Pom name tag */
+  .pom-name {
+    position: absolute;
+    bottom: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.55rem;
+    font-weight: 700;
+    color: var(--brown);
+    background: rgba(255,255,255,0.9);
+    border-radius: 6px;
+    padding: 1px 4px;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+</style>
+</head>
+<body>
+
+<div class="cloud c1"></div>
+<div class="cloud c2"></div>
+<div class="cloud c3"></div>
+
+<h1>🐾 ポメラニアン椅子取りゲーム 🐾</h1>
+
+<div id="status-bar">
+  <div class="stat"><span class="stat-icon">🐕</span><span id="stat-poms">6匹</span></div>
+  <div class="stat"><span class="stat-icon">🪑</span><span id="stat-chairs">5脚</span></div>
+  <div class="stat"><span class="stat-icon">🎵</span><span id="stat-music">待機中</span></div>
+</div>
+
+<div id="arena">
+  <div id="message">
+    <div class="msg-icon" id="msg-icon">🐾</div>
+    <div class="msg-text" id="msg-text">ポメラニアン椅子取りゲーム！</div>
+    <div class="msg-sub" id="msg-sub">「スタート」を押して始めよう♪</div>
+  </div>
+</div>
+
+<div id="controls">
+  <button id="btn-start">🎵 音楽スタート</button>
+  <button id="btn-stop">🛑 音楽ストップ！</button>
+  <button id="btn-reset">🔄 リセット</button>
+</div>
+
+<script>
+const POM_NAMES = ['もも','ゆき','はな','くり','ぽん','こむ','めろ','ふわ'];
+const POM_COLORS = ['#FF9D5A','#F5CBA7','#FFD700','#FFA07A','#E8D5B7','#FFDAB9','#FFB347','#FFF0D4'];
+
+// SVG helpers
+function chairSVG() {
+  return `<svg viewBox="0 0 54 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- seat -->
+    <rect x="8" y="22" width="38" height="10" rx="5" fill="#8B5E3C"/>
+    <rect x="10" y="24" width="34" height="6" rx="3" fill="#A0714F"/>
+    <!-- back -->
+    <rect x="10" y="8" width="34" height="16" rx="5" fill="#8B5E3C"/>
+    <rect x="12" y="10" width="30" height="12" rx="3" fill="#A0714F"/>
+    <!-- legs -->
+    <rect x="10" y="32" width="5" height="16" rx="2.5" fill="#6B4226"/>
+    <rect x="39" y="32" width="5" height="16" rx="2.5" fill="#6B4226"/>
+    <!-- feet -->
+    <ellipse cx="12.5" cy="47" rx="5" ry="3" fill="#5C3317"/>
+    <ellipse cx="41.5" cy="47" rx="5" ry="3" fill="#5C3317"/>
+  </svg>`;
+}
+
+function pomSVG(color) {
+  return `<svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- fluffy body -->
+    <ellipse cx="26" cy="32" rx="16" ry="13" fill="${color}"/>
+    <!-- fur spikes body -->
+    <ellipse cx="14" cy="28" rx="6" ry="5" fill="${color}"/>
+    <ellipse cx="38" cy="28" rx="6" ry="5" fill="${color}"/>
+    <ellipse cx="20" cy="20" rx="7" ry="6" fill="${color}"/>
+    <ellipse cx="32" cy="20" rx="7" ry="6" fill="${color}"/>
+    <!-- head -->
+    <ellipse cx="26" cy="20" rx="12" ry="11" fill="${color}"/>
+    <!-- ear fur -->
+    <ellipse cx="16" cy="12" rx="5" ry="6" fill="${color}" transform="rotate(-15 16 12)"/>
+    <ellipse cx="36" cy="12" rx="5" ry="6" fill="${color}" transform="rotate(15 36 12)"/>
+    <!-- inner ear -->
+    <ellipse cx="16" cy="13" rx="3" ry="4" fill="#FFB6C1" transform="rotate(-15 16 13)"/>
+    <ellipse cx="36" cy="13" rx="3" ry="4" fill="#FFB6C1" transform="rotate(15 36 13)"/>
+    <!-- face -->
+    <ellipse cx="21" cy="20" rx="3" ry="3.5" fill="white"/>
+    <ellipse cx="31" cy="20" rx="3" ry="3.5" fill="white"/>
+    <ellipse cx="21.5" cy="21" rx="1.8" ry="2" fill="#2C1810"/>
+    <ellipse cx="31.5" cy="21" rx="1.8" ry="2" fill="#2C1810"/>
+    <!-- eye shine -->
+    <ellipse cx="22.2" cy="20.3" rx="0.7" ry="0.7" fill="white"/>
+    <ellipse cx="32.2" cy="20.3" rx="0.7" ry="0.7" fill="white"/>
+    <!-- nose -->
+    <ellipse cx="26" cy="25" rx="2.5" ry="2" fill="#2C1810"/>
+    <ellipse cx="25.5" cy="24.3" rx="0.8" ry="0.5" fill="rgba(255,255,255,0.4)"/>
+    <!-- mouth -->
+    <path d="M23 27 Q26 30 29 27" stroke="#2C1810" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    <!-- tail -->
+    <ellipse cx="40" cy="36" rx="7" ry="5" fill="${color}" transform="rotate(30 40 36)"/>
+    <ellipse cx="43" cy="32" rx="5" ry="4" fill="${color}" transform="rotate(30 43 32)"/>
+    <!-- paws -->
+    <ellipse cx="18" cy="43" rx="4" ry="3" fill="${color}"/>
+    <ellipse cx="34" cy="43" rx="4" ry="3" fill="${color}"/>
+    <ellipse cx="18" cy="44.5" rx="3.5" ry="2" fill="#CC8844"/>
+    <ellipse cx="34" cy="44.5" rx="3.5" ry="2" fill="#CC8844"/>
+  </svg>`;
+}
+
+// Game state
+let numPoms = 6;
+let chairs = [];
+let poms = [];
+let musicInterval = null;
+let moveInterval = null;
+let isPlaying = false;
+let phase = 'idle'; // idle, playing, stopping, roundEnd, gameOver
+let round = 0;
+
+const arena = document.getElementById('arena');
+const message = document.getElementById('message');
+const btnStart = document.getElementById('btn-start');
+const btnStop = document.getElementById('btn-stop');
+const btnReset = document.getElementById('btn-reset');
+
+function getArenaSize() {
+  return { w: arena.clientWidth, h: arena.clientHeight };
+}
+
+function chairPositions(count) {
+  const { w, h } = getArenaSize();
+  const positions = [];
+  const r = Math.min(w, h) * 0.32;
+  const cx = w / 2, cy = h / 2;
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
+    positions.push({
+      x: cx + r * Math.cos(angle),
+      y: cy + r * Math.sin(angle)
+    });
+  }
+  return positions;
+}
+
+function randomEdgePos() {
+  const { w, h } = getArenaSize();
+  const side = Math.floor(Math.random() * 4);
+  const pad = 40;
+  if (side === 0) return { x: pad + Math.random() * (w - pad*2), y: pad };
+  if (side === 1) return { x: w - pad, y: pad + Math.random() * (h - pad*2) };
+  if (side === 2) return { x: pad + Math.random() * (w - pad*2), y: h - pad };
+  return { x: pad, y: pad + Math.random() * (h - pad*2) };
+}
+
+function initGame() {
+  // Clear
+  arena.querySelectorAll('.chair,.pom').forEach(e => e.remove());
+  chairs = []; poms = [];
+  round = 0;
+  numPoms = 6;
+
+  placeChairs(numPoms - 1);
+  placePoms(numPoms);
+  updateStats();
+  showMessage('🐾', 'ポメラニアン椅子取りゲーム！', '「音楽スタート」を押して始めよう♪', true);
+}
+
+function placeChairs(count) {
+  arena.querySelectorAll('.chair').forEach(e => e.remove());
+  chairs = [];
+  const positions = chairPositions(count);
+  positions.forEach((pos, i) => {
+    const el = document.createElement('div');
+    el.className = 'chair';
+    el.innerHTML = chairSVG();
+    el.style.left = pos.x + 'px';
+    el.style.top = pos.y + 'px';
+    el.dataset.index = i;
+    arena.appendChild(el);
+    chairs.push({ el, x: pos.x, y: pos.y, occupied: false });
+  });
+}
+
+function placePoms(count) {
+  arena.querySelectorAll('.pom').forEach(e => e.remove());
+  poms = [];
+  const names = [...POM_NAMES].sort(() => Math.random() - 0.5).slice(0, count);
+  for (let i = 0; i < count; i++) {
+    const color = POM_COLORS[i % POM_COLORS.length];
+    const pos = randomEdgePos();
+    const el = document.createElement('div');
+    el.className = 'pom running';
+    el.innerHTML = pomSVG(color);
+    el.style.left = pos.x + 'px';
+    el.style.top = pos.y + 'px';
+    el.style.position = 'absolute';
+
+    const nameTag = document.createElement('div');
+    nameTag.className = 'pom-name';
+    nameTag.textContent = names[i];
+    el.appendChild(nameTag);
+
+    arena.appendChild(el);
+    poms.push({ el, x: pos.x, y: pos.y, color, name: names[i], active: true });
+  }
+}
+
+function updateStats() {
+  document.getElementById('stat-poms').textContent = poms.filter(p => p.active).length + '匹';
+  document.getElementById('stat-chairs').textContent = chairs.length + '脚';
+}
+
+function showMessage(icon, text, sub, show) {
+  document.getElementById('msg-icon').textContent = icon;
+  document.getElementById('msg-text').textContent = text;
+  document.getElementById('msg-sub').textContent = sub;
+  if (show) message.classList.add('show');
+  else message.classList.remove('show');
+}
+
+function hideMessage() {
+  message.classList.remove('show');
+}
+
+// Music note visual
+function spawnNote() {
+  const notes = ['♪','♫','♩','♬','🎵','🎶'];
+  const { w } = getArenaSize();
+  const el = document.createElement('div');
+  el.className = 'note';
+  el.textContent = notes[Math.floor(Math.random() * notes.length)];
+  el.style.left = (50 + Math.random() * (w - 100)) + 'px';
+  el.style.top = (Math.random() * 60 + 20) + 'px';
+  el.style.color = ['#FF8C42','#FF6B35','#FFB347','#FF9D5A'][Math.floor(Math.random()*4)];
+  arena.appendChild(el);
+  setTimeout(() => el.remove(), 2000);
+}
+
+// Poms move around
+function movePoms() {
+  const { w, h } = getArenaSize();
+  poms.forEach(pom => {
+    if (!pom.active) return;
+    const pad = 40;
+    const dx = (Math.random() - 0.5) * 80;
+    const dy = (Math.random() - 0.5) * 80;
+    pom.x = Math.max(pad, Math.min(w - pad, pom.x + dx));
+    pom.y = Math.max(pad, Math.min(h - pad, pom.y + dy));
+    pom.el.style.left = pom.x + 'px';
+    pom.el.style.top = pom.y + 'px';
+  });
+}
+
+function startMusic() {
+  if (phase !== 'idle' && phase !== 'roundEnd') return;
+  phase = 'playing';
+  hideMessage();
+  document.getElementById('stat-music').textContent = '♪ 演奏中';
+  btnStart.style.display = 'none';
+  btnStop.style.display = 'inline-block';
+
+  poms.forEach(p => { if (p.active) p.el.classList.add('running'); });
+
+  moveInterval = setInterval(movePoms, 350);
+  musicInterval = setInterval(spawnNote, 400);
+}
+
+function stopMusic() {
+  if (phase !== 'playing') return;
+  phase = 'stopping';
+  document.getElementById('stat-music').textContent = '🛑 ストップ！';
+  btnStop.style.display = 'none';
+
+  clearInterval(moveInterval);
+  clearInterval(musicInterval);
+  moveInterval = null;
+  musicInterval = null;
+
+  poms.forEach(p => p.el.classList.remove('running'));
+
+  // Sit down!
+  setTimeout(() => sitDown(), 600);
+}
+
+function sitDown() {
+  const activePoms = poms.filter(p => p.active);
+  const availableChairs = [...chairs];
+
+  // Each pom rushes to nearest chair
+  const pomOrder = [...activePoms].sort(() => Math.random() - 0.5);
+  const seated = [];
+  const unseated = [];
+
+  pomOrder.forEach(pom => {
+    if (availableChairs.length === 0) {
+      unseated.push(pom);
+      return;
+    }
+    // Find nearest unoccupied chair
+    let best = null, bestDist = Infinity;
+    availableChairs.forEach(chair => {
+      const d = Math.hypot(pom.x - chair.x, pom.y - chair.y);
+      if (d < bestDist) { bestDist = d; best = chair; }
+    });
+    if (best) {
+      availableChairs.splice(availableChairs.indexOf(best), 1);
+      best.occupied = true;
+      pom.el.style.left = best.x + 'px';
+      pom.el.style.top = (best.y - 8) + 'px';
+      seated.push(pom);
+
+      // Sparkle
+      setTimeout(() => {
+        const sp = document.createElement('div');
+        sp.className = 'sparkle';
+        sp.textContent = '✨';
+        sp.style.left = best.x + 'px';
+        sp.style.top = (best.y - 30) + 'px';
+        arena.appendChild(sp);
+        setTimeout(() => sp.remove(), 800);
+      }, 400);
+    } else {
+      unseated.push(pom);
+    }
+  });
+
+  // Eliminate unseated poms
+  setTimeout(() => {
+    unseated.forEach(pom => {
+      pom.active = false;
+      pom.el.classList.add('eliminated');
+      setTimeout(() => pom.el.remove(), 500);
+    });
+
+    updateStats();
+
+    const remaining = poms.filter(p => p.active).length;
+
+    setTimeout(() => {
+      if (remaining <= 1) {
+        // Game over
+        const winner = poms.find(p => p.active);
+        phase = 'gameOver';
+        if (winner) {
+          winner.el.classList.add('winner');
+          winner.el.classList.remove('running');
+          showMessage('🏆', `${winner.name}ちゃんの優勝！`, 'おめでとう！🎉🐾', true);
+        } else {
+          showMessage('🎊', 'ゲーム終了！', '全員惜しかったね！', true);
+        }
+        btnStart.style.display = 'inline-block';
+        btnStart.textContent = '🔄 もう一度';
+        document.getElementById('stat-music').textContent = '🏆 終了';
+        btnStart.onclick = resetGame;
+      } else {
+        // Next round
+        round++;
+        phase = 'roundEnd';
+        const loser = unseated[0];
+        const loserName = loser ? loser.name : '一匹';
+        showMessage('💨', `${loserName}ちゃんが脱落！`, `残り${remaining}匹 → 椅子${remaining-1}脚`, true);
+
+        setTimeout(() => {
+          // Remove one chair
+          chairs[chairs.length - 1].el.remove();
+          chairs.pop();
+          placeChairs(remaining - 1);
+          updateStats();
+          hideMessage();
+          btnStart.style.display = 'inline-block';
+          btnStart.textContent = '🎵 音楽スタート';
+          document.getElementById('stat-music').textContent = '待機中';
+          btnStart.onclick = startMusic;
+          phase = 'roundEnd';
+          poms = poms.filter(p => p.active);
+        }, 1800);
+      }
+    }, 700);
+  }, 500);
+}
+
+function resetGame() {
+  phase = 'idle';
+  clearInterval(moveInterval);
+  clearInterval(musicInterval);
+  moveInterval = null; musicInterval = null;
+  btnStart.style.display = 'inline-block';
+  btnStart.textContent = '🎵 音楽スタート';
+  btnStart.onclick = startMusic;
+  btnStop.style.display = 'none';
+  document.getElementById('stat-music').textContent = '待機中';
+  initGame();
+}
+
+btnStart.onclick = startMusic;
+btnStop.onclick = stopMusic;
+btnReset.onclick = resetGame;
+
+// Init
+window.addEventListener('load', () => {
+  initGame();
+  // Auto-show message
+  showMessage('🐾', 'ポメラニアン椅子取りゲーム！', '「音楽スタート」を押して始めよう♪', true);
+});
+</script>
+</body>
+</html>
