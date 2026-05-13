@@ -12,19 +12,15 @@ const TRACKS = [
   { id: "synth",  label: "SYNTH",  color: "#ffd60a", freq: 440, type: "synth" },
 ];
 
-const BASS_NOTES = [40, 43, 45, 47, 48, 50, 52, 55]; // MIDI-like semitones
+const BASS_NOTES = [40, 43, 45, 47, 48, 50, 52, 55];
 const SYNTH_NOTES = [60, 62, 63, 65, 67, 68, 70, 72];
 
-function midiToFreq(midi) {
-  return 440 * Math.pow(2, (midi - 69) / 12);
-}
+function midiToFreq(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
 
-function playKick(ctx, time, gain = 1) {
-  const osc = ctx.createOscillator();
-  const env = ctx.createGain();
-  const g = ctx.createGain();
-  g.gain.value = gain * 1.5;
-  osc.connect(env); env.connect(g); g.connect(ctx.destination);
+function playKick(ctx, dest, time) {
+  const osc = ctx.createOscillator(), env = ctx.createGain(), g = ctx.createGain();
+  g.gain.value = 1.5;
+  osc.connect(env); env.connect(g); g.connect(dest);
   osc.frequency.setValueAtTime(150, time);
   osc.frequency.exponentialRampToValueAtTime(40, time + 0.15);
   env.gain.setValueAtTime(1, time);
@@ -32,109 +28,78 @@ function playKick(ctx, time, gain = 1) {
   osc.start(time); osc.stop(time + 0.5);
 }
 
-function playSnare(ctx, time, gain = 1) {
+function playSnare(ctx, dest, time) {
   const buf = ctx.createBuffer(1, ctx.sampleRate * 0.2, ctx.sampleRate);
   const data = buf.getChannelData(0);
-  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1);
-  const src = ctx.createBufferSource();
-  src.buffer = buf;
-  const filter = ctx.createBiquadFilter();
-  filter.type = "highpass"; filter.frequency.value = 1000;
-  const env = ctx.createGain();
-  const g = ctx.createGain(); g.gain.value = gain * 0.6;
-  src.connect(filter); filter.connect(env); env.connect(g); g.connect(ctx.destination);
-  env.gain.setValueAtTime(0.8, time);
-  env.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const filter = ctx.createBiquadFilter(); filter.type = "highpass"; filter.frequency.value = 1000;
+  const env = ctx.createGain(), g = ctx.createGain(); g.gain.value = 0.6;
+  src.connect(filter); filter.connect(env); env.connect(g); g.connect(dest);
+  env.gain.setValueAtTime(0.8, time); env.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
   src.start(time); src.stop(time + 0.2);
-
-  // tone layer
-  const osc = ctx.createOscillator();
-  const env2 = ctx.createGain();
-  const g2 = ctx.createGain(); g2.gain.value = gain * 0.3;
-  osc.connect(env2); env2.connect(g2); g2.connect(ctx.destination);
+  const osc = ctx.createOscillator(), env2 = ctx.createGain(), g2 = ctx.createGain(); g2.gain.value = 0.3;
+  osc.connect(env2); env2.connect(g2); g2.connect(dest);
   osc.frequency.value = 200;
-  env2.gain.setValueAtTime(0.5, time);
-  env2.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+  env2.gain.setValueAtTime(0.5, time); env2.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
   osc.start(time); osc.stop(time + 0.1);
 }
 
-function playHihat(ctx, time, open = false, gain = 1) {
+function playHihat(ctx, dest, time) {
   const buf = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
   const data = buf.getChannelData(0);
   for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
   const src = ctx.createBufferSource(); src.buffer = buf;
-  const filter = ctx.createBiquadFilter();
-  filter.type = "bandpass"; filter.frequency.value = 8000; filter.Q.value = 0.5;
-  const env = ctx.createGain();
-  const g = ctx.createGain(); g.gain.value = gain * 0.3;
-  src.connect(filter); filter.connect(env); env.connect(g); g.connect(ctx.destination);
-  const dur = open ? 0.3 : 0.05;
-  env.gain.setValueAtTime(0.6, time);
-  env.gain.exponentialRampToValueAtTime(0.001, time + dur);
-  src.start(time); src.stop(time + dur + 0.01);
+  const filter = ctx.createBiquadFilter(); filter.type = "bandpass"; filter.frequency.value = 8000; filter.Q.value = 0.5;
+  const env = ctx.createGain(), g = ctx.createGain(); g.gain.value = 0.3;
+  src.connect(filter); filter.connect(env); env.connect(g); g.connect(dest);
+  env.gain.setValueAtTime(0.6, time); env.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+  src.start(time); src.stop(time + 0.06);
 }
 
-function playClap(ctx, time, gain = 1) {
+function playClap(ctx, dest, time) {
   for (let i = 0; i < 3; i++) {
     const delay = i * 0.01;
     const buf = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let j = 0; j < data.length; j++) data[j] = Math.random() * 2 - 1;
     const src = ctx.createBufferSource(); src.buffer = buf;
-    const filter = ctx.createBiquadFilter();
-    filter.type = "bandpass"; filter.frequency.value = 1200;
-    const env = ctx.createGain();
-    const g = ctx.createGain(); g.gain.value = gain * 0.4;
-    src.connect(filter); filter.connect(env); env.connect(g); g.connect(ctx.destination);
-    env.gain.setValueAtTime(0.7, time + delay);
-    env.gain.exponentialRampToValueAtTime(0.001, time + delay + 0.08);
+    const filter = ctx.createBiquadFilter(); filter.type = "bandpass"; filter.frequency.value = 1200;
+    const env = ctx.createGain(), g = ctx.createGain(); g.gain.value = 0.4;
+    src.connect(filter); filter.connect(env); env.connect(g); g.connect(dest);
+    env.gain.setValueAtTime(0.7, time + delay); env.gain.exponentialRampToValueAtTime(0.001, time + delay + 0.08);
     src.start(time + delay); src.stop(time + delay + 0.1);
   }
 }
 
-function playBass(ctx, time, noteIdx = 0, gain = 1) {
+function playBass(ctx, dest, time, noteIdx = 0) {
   const freq = midiToFreq(BASS_NOTES[noteIdx % BASS_NOTES.length]);
-  const osc = ctx.createOscillator();
-  const osc2 = ctx.createOscillator();
-  const env = ctx.createGain();
-  const filter = ctx.createBiquadFilter();
-  filter.type = "lowpass"; filter.frequency.value = 400; filter.Q.value = 2;
-  const g = ctx.createGain(); g.gain.value = gain * 0.9;
+  const osc = ctx.createOscillator(), osc2 = ctx.createOscillator();
+  const env = ctx.createGain(), filter = ctx.createBiquadFilter(), g = ctx.createGain();
+  filter.type = "lowpass"; filter.frequency.value = 400; filter.Q.value = 2; g.gain.value = 0.9;
   osc.type = "sawtooth"; osc.frequency.value = freq;
   osc2.type = "square"; osc2.frequency.value = freq * 0.5;
-  osc.connect(filter); osc2.connect(filter);
-  filter.connect(env); env.connect(g); g.connect(ctx.destination);
-  env.gain.setValueAtTime(0.9, time);
-  env.gain.exponentialRampToValueAtTime(0.001, time + 0.3);
-  osc.start(time); osc.stop(time + 0.35);
-  osc2.start(time); osc2.stop(time + 0.35);
+  osc.connect(filter); osc2.connect(filter); filter.connect(env); env.connect(g); g.connect(dest);
+  env.gain.setValueAtTime(0.9, time); env.gain.exponentialRampToValueAtTime(0.001, time + 0.3);
+  osc.start(time); osc.stop(time + 0.35); osc2.start(time); osc2.stop(time + 0.35);
 }
 
-function playSynth(ctx, time, noteIdx = 0, gain = 1) {
+function playSynth(ctx, dest, time, noteIdx = 0) {
   const freq = midiToFreq(SYNTH_NOTES[noteIdx % SYNTH_NOTES.length]);
-  const osc = ctx.createOscillator();
-  const osc2 = ctx.createOscillator();
-  const env = ctx.createGain();
-  const reverb = ctx.createConvolver();
-  const g = ctx.createGain(); g.gain.value = gain * 0.5;
+  const osc = ctx.createOscillator(), osc2 = ctx.createOscillator();
+  const env = ctx.createGain(), g = ctx.createGain(); g.gain.value = 0.5;
   osc.type = "square"; osc.frequency.value = freq;
   osc2.type = "sawtooth"; osc2.frequency.value = freq * 1.005;
-  osc.connect(env); osc2.connect(env); env.connect(g); g.connect(ctx.destination);
-  env.gain.setValueAtTime(0.6, time);
-  env.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
-  osc.start(time); osc.stop(time + 0.3);
-  osc2.start(time); osc2.stop(time + 0.3);
+  osc.connect(env); osc2.connect(env); env.connect(g); g.connect(dest);
+  env.gain.setValueAtTime(0.6, time); env.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
+  osc.start(time); osc.stop(time + 0.3); osc2.start(time); osc2.stop(time + 0.3);
 }
 
-function playStep(ctx, trackId, step, noteIdx = 0) {
-  const t = ctx.currentTime + 0.01;
-  if (trackId === "kick")  playKick(ctx, t);
-  if (trackId === "snare") playSnare(ctx, t);
-  if (trackId === "hihat") playHihat(ctx, t);
-  if (trackId === "clap")  playClap(ctx, t);
-  if (trackId === "bass")  playBass(ctx, t, noteIdx);
-  if (trackId === "synth") playSynth(ctx, t, noteIdx);
-}
+const btnStyle = {
+  padding: "8px 16px", borderRadius: 6, border: "none", cursor: "pointer",
+  fontFamily: "'Courier New', monospace", fontWeight: 700, letterSpacing: "0.1em",
+  fontSize: 12, color: "#fff", background: "#1a1a2e", transition: "all 0.15s",
+};
 
 export default function PoppingMaker() {
   const [grid, setGrid] = useState(() =>
@@ -147,49 +112,72 @@ export default function PoppingMaker() {
   const [playing, setPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
   const [masterGain, setMasterGain] = useState(80);
-  const [selectedNote, setSelectedNote] = useState({ bass: 0, synth: 0 });
   const [flashTrack, setFlashTrack] = useState(null);
 
+  // Recording state
+  const [recState, setRecState] = useState("idle"); // idle | recording | done
+  const [recSeconds, setRecSeconds] = useState(0);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [recLoops, setRecLoops] = useState(2); // how many loops to record
+
   const ctxRef = useRef(null);
+  const destNodeRef = useRef(null); // GainNode — all sounds route here
   const stepRef = useRef(0);
   const timerRef = useRef(null);
   const gridRef = useRef(grid);
   const notesRef = useRef(notes);
   const bpmRef = useRef(bpm);
+  const mediaRecRef = useRef(null);
+  const chunksRef = useRef([]);
+  const recTimerRef = useRef(null);
 
   useEffect(() => { gridRef.current = grid; }, [grid]);
   useEffect(() => { notesRef.current = notes; }, [notes]);
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
 
   const getCtx = useCallback(() => {
-    if (!ctxRef.current) ctxRef.current = new AudioContext();
+    if (!ctxRef.current) {
+      const ctx = new AudioContext();
+      ctxRef.current = ctx;
+      const master = ctx.createGain();
+      master.gain.value = 0.85;
+      master.connect(ctx.destination);
+      destNodeRef.current = master;
+    }
     return ctxRef.current;
   }, []);
 
-  const tick = useCallback(() => {
+  const getDest = useCallback(() => {
+    getCtx();
+    return destNodeRef.current;
+  }, [getCtx]);
+
+  const fireStep = useCallback((step) => {
     const ctx = getCtx();
-    const step = stepRef.current;
+    const dest = getDest();
     const g = gridRef.current;
     const n = notesRef.current;
-    const interval = (60 / bpmRef.current) / 4 * 1000;
-
+    const t = ctx.currentTime + 0.005;
     TRACKS.forEach(track => {
-      if (g[track.id][step]) {
-        const t = ctx.currentTime + 0.005;
-        const noteIdx = (track.id === "bass" || track.id === "synth") ? n[track.id][step] : 0;
-        if (track.id === "kick")  playKick(ctx, t);
-        if (track.id === "snare") playSnare(ctx, t);
-        if (track.id === "hihat") playHihat(ctx, t);
-        if (track.id === "clap")  playClap(ctx, t);
-        if (track.id === "bass")  playBass(ctx, t, noteIdx);
-        if (track.id === "synth") playSynth(ctx, t, noteIdx);
-      }
+      if (!g[track.id][step]) return;
+      const ni = (track.id === "bass" || track.id === "synth") ? n[track.id][step] : 0;
+      if (track.id === "kick")  playKick(ctx, dest, t);
+      if (track.id === "snare") playSnare(ctx, dest, t);
+      if (track.id === "hihat") playHihat(ctx, dest, t);
+      if (track.id === "clap")  playClap(ctx, dest, t);
+      if (track.id === "bass")  playBass(ctx, dest, t, ni);
+      if (track.id === "synth") playSynth(ctx, dest, t, ni);
     });
+  }, [getCtx, getDest]);
 
+  const tick = useCallback(() => {
+    const step = stepRef.current;
+    const interval = (60 / bpmRef.current) / 4 * 1000;
+    fireStep(step);
     setCurrentStep(step);
     stepRef.current = (step + 1) % STEPS;
     timerRef.current = setTimeout(tick, interval);
-  }, [getCtx]);
+  }, [fireStep]);
 
   const togglePlay = useCallback(() => {
     if (playing) {
@@ -205,6 +193,82 @@ export default function PoppingMaker() {
     }
   }, [playing, tick, getCtx]);
 
+  // ── Recording ──────────────────────────────────────────────
+  const startRecording = useCallback(async () => {
+    const ctx = getCtx();
+    await ctx.resume();
+
+    // Create a MediaStreamDestination to capture audio
+    const streamDest = ctx.createMediaStreamDestination();
+    // Tap the master gain into the stream dest as well
+    destNodeRef.current.connect(streamDest);
+
+    chunksRef.current = [];
+    const mr = new MediaRecorder(streamDest.stream, { mimeType: "audio/webm" });
+    mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    mr.onstop = () => {
+      destNodeRef.current.disconnect(streamDest);
+      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+      setRecState("done");
+    };
+    mr.start();
+    mediaRecRef.current = mr;
+
+    // Start playback if not already playing
+    if (!playing) {
+      stepRef.current = 0;
+      setPlaying(true);
+      tick();
+    }
+
+    setRecState("recording");
+    setRecSeconds(0);
+
+    // Auto-stop after N loops
+    const loopDur = (60 / bpmRef.current) * 4 * 1000; // 1 bar in ms
+    const totalDur = loopDur * recLoops;
+
+    let elapsed = 0;
+    recTimerRef.current = setInterval(() => {
+      elapsed += 100;
+      setRecSeconds(Math.floor(elapsed / 1000));
+    }, 100);
+
+    setTimeout(() => {
+      stopRecording();
+    }, totalDur + 200);
+  }, [getCtx, playing, tick, recLoops]);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecRef.current && mediaRecRef.current.state !== "inactive") {
+      mediaRecRef.current.stop();
+    }
+    clearInterval(recTimerRef.current);
+  }, []);
+
+  const downloadAudio = () => {
+    if (!audioUrl) return;
+    const a = document.createElement("a");
+    a.href = audioUrl;
+    a.download = `popping-beat-${Date.now()}.webm`;
+    a.click();
+  };
+
+  const shareAudio = async () => {
+    if (!audioUrl) return;
+    try {
+      const blob = await fetch(audioUrl).then(r => r.blob());
+      const file = new File([blob], "popping-beat.webm", { type: "audio/webm" });
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: "My Popping Beat" });
+      } else {
+        downloadAudio(); // fallback
+      }
+    } catch {}
+  };
+
   const toggleStep = (trackId, stepIdx) => {
     setGrid(prev => {
       const next = { ...prev, [trackId]: [...prev[trackId]] };
@@ -213,134 +277,119 @@ export default function PoppingMaker() {
     });
     if (!grid[trackId][stepIdx]) {
       const ctx = getCtx();
+      const dest = getDest();
       const ni = (trackId === "bass" || trackId === "synth") ? notes[trackId][stepIdx] : 0;
-      playStep(ctx, trackId, stepIdx, ni);
+      const t = ctx.currentTime + 0.01;
+      if (trackId === "kick")  playKick(ctx, dest, t);
+      if (trackId === "snare") playSnare(ctx, dest, t);
+      if (trackId === "hihat") playHihat(ctx, dest, t);
+      if (trackId === "clap")  playClap(ctx, dest, t);
+      if (trackId === "bass")  playBass(ctx, dest, t, ni);
+      if (trackId === "synth") playSynth(ctx, dest, t, ni);
       setFlashTrack(trackId);
       setTimeout(() => setFlashTrack(null), 80);
     }
   };
 
   const setNote = (trackId, stepIdx, noteIdx) => {
-    setNotes(prev => ({
-      ...prev,
-      [trackId]: prev[trackId].map((n, i) => i === stepIdx ? noteIdx : n)
-    }));
+    setNotes(prev => ({ ...prev, [trackId]: prev[trackId].map((n, i) => i === stepIdx ? noteIdx : n) }));
   };
 
-  const clearAll = () => {
-    setGrid(Object.fromEntries(TRACKS.map(t => [t.id, Array(STEPS).fill(false)])));
-  };
+  const clearAll = () => setGrid(Object.fromEntries(TRACKS.map(t => [t.id, Array(STEPS).fill(false)])));
 
   const randomize = () => {
-    setGrid(Object.fromEntries(TRACKS.map(t => [
-      t.id,
-      Array(STEPS).fill(false).map((_, i) => {
-        if (t.id === "kick")  return [0,4,8,12].includes(i) || Math.random() < 0.1;
-        if (t.id === "snare") return [4,12].includes(i) || Math.random() < 0.1;
-        if (t.id === "hihat") return Math.random() < 0.5;
-        if (t.id === "clap")  return Math.random() < 0.15;
-        if (t.id === "bass")  return Math.random() < 0.3;
-        if (t.id === "synth") return Math.random() < 0.2;
-        return false;
-      })
-    ])));
-    setNotes(Object.fromEntries(["bass","synth"].map(t => [
-      t, Array(STEPS).fill(0).map(() => Math.floor(Math.random() * 8))
-    ])));
+    setGrid(Object.fromEntries(TRACKS.map(t => [t.id, Array(STEPS).fill(false).map((_, i) => {
+      if (t.id === "kick")  return [0,4,8,12].includes(i) || Math.random() < 0.1;
+      if (t.id === "snare") return [4,12].includes(i) || Math.random() < 0.1;
+      if (t.id === "hihat") return Math.random() < 0.5;
+      if (t.id === "clap")  return Math.random() < 0.15;
+      if (t.id === "bass")  return Math.random() < 0.3;
+      if (t.id === "synth") return Math.random() < 0.2;
+      return false;
+    })])));
+    setNotes(Object.fromEntries(["bass","synth"].map(t => [t, Array(STEPS).fill(0).map(() => Math.floor(Math.random() * 8))])));
   };
 
   const noteLabels = { bass: ["E1","G1","A1","B1","C2","D2","E2","G2"], synth: ["C3","D3","Eb3","F3","G3","Ab3","Bb3","C4"] };
 
+  // REC indicator pulse
+  const recDot = recState === "recording";
+
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#050508",
-      fontFamily: "'Courier New', monospace",
-      color: "#e0e0ff",
-      padding: "0",
-      display: "flex",
-      flexDirection: "column",
-    }}>
+    <div style={{ minHeight: "100vh", background: "#050508", fontFamily: "'Courier New', monospace", color: "#e0e0ff", display: "flex", flexDirection: "column" }}>
+
       {/* Header */}
-      <div style={{
-        background: "linear-gradient(135deg, #0a0a18 0%, #12001a 100%)",
-        borderBottom: "1px solid #2a1a4a",
-        padding: "20px 24px 16px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 16,
-      }}>
+      <div style={{ background: "linear-gradient(135deg, #0a0a18 0%, #12001a 100%)", borderBottom: "1px solid #2a1a4a", padding: "20px 24px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
         <div>
-          <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "0.15em", color: "#bf5af2", textTransform: "uppercase" }}>
-            ⚡ POPPING BEAT MAKER
-          </div>
-          <div style={{ fontSize: 10, letterSpacing: "0.3em", color: "#666", marginTop: 2 }}>
-            RHYTHM MACHINE FOR STREET DANCE
-          </div>
+          <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "0.15em", color: "#bf5af2", textTransform: "uppercase" }}>⚡ POPPING BEAT MAKER</div>
+          <div style={{ fontSize: 10, letterSpacing: "0.3em", color: "#666", marginTop: 2 }}>RHYTHM MACHINE FOR STREET DANCE</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {/* BPM */}
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 9, letterSpacing: "0.2em", color: "#888", marginBottom: 4 }}>BPM</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button onClick={() => setBpm(b => Math.max(60, b - 5))}
-                style={{ ...btnStyle, padding: "4px 10px", fontSize: 16, background: "#1a1a2e" }}>−</button>
+              <button onClick={() => setBpm(b => Math.max(60, b - 5))} style={{ ...btnStyle, padding: "4px 10px", fontSize: 16, background: "#1a1a2e" }}>−</button>
               <span style={{ fontSize: 24, fontWeight: 900, color: "#ff2d55", minWidth: 48, textAlign: "center" }}>{bpm}</span>
-              <button onClick={() => setBpm(b => Math.min(200, b + 5))}
-                style={{ ...btnStyle, padding: "4px 10px", fontSize: 16, background: "#1a1a2e" }}>+</button>
+              <button onClick={() => setBpm(b => Math.min(200, b + 5))} style={{ ...btnStyle, padding: "4px 10px", fontSize: 16, background: "#1a1a2e" }}>+</button>
             </div>
           </div>
-          {/* Play */}
-          <button onClick={togglePlay} style={{
-            ...btnStyle,
-            padding: "12px 28px",
-            fontSize: 14,
-            fontWeight: 900,
-            letterSpacing: "0.15em",
-            background: playing ? "#3a0020" : "linear-gradient(135deg, #bf5af2, #7d2ae8)",
-            color: playing ? "#ff2d55" : "#fff",
-            border: playing ? "1px solid #ff2d55" : "none",
-            boxShadow: playing ? "0 0 20px #ff2d5544" : "0 0 20px #bf5af244",
-          }}>
+          <button onClick={togglePlay} style={{ ...btnStyle, padding: "12px 28px", fontSize: 14, fontWeight: 900, letterSpacing: "0.15em", background: playing ? "#3a0020" : "linear-gradient(135deg, #bf5af2, #7d2ae8)", color: playing ? "#ff2d55" : "#fff", border: playing ? "1px solid #ff2d55" : "none", boxShadow: playing ? "0 0 20px #ff2d5544" : "0 0 20px #bf5af244" }}>
             {playing ? "■ STOP" : "▶ PLAY"}
           </button>
         </div>
       </div>
 
       {/* Controls */}
-      <div style={{
-        display: "flex", gap: 12, padding: "12px 24px",
-        background: "#07070f", borderBottom: "1px solid #1a1a30",
-        alignItems: "center",
-      }}>
-        <button onClick={randomize} style={{ ...btnStyle, fontSize: 11, letterSpacing: "0.1em", background: "#1a1240", color: "#bf5af2", border: "1px solid #bf5af244" }}>
-          🎲 RANDOM
-        </button>
-        <button onClick={clearAll} style={{ ...btnStyle, fontSize: 11, letterSpacing: "0.1em", background: "#1a0808", color: "#ff2d55", border: "1px solid #ff2d5533" }}>
-          ✕ CLEAR
-        </button>
+      <div style={{ display: "flex", gap: 12, padding: "12px 24px", background: "#07070f", borderBottom: "1px solid #1a1a30", alignItems: "center", flexWrap: "wrap" }}>
+        <button onClick={randomize} style={{ ...btnStyle, fontSize: 11, letterSpacing: "0.1em", background: "#1a1240", color: "#bf5af2", border: "1px solid #bf5af244" }}>🎲 RANDOM</button>
+        <button onClick={clearAll} style={{ ...btnStyle, fontSize: 11, letterSpacing: "0.1em", background: "#1a0808", color: "#ff2d55", border: "1px solid #ff2d5533" }}>✕ CLEAR</button>
         <div style={{ flex: 1 }} />
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 10, letterSpacing: "0.2em", color: "#666" }}>VOLUME</span>
-          <input type="range" min={0} max={100} value={masterGain} onChange={e => setMasterGain(+e.target.value)}
-            style={{ width: 80, accentColor: "#bf5af2" }} />
-          <span style={{ fontSize: 12, color: "#bf5af2", minWidth: 28 }}>{masterGain}</span>
+          <span style={{ fontSize: 10, letterSpacing: "0.2em", color: "#666" }}>VOL</span>
+          <input type="range" min={0} max={100} value={masterGain} onChange={e => setMasterGain(+e.target.value)} style={{ width: 70, accentColor: "#bf5af2" }} />
+          <span style={{ fontSize: 12, color: "#bf5af2", minWidth: 26 }}>{masterGain}</span>
         </div>
       </div>
 
-      {/* Step counter */}
-      <div style={{ padding: "0 24px", background: "#07070f", paddingTop: 8 }}>
+      {/* ── REC Panel ── */}
+      <div style={{ background: "#08060f", borderBottom: "1px solid #1a1a30", padding: "10px 24px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+        {/* Loop selector */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 10, color: "#666", letterSpacing: "0.15em" }}>LOOPS</span>
+          {[1,2,4,8].map(l => (
+            <button key={l} onClick={() => setRecLoops(l)} style={{ ...btnStyle, padding: "3px 8px", fontSize: 11, background: recLoops === l ? "#3a1050" : "#111", color: recLoops === l ? "#bf5af2" : "#555", border: `1px solid ${recLoops === l ? "#bf5af2" : "#222"}` }}>{l}</button>
+          ))}
+        </div>
+
+        {/* REC button */}
+        {recState === "idle" && (
+          <button onClick={startRecording} style={{ ...btnStyle, background: "#3a0010", color: "#ff2d55", border: "1px solid #ff2d5566", letterSpacing: "0.15em", padding: "6px 16px" }}>
+            ● REC
+          </button>
+        )}
+        {recState === "recording" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ff2d55", boxShadow: "0 0 8px #ff2d55", animation: "pulse 0.8s infinite" }} />
+            <span style={{ fontSize: 11, color: "#ff2d55", letterSpacing: "0.15em" }}>REC {recSeconds}s</span>
+            <button onClick={stopRecording} style={{ ...btnStyle, padding: "4px 12px", fontSize: 10, background: "#2a0010", color: "#ff6680", border: "1px solid #ff2d5544" }}>■ STOP</button>
+          </div>
+        )}
+        {recState === "done" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 10, color: "#30d158", letterSpacing: "0.1em" }}>✓ RECORDED {recSeconds}s</span>
+            <audio controls src={audioUrl} style={{ height: 28, maxWidth: 180, filter: "invert(1) hue-rotate(200deg)" }} />
+            <button onClick={downloadAudio} style={{ ...btnStyle, padding: "5px 12px", fontSize: 10, background: "#0a2010", color: "#30d158", border: "1px solid #30d15844" }}>⬇ DL</button>
+            <button onClick={shareAudio} style={{ ...btnStyle, padding: "5px 12px", fontSize: 10, background: "#0a1020", color: "#64d2ff", border: "1px solid #64d2ff44" }}>⬆ SHARE</button>
+            <button onClick={() => { setRecState("idle"); setAudioUrl(null); }} style={{ ...btnStyle, padding: "5px 12px", fontSize: 10, background: "#111", color: "#666", border: "1px solid #333" }}>✕</button>
+          </div>
+        )}
+      </div>
+
+      {/* Step indicator */}
+      <div style={{ padding: "8px 24px 0", background: "#07070f" }}>
         <div style={{ display: "flex", gap: 2, marginLeft: 72 }}>
           {Array(STEPS).fill(0).map((_, i) => (
-            <div key={i} style={{
-              flex: 1,
-              height: 4,
-              borderRadius: 2,
-              background: i === currentStep ? "#ff2d55" : i % 4 === 0 ? "#2a1a4a" : "#151525",
-              transition: "background 0.05s",
-              boxShadow: i === currentStep ? "0 0 8px #ff2d55" : "none",
-            }} />
+            <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i === currentStep ? "#ff2d55" : i % 4 === 0 ? "#2a1a4a" : "#151525", transition: "background 0.05s", boxShadow: i === currentStep ? "0 0 8px #ff2d55" : "none" }} />
           ))}
         </div>
       </div>
@@ -350,82 +399,26 @@ export default function PoppingMaker() {
         {TRACKS.map(track => (
           <div key={track.id} style={{ marginBottom: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-              {/* Label */}
-              <div style={{
-                width: 68,
-                fontSize: 10,
-                fontWeight: 900,
-                letterSpacing: "0.15em",
-                color: flashTrack === track.id ? "#fff" : track.color,
-                textShadow: flashTrack === track.id ? `0 0 12px ${track.color}` : "none",
-                transition: "all 0.08s",
-                flexShrink: 0,
-              }}>{track.label}</div>
-              {/* Steps */}
+              <div style={{ width: 68, fontSize: 10, fontWeight: 900, letterSpacing: "0.15em", color: flashTrack === track.id ? "#fff" : track.color, textShadow: flashTrack === track.id ? `0 0 12px ${track.color}` : "none", transition: "all 0.08s", flexShrink: 0 }}>{track.label}</div>
               {Array(STEPS).fill(0).map((_, i) => {
                 const active = grid[track.id][i];
                 const isCurrent = i === currentStep;
-                const groupStart = i % 4 === 0;
                 return (
-                  <button
-                    key={i}
-                    onClick={() => toggleStep(track.id, i)}
-                    style={{
-                      flex: 1,
-                      height: 36,
-                      border: "none",
-                      borderRadius: 3,
-                      cursor: "pointer",
-                      marginLeft: groupStart && i !== 0 ? 4 : 0,
-                      background: active
-                        ? isCurrent
-                          ? "#fff"
-                          : track.color
-                        : isCurrent
-                          ? "#1a1a3a"
-                          : i % 4 === 0 ? "#111128" : "#0d0d20",
-                      boxShadow: active && isCurrent ? `0 0 16px ${track.color}` : active ? `0 0 6px ${track.color}88` : "none",
-                      transform: active && isCurrent ? "scaleY(1.15)" : "scaleY(1)",
-                      transition: "all 0.08s",
-                      position: "relative",
-                      overflow: "hidden",
-                    }}
-                  >
+                  <button key={i} onClick={() => toggleStep(track.id, i)} style={{ flex: 1, height: 36, border: "none", borderRadius: 3, cursor: "pointer", marginLeft: i % 4 === 0 && i !== 0 ? 4 : 0, background: active ? (isCurrent ? "#fff" : track.color) : (isCurrent ? "#1a1a3a" : i % 4 === 0 ? "#111128" : "#0d0d20"), boxShadow: active && isCurrent ? `0 0 16px ${track.color}` : active ? `0 0 6px ${track.color}88` : "none", transform: active && isCurrent ? "scaleY(1.15)" : "scaleY(1)", transition: "all 0.08s" }}>
                     {active && (track.id === "bass" || track.id === "synth") && (
-                      <span style={{ fontSize: 8, color: active ? "#000" : track.color, fontWeight: 900 }}>
-                        {noteLabels[track.id][notes[track.id][i]]}
-                      </span>
+                      <span style={{ fontSize: 8, color: "#000", fontWeight: 900 }}>{noteLabels[track.id][notes[track.id][i]]}</span>
                     )}
                   </button>
                 );
               })}
             </div>
-            {/* Note selector for bass/synth */}
             {(track.id === "bass" || track.id === "synth") && (
               <div style={{ display: "flex", gap: 2, marginLeft: 70, marginTop: 3 }}>
                 {Array(STEPS).fill(0).map((_, i) => {
                   if (!grid[track.id][i]) return <div key={i} style={{ flex: 1, marginLeft: i % 4 === 0 && i !== 0 ? 4 : 0 }} />;
                   return (
-                    <select
-                      key={i}
-                      value={notes[track.id][i]}
-                      onChange={e => setNote(track.id, i, +e.target.value)}
-                      onClick={e => e.stopPropagation()}
-                      style={{
-                        flex: 1,
-                        fontSize: 8,
-                        background: "#0d0d20",
-                        color: track.color,
-                        border: `1px solid ${track.color}44`,
-                        borderRadius: 2,
-                        padding: "1px 0",
-                        cursor: "pointer",
-                        marginLeft: i % 4 === 0 && i !== 0 ? 4 : 0,
-                      }}
-                    >
-                      {noteLabels[track.id].map((n, ni) => (
-                        <option key={ni} value={ni}>{n}</option>
-                      ))}
+                    <select key={i} value={notes[track.id][i]} onChange={e => setNote(track.id, i, +e.target.value)} onClick={e => e.stopPropagation()} style={{ flex: 1, fontSize: 8, background: "#0d0d20", color: track.color, border: `1px solid ${track.color}44`, borderRadius: 2, padding: "1px 0", cursor: "pointer", marginLeft: i % 4 === 0 && i !== 0 ? 4 : 0 }}>
+                      {noteLabels[track.id].map((n, ni) => <option key={ni} value={ni}>{n}</option>)}
                     </select>
                   );
                 })}
@@ -436,34 +429,13 @@ export default function PoppingMaker() {
       </div>
 
       {/* Tips */}
-      <div style={{
-        background: "#07070f",
-        borderTop: "1px solid #1a1a30",
-        padding: "10px 24px",
-        fontSize: 10,
-        letterSpacing: "0.1em",
-        color: "#444",
-        display: "flex",
-        gap: 24,
-      }}>
+      <div style={{ background: "#07070f", borderTop: "1px solid #1a1a30", padding: "10px 24px", fontSize: 10, letterSpacing: "0.1em", color: "#444", display: "flex", gap: 20, flexWrap: "wrap" }}>
         <span>💡 ステップをタップしてON/OFF</span>
         <span>🎵 BASS/SYNTHはノートを選択可能</span>
-        <span>🎲 RANDOMで自動生成</span>
+        <span>● RECでループ録音→共有</span>
       </div>
+
+      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
     </div>
   );
 }
-
-const btnStyle = {
-  padding: "8px 16px",
-  borderRadius: 6,
-  border: "none",
-  cursor: "pointer",
-  fontFamily: "'Courier New', monospace",
-  fontWeight: 700,
-  letterSpacing: "0.1em",
-  fontSize: 12,
-  color: "#fff",
-  background: "#1a1a2e",
-  transition: "all 0.15s",
-};
