@@ -7,14 +7,146 @@ from PIL import Image
 import math
 from typing import List, Dict
 
-# ====================== 設定 ======================
-GEMINI_API_KEY = "あなたのGemini APIキー"          # ← 必ず変更
-FTP_HOST = "ご自身のFTPホスト名"                   # ← 変更
-FTP_USER = "ユーザー名"                             # ← 変更
-FTP_PASS = "パスワード"                             # ← 変更
+# ====================== 基本設定 ======================
+GEMINI_API_KEY = "あなたのGemini APIキー"      # ← 必須
+FTP_HOST = "あなたのFTPホスト"                 # ← 必須
+FTP_USER = "FTPユーザー名"                     # ← 必須
+FTP_PASS = "FTPパスワード"                     # ← 必須
 
-SITE_KW = "大阪・堺のデニムブランド, ITオートメーション, スワロフスキー・カスタム"
+# ブランド設定
+BRAND_NAME = "MICVICTORY POME."
+SITE_KW = "大阪・堺のデニムブランド, ITオートメーション, スワロフスキーカスタム"
 CATALOG_URL = "https://mikitan.github.io/micvictory/catalog_2026.pdf"
 CONSULTING_URL = "http://mikivaluejapan.web.fc2.com/"
 
-# ====================== 1. Gemini戦略
+# ====================== 1. Gemini 戦略記事生成 ======================
+def generate_article_html() -> str | None:
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    
+    prompt = f"""
+あなたはMICVICTORY POME.の公式ブランドストーリーテラーです。
+
+ブランド名: {BRAND_NAME}
+コンセプト: {SITE_KW}
+
+以下の2つのリンクを**自然に文章へ織り交ぜて**、情熱的で説得力のあるHTML記事を作成してください。
+
+必須リンク:
+- 最新2026年PDFカタログ: {CATALOG_URL}
+- カスタム相談窓口: {CONSULTING_URL}
+
+【記事構成】
+1. 導入：堺の職人魂とPython自動化が融合した独自の強み
+2. 2026サマーコレクションの魅力（デニム羽織・ジュエリー中心）
+3. 読者への熱いメッセージ（成功を掴みたい人へ向けた鼓舞）
+4. 行動喚起（カタログダウンロードと相談への誘導）
+
+トーン：河内音頭のような勢いと高級感を両立
+色調イメージ：Navy（濃紺）とGold（金）
+
+出力は **<body>タグ内のHTMLのみ** とし、```html などの記号は一切含めないでください。
+"""
+
+    try:
+        response = requests.post(
+            url, 
+            json={"contents": [{"parts": [{"text": prompt}]}]}, 
+            timeout=35
+        )
+        response.raise_for_status()
+        text = response.json()['candidates'][0]['content']['parts'][0]['text']
+        # クリーニング
+        cleaned = text.replace("```html", "").replace("```", "").strip()
+        return cleaned
+    except Exception as e:
+        print(f"❌ Gemini記事生成エラー: {e}")
+        return None
+
+
+# ====================== 2. FTPアップロード ======================
+def upload_to_fc2(article_html: str):
+    filename = "index.html"
+    try:
+        full_page = f"""<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{BRAND_NAME} | 堺の魂を纏う</title>
+    <style>
+        body {{ background-color: #1a2a44; color: #f0f0f0; font-family: sans-serif; line-height: 1.85; }}
+        a {{ color: #d4af37; font-weight: bold; text-decoration: none; }}
+        a:hover {{ text-decoration: underline; }}
+        .container {{ max-width: 860px; margin: 50px auto; padding: 50px 40px; border: 3px solid #d4af37; background: rgba(26, 42, 68, 0.97); }}
+        h1, h2 {{ color: #d4af37; }}
+        hr {{ border-color: #d4af37; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        {article_html}
+        <hr>
+        <p style="text-align: center; color: #aaa; font-size: 0.95em;">
+            Automated Update: {datetime.now().strftime('%Y年%m月%d日 %H:%M')} JST
+        </p>
+    </div>
+</body>
+</html>"""
+
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(full_page)
+
+        # FTPアップロード
+        with FTP_TLS(FTP_HOST) as ftps:
+            ftps.login(FTP_USER, FTP_PASS)
+            ftps.prot_p()
+            with open(filename, "rb") as f:
+                ftps.storbinary(f"STOR {filename}", f)
+
+        print(f"✅ {filename} をサーバーにアップロードしました ({datetime.now().strftime('%H:%M')})")
+    except Exception as e:
+        print(f"❌ FTPアップロード失敗: {e}")
+
+
+# ====================== 3. ニュースまとめ ======================
+def generate_news_md() -> str:
+    # （前回版とほぼ同じで簡略化）
+    rss_list = [
+        "https://news.yahoo.co.jp/rss/topics/top-picks.xml",
+        "https://news.yahoo.co.jp/rss/topics/domestic.xml",
+        "https://news.yahoo.co.jp/rss/topics/world.xml",
+        "https://rss.itmedia.co.jp/rss/2.0/news_bursts.xml",
+    ]
+
+    articles = []
+    seen = set()
+    for url in rss_list:
+        try:
+            feed = feedparser.parse(url)
+            for entry in feed.entries[:10]:
+                if entry.link in seen: continue
+                seen.add(entry.link)
+                articles.append({
+                    "title": entry.title,
+                    "link": entry.link,
+                    "summary": entry.get("summary") or entry.get("description", "")
+                })
+        except:
+            continue
+
+    md = f"# 📰 本日のニュース\n**{datetime.now().strftime('%Y年%m月%d日 %H:%M')} JST**\n\n---\n\n"
+    for art in articles[:20]:
+        summary = (art["summary"][:150] + "...") if len(art["summary"]) > 150 else art["summary"]
+        md += f"- **{art['title']}**\n"
+        if summary:
+            md += f"  {summary}\n"
+        md += f"  [詳細]({art['link']})\n\n"
+    
+    return md
+
+
+# ====================== メイン実行 ======================
+if __name__ == "__main__":
+    print("🚀 MICVICTORY POME. 自動更新システム 起動")
+    
+    # 記事生成 → アップロード
