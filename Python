@@ -123,3 +123,107 @@ def create_grid(image_folder, output_path, cols=4):
 # 実行例
 # create_grid('./my_images', 'combined_grid.jpg')
 
+
+import feedparser
+import os
+from datetime import datetime
+from typing import List, Dict
+
+# ====================== 設定 ======================
+RSS_FEEDS = [
+    "https://news.yahoo.co.jp/rss/topics/top-picks.xml",
+    "https://news.yahoo.co.jp/rss/topics/domestic.xml",
+    "https://news.yahoo.co.jp/rss/topics/world.xml",
+    "https://news.yahoo.co.jp/rss/topics/business.xml",
+    "https://rss.itmedia.co.jp/rss/2.0/news_bursts.xml",
+    "https://rss.itmedia.co.jp/rss/2.0/topstory.xml",
+    "https://newsonjapan.com/rss/top.xml",
+]
+
+MAX_ARTICLES_PER_FEED = 12
+MAX_TOTAL_ARTICLES = 25
+
+# ====================== 関数 ======================
+def get_articles() -> List[Dict]:
+    articles = []
+    seen = set()
+    
+    print("📡 ニュースを収集中...")
+    for url in RSS_FEEDS:
+        try:
+            feed = feedparser.parse(url)
+            feed_title = feed.feed.title if hasattr(feed.feed, 'title') else "Unknown"
+            
+            for entry in feed.entries[:MAX_ARTICLES_PER_FEED]:
+                link = entry.link
+                if link in seen:
+                    continue
+                seen.add(link)
+                
+                title = entry.title.strip()
+                summary = entry.get('summary', '') or entry.get('description', '')
+                
+                articles.append({
+                    'title': title,
+                    'link': link,
+                    'summary': summary,
+                    'source': feed_title
+                })
+        except Exception as e:
+            print(f"⚠️ エラー {url}: {e}")
+    
+    # 新着順にソートして上限まで
+    return articles[:MAX_TOTAL_ARTICLES]
+
+
+def categorize(title: str) -> str:
+    title_lower = title.lower()
+    if any(k in title_lower for k in ["日本", "政府", "岸田", "自民", "東京", "大阪", "北海道"]):
+        return "国内"
+    elif any(k in title_lower for k in ["米国", "中国", "ロシア", "ウクライナ", "トランプ", "バイデン", "国際"]):
+        return "国際"
+    elif any(k in title_lower for k in ["ai", "テック", "it", "スマホ", "apple", "google", "microsoft", "オープンai"]):
+        return "テック"
+    elif any(k in title_lower for k in ["株", "円", "ドル", "経済", "企業", "トヨタ", "ソニー"]):
+        return "経済"
+    elif any(k in title_lower for k in ["サッカー", "野球", "オリンピック", "w杯", "日本代表"]):
+        return "スポーツ"
+    else:
+        return "その他"
+
+
+def generate_markdown(articles: List[Dict]) -> str:
+    today = datetime.now().strftime("%Y年%m月%d日")
+    update_time = datetime.now().strftime("%H:%M")
+    
+    md = f"""# 📰 本日の最新ニュース（24H AUTO UPDATE）
+**{today}** | 最終更新: {update_time} JST
+
+---
+
+"""
+    # カテゴリ別に整理
+    categories: Dict[str, List] = {"国内": [], "国際": [], "テック": [], "経済": [], "スポーツ": [], "その他": []}
+    
+    for art in articles:
+        cat = categorize(art['title'])
+        categories[cat].append(art)
+    
+    # 出力
+    for cat, arts in categories.items():
+        if not arts:
+            continue
+        md += f"## {cat}\n\n"
+        for art in arts[:6]:   # 各カテゴリ最大6件
+            summary = art['summary']
+            if len(summary) > 180:
+                summary = summary[:177] + "..."
+            
+            md += f"- **{art['title']}**\n"
+            if summary:
+                md += f"  {summary}\n"
+            md += f"  [詳細を読む]({art['link']})\n\n"
+    
+    md += f"""---
+*MICVICTORY 自動更新システム | Generated at {datetime.now().strftime("%Y-%m-%d %H:%M:%
+
