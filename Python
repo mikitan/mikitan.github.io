@@ -3,227 +3,173 @@ import requests
 import json
 from datetime import datetime
 from ftplib import FTP_TLS
+from PIL import Image
+import math
+import feedparser
+from typing import List, Dict
 
-# --- 1. 設定 ---
+# ====================== 設定 ======================
 GEMINI_API_KEY = "あなたのGemini APIキー"
 FTP_HOST = "ご自身のFTPホスト名"
 FTP_USER = "ユーザー名"
 FTP_PASS = "パスワード"
 
-# 【追加】MICVICTORY戦略設定
 SITE_KW = "大阪・堺のデニムブランド, ITオートメーション, スワロフスキー・カスタム"
-CATALOG_URL = "https://mikitan.github.io/micvictory/catalog_2026.pdf" # PDFカタログ
-CONSULTING_URL = "http://mikivaluejapan.web.fc2.com/" # 相談窓口
+CATALOG_URL = "https://mikitan.github.io/micvictory/catalog_2026.pdf"
+CONSULTING_URL = "http://mikivaluejapan.web.fc2.com/"
 
-# --- 2. Geminiで「戦略的記事」を生成する関数 ---
-def generate_article_html():
-    # モデルを最新の 1.5-flash に指定
+# ====================== 1. Gemini記事生成 ======================
+def generate_article_html() -> str | None:
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
     
-    # 【1.2 付け足し】プロンプトにブランド戦略を組み込む
     prompt = f"""
-    テーマ: {SITE_KW}
-    ブランド名: MICVICTORY POME. (ミックビクトリー・ポメ)
-    
-    以下のリンクを必ず含めて、戦略的なアピール記事をHTML形式で作成してください。
-    - 最新PDFカタログ: {CATALOG_URL}
-    - カスタム相談窓口: {CONSULTING_URL}
-    
-    【構成要件】
-    1. 「堺の職人魂 × Pythonによる自動化」がいかに成功を生むかの論理的説明。
-    2. 2026年サマーコレクション（デニム羽織、ジュエリー）の紹介。
-    3. 読者の「成功」を鼓舞する情熱的な口調（河内音頭のような勢い）。
-    4. <body>タグ内のみ出力。デザインは「紺(Navy)」と「金(Gold)」を基調にすること。
-    """
+あなたはMICVICTORY POME.の公式ストーリーテラーです。
+ブランド名: MICVICTORY POME. (ミックビクトリー・ポメ)
+テーマ: {SITE_KW}
+
+以下のリンクを必ず自然に含めて、情熱的で説得力のある戦略記事を**<body>タグ内のみ**のHTMLで作成してください。
+
+- 最新PDFカタログ: {CATALOG_URL}
+- カスタム相談窓口: {CONSULTING_URL}
+
+【必須構成】
+1. 堺の職人魂 × Python自動化がもたらす競争優位性の論理的説明
+2. 2026年サマーコレクション（デニム羽織、ジュエリー）の魅力紹介
+3. 読者の「成功」を鼓舞する、河内音頭のような熱い語り口
+4. 全体のデザインはNavy(#1a2a44)とGold(#d4af37)を基調
+
+出力はHTML装飾のみ。```html などのマークダウンは絶対に付けないでください。
+"""
 
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    
     try:
-        response = requests.post(url, json=payload)
-        article_content = response.json()['candidates'][0]['content']['parts'][0]['text']
-        # Markdownのデコレーション(```html等)を削除するクリーンアップ
-        article_content = article_content.replace('```html', '').replace('```', '')
-        return article_content
+        response = requests.post(url, json=payload, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        article = data['candidates'][0]['content']['parts'][0]['text']
+        # クリーニング
+        article = article.replace('```html', '').replace('```', '').strip()
+        return article
     except Exception as e:
-        print(f"記事生成エラー: {e}")
+        print(f"❌ Gemini記事生成エラー: {e}")
         return None
 
-# --- 3. アップロード関数 (修正なし) ---
-def upload_to_fc2(html_content):
+
+# ====================== 2. FTPアップロード ======================
+def upload_to_fc2(html_content: str):
     filename = "index.html"
-    with open(filename, "w", encoding="utf-8") as f:
-        # MICVICTORYのブランドカラー（紺 #1a2a44）を背景に設定
+    try:
         full_html = f"""<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>MICVICTORY POME. | Strategic Update</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MICVICTORY POME. | 堺から世界へ</title>
     <style>
-        body {{ background-color: #1a2a44; color: #ffffff; font-family: sans-serif; line-height: 1.8; }}
-        a {{ color: #d4af37; font-weight: bold; }} /* 金色のリンク */
-        .container {{ max-width: 800px; margin: auto; padding: 40px; border: 1px solid #d4af37; }}
+        body {{ background-color: #1a2a44; color: #f0f0f0; font-family: 'Helvetica Neue', sans-serif; line-height: 1.8; }}
+        a {{ color: #d4af37; text-decoration: none; font-weight: bold; }}
+        a:hover {{ text-decoration: underline; }}
+        .container {{ max-width: 820px; margin: 40px auto; padding: 40px; border: 2px solid #d4af37; background-color: rgba(26, 42, 68, 0.95); }}
+        h1, h2 {{ color: #d4af37; }}
     </style>
 </head>
 <body>
     <div class="container">
         {html_content}
         <hr style="border-color: #d4af37;">
-        <p style="text-align: center;">Last Automated Update: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+        <p style="text-align: center; color: #aaa;">
+            Last Automated Update: {datetime.now().strftime('%Y-%m-%d %H:%M JST')}
+        </p>
     </div>
 </body>
 </html>"""
-        f.write(full_html)
 
-    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(full_html)
+
+        # FTPアップロード
         with FTP_TLS(FTP_HOST) as ftps:
             ftps.login(user=FTP_USER, passwd=FTP_PASS)
             ftps.prot_p()
             with open(filename, "rb") as f:
                 ftps.storbinary(f"STOR {filename}", f)
-            print(f"成功: MICVICTORY公式ページを更新しました。")
+        
+        print(f"✅ MICVICTORY公式ページを更新しました → {datetime.now().strftime('%H:%M')}")
+        
     except Exception as e:
-        print(f"FTP転送エラー: {e}")
+        print(f"❌ FTPアップロードエラー: {e}")
 
-if __name__ == "__main__":
-    new_article = generate_article_html()
-    if new_article:
-        upload_to_fc2(new_article)
 
-import os
-from PIL import Image
-import math
-
-def create_grid(image_folder, output_path, cols=4):
-    # .pngファイルのみを取得
-    images = [f for f in os.listdir(image_folder) if f.endswith('.png')]
+# ====================== 3. 画像グリッド作成 ======================
+def create_grid(image_folder: str, output_path: str, cols: int = 4):
+    images = [f for f in os.listdir(image_folder) if f.lower().endswith('.png')]
     images.sort()
     
     if not images:
+        print("画像が見つかりません")
         return
 
-    # 最初の画像からサイズを取得
-    first_img = Image.open(os.path.join(image_folder, images[0]))
-    w, h = first_img.size
-    
-    # グリッドの行数を計算
+    first = Image.open(os.path.join(image_folder, images[0]))
+    w, h = first.size
     rows = math.ceil(len(images) / cols)
-    
-    # 出力用の真っ白なキャンバスを作成
-    grid_img = Image.new('RGB', (cols * w, rows * h), (255, 255, 255))
-    
-    for index, img_name in enumerate(images):
+
+    grid = Image.new('RGB', (cols * w, rows * h), (255, 255, 255))
+
+    for idx, img_name in enumerate(images):
         img = Image.open(os.path.join(image_folder, img_name))
-        # 適切な位置に貼り付け
-        x = (index % cols) * w
-        y = (index // cols) * h
-        grid_img.paste(img, (x, y))
-        
-    grid_img.save(output_path)
-    print(f"Saved grid image to {output_path}")
+        x = (idx % cols) * w
+        y = (idx // cols) * h
+        grid.paste(img, (x, y))
 
-# 実行例
-# create_grid('./my_images', 'combined_grid.jpg')
+    grid.save(output_path)
+    print(f"✅ グリッド画像保存完了: {output_path}")
 
 
-import feedparser
-import os
-from datetime import datetime
-from typing import List, Dict
+# ====================== 4. ニュース自動生成 ======================
+def get_news_markdown() -> str:
+    RSS_FEEDS = [
+        "https://news.yahoo.co.jp/rss/topics/top-picks.xml",
+        "https://news.yahoo.co.jp/rss/topics/domestic.xml",
+        "https://news.yahoo.co.jp/rss/topics/world.xml",
+        "https://news.yahoo.co.jp/rss/topics/business.xml",
+        "https://rss.itmedia.co.jp/rss/2.0/news_bursts.xml",
+        "https://newsonjapan.com/rss/top.xml",
+    ]
 
-# ====================== 設定 ======================
-RSS_FEEDS = [
-    "https://news.yahoo.co.jp/rss/topics/top-picks.xml",
-    "https://news.yahoo.co.jp/rss/topics/domestic.xml",
-    "https://news.yahoo.co.jp/rss/topics/world.xml",
-    "https://news.yahoo.co.jp/rss/topics/business.xml",
-    "https://rss.itmedia.co.jp/rss/2.0/news_bursts.xml",
-    "https://rss.itmedia.co.jp/rss/2.0/topstory.xml",
-    "https://newsonjapan.com/rss/top.xml",
-]
-
-MAX_ARTICLES_PER_FEED = 12
-MAX_TOTAL_ARTICLES = 25
-
-# ====================== 関数 ======================
-def get_articles() -> List[Dict]:
     articles = []
     seen = set()
-    
-    print("📡 ニュースを収集中...")
+
     for url in RSS_FEEDS:
         try:
             feed = feedparser.parse(url)
-            feed_title = feed.feed.title if hasattr(feed.feed, 'title') else "Unknown"
-            
-            for entry in feed.entries[:MAX_ARTICLES_PER_FEED]:
+            for entry in feed.entries[:10]:
                 link = entry.link
                 if link in seen:
                     continue
                 seen.add(link)
-                
-                title = entry.title.strip()
-                summary = entry.get('summary', '') or entry.get('description', '')
-                
                 articles.append({
-                    'title': title,
+                    'title': entry.title.strip(),
                     'link': link,
-                    'summary': summary,
-                    'source': feed_title
+                    'summary': entry.get('summary') or entry.get('description', ''),
+                    'source': feed.feed.title if hasattr(feed.feed, 'title') else 'News'
                 })
-        except Exception as e:
-            print(f"⚠️ エラー {url}: {e}")
-    
-    # 新着順にソートして上限まで
-    return articles[:MAX_TOTAL_ARTICLES]
-
-
-def categorize(title: str) -> str:
-    title_lower = title.lower()
-    if any(k in title_lower for k in ["日本", "政府", "岸田", "自民", "東京", "大阪", "北海道"]):
-        return "国内"
-    elif any(k in title_lower for k in ["米国", "中国", "ロシア", "ウクライナ", "トランプ", "バイデン", "国際"]):
-        return "国際"
-    elif any(k in title_lower for k in ["ai", "テック", "it", "スマホ", "apple", "google", "microsoft", "オープンai"]):
-        return "テック"
-    elif any(k in title_lower for k in ["株", "円", "ドル", "経済", "企業", "トヨタ", "ソニー"]):
-        return "経済"
-    elif any(k in title_lower for k in ["サッカー", "野球", "オリンピック", "w杯", "日本代表"]):
-        return "スポーツ"
-    else:
-        return "その他"
-
-
-def generate_markdown(articles: List[Dict]) -> str:
-    today = datetime.now().strftime("%Y年%m月%d日")
-    update_time = datetime.now().strftime("%H:%M")
-    
-    md = f"""# 📰 本日の最新ニュース（24H AUTO UPDATE）
-**{today}** | 最終更新: {update_time} JST
-
----
-
-"""
-    # カテゴリ別に整理
-    categories: Dict[str, List] = {"国内": [], "国際": [], "テック": [], "経済": [], "スポーツ": [], "その他": []}
-    
-    for art in articles:
-        cat = categorize(art['title'])
-        categories[cat].append(art)
-    
-    # 出力
-    for cat, arts in categories.items():
-        if not arts:
+        except:
             continue
-        md += f"## {cat}\n\n"
-        for art in arts[:6]:   # 各カテゴリ最大6件
-            summary = art['summary']
-            if len(summary) > 180:
-                summary = summary[:177] + "..."
-            
-            md += f"- **{art['title']}**\n"
-            if summary:
-                md += f"  {summary}\n"
-            md += f"  [詳細を読む]({art['link']})\n\n"
-    
-    md += f"""---
-*MICVICTORY 自動更新システム | Generated at {datetime.now().strftime("%Y-%m-%d %H:%M:%
 
+    # カテゴリ分け
+    categories: Dict[str, List] = {"国内": [], "国際": [], "テック": [], "経済": [], "その他": []}
+    for art in articles[:30]:
+        t = art['title'].lower()
+        if any(k in t for k in ["日本", "大阪", "岸田", "自民", "東京"]):
+            categories["国内"].append(art)
+        elif any(k in t for k in ["米国", "中国", "トランプ", "ウクライナ"]):
+            categories["国際"].append(art)
+        elif any(k in t for k in ["ai", "テック", "it", "openai", "google"]):
+            categories["テック"].append(art)
+        elif any(k in t for k in ["株", "円", "経済", "企業"]):
+            categories["経済"].append(art)
+        else:
+            categories["その他"].append(art)
+
+    today = datetime
