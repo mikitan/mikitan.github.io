@@ -115,4 +115,20 @@ async function handleCreate() {
     console.log(data);
 }
 
+// 画質を落としてサイズを小さくする関数 (Canvasを使用)
+async function compressImage(file, quality = 0.7) {
+    const bitmap = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0);
+    
+    // Blobとして圧縮して出力
+    return new Promise((resolve) => {
+        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+    });
+}
+
 
