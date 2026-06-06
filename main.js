@@ -1,4 +1,4 @@
-// フロントエンドでプロンプトのカテゴリーを管理
+す// フロントエンドでプロンプトのカテゴリーを管理
 const prompts = {
     portrait: ["高品質なポートレート...", "サイバーパンク風の人物..."],
     scenery: ["美しい夕暮れの風景...", "未来的な都市の夜景..."]
@@ -51,3 +51,47 @@ const enhancePrompt = async (userInput) => {
 const addTag = (tag) => {
   setPromptInput((prev) => `${prev}, ${tag}`);
 };
+document.addEventListener("DOMContentLoaded", () => {
+    // ボタンや入力欄を取得
+    const promptInput = document.getElementById("prompt-input");
+    const createButton = document.getElementById("create-btn");
+
+    // ボタンがクリックされた時の処理
+    createButton.addEventListener("click", async () => {
+        const userText = promptInput.value;
+
+        // 入力が空でないか確認
+        if (!userText.trim()) {
+            alert("指示を入力してください！");
+            return;
+        }
+
+        // 生成開始の合図（ボタンを無効化して連打を防ぐ）
+        createButton.disabled = true;
+        createButton.textContent = "生成中...";
+
+        try {
+            // ここでAPIを呼び出す（例）
+            const result = await generateAiContent(userText);
+            console.log("生成結果:", result);
+            alert("生成が完了しました！");
+        } catch (error) {
+            console.error("エラーが発生しました:", error);
+            alert("生成に失敗しました。もう一度試してください。");
+        } finally {
+            // ボタンを元に戻す
+            createButton.disabled = false;
+            createButton.textContent = "創作";
+        }
+    });
+});
+
+// AI生成APIを模倣した関数（実際に使う際はfetchなどでAPIを呼び出します）
+async function generateAiContent(text) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve(`「${text}」に基づいた動画を生成しました`);
+        }, 2000); // 2秒の擬似的な読み込み時間
+    });
+}
+
