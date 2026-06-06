@@ -130,5 +130,27 @@ async function compressImage(file, quality = 0.7) {
         canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
     });
 }
+function updateFileName(input) {
+    if (input.files.length > 0) {
+        document.getElementById('fileStatus').innerText = "✅ 選択中: " + input.files[0].name;
+    }
+}
+
+function generatePrompt() {
+    const scene = document.getElementById('promptArea').value;
+    const fileRef = document.getElementById('fileStatus').innerText;
+    const base = "(Masterpiece:1.2), MIKA anime girl, glowing cyan eyes, 8k, AURA style";
+    const final = `${base}, ${fileRef}, ${scene}`;
+    
+    document.getElementById('result-prompt').value = final;
+    navigator.clipboard.writeText(final);
+}
+
+function openChatGPT() {
+    const prompt = document.getElementById('result-prompt').value;
+    if (!prompt) { alert("まずはプロンプトを合成してください"); return; }
+    window.open(`https://chatgpt.com/?q=${encodeURIComponent(prompt)}`, '_blank');
+}
+
 
 
