@@ -100,4 +100,19 @@ export const CONFIG = {
     modelName: "gpt-4o",
     maxTokens: 1000
 };
+// js/main.js
+async function handleCreate() {
+    const prompt = document.getElementById("prompt-input").value;
+    
+    // 自分のサーバーのURLへ送信
+    const response = await fetch('http://あなたのサーバーIP:8000/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: prompt })
+    });
+    
+    const data = await response.json();
+    console.log(data);
+}
+
 
