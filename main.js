@@ -95,3 +95,9 @@ async function generateAiContent(text) {
     });
 }
 
+export const CONFIG = {
+    apiKey: "sk-...",
+    modelName: "gpt-4o",
+    maxTokens: 1000
+};
+
