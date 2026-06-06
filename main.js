@@ -32,3 +32,22 @@ const enhancePrompt = async (userInput) => {
 const addTag = (tag) => {
   setPromptInput((prev) => `${prev}, ${tag}`);
 };
+<button disabled={promptInput.length === 0}>創作</button>
+// 入力が止まって500ms後に処理を実行
+const handleInputChange = debounce((value) => {
+    validatePrompt(value);
+}, 500);
+// プロンプトを強化する関数例
+const enhancePrompt = async (userInput) => {
+  const style = "cinematic, 8k resolution, highly detailed";
+  // 入力されたキーワードにスタイルを自動的に追加する
+  const finalPrompt = `${userInput}, ${style}`;
+  
+  // 実際にはここからAPIを叩く
+  return finalPrompt;
+};
+
+// UI側でタグを追加する例
+const addTag = (tag) => {
+  setPromptInput((prev) => `${prev}, ${tag}`);
+};
