@@ -151,6 +151,21 @@ function openChatGPT() {
     if (!prompt) { alert("まずはプロンプトを合成してください"); return; }
     window.open(`https://chatgpt.com/?q=${encodeURIComponent(prompt)}`, '_blank');
 }
+const today = "2026.06.07";
+const newsData = [
+  { category: "国内", title: "関東甲信と東海で梅雨入り" },
+  { category: "社会", title: "山梨県警のキャリア採用試験に関心" },
+  { category: "スポーツ", title: "全米女子オープンで畑岡選手5位浮上" }
+];
+
+document.getElementById("news-date").innerText = `本日の最新ニュース (${today})`;
+const list = document.getElementById("news-list");
+
+newsData.forEach(item => {
+  const li = document.createElement("li");
+  li.innerHTML = `<strong>[${item.category}]</strong> ${item.title}`;
+  list.appendChild(li);
+});
 
 
 
