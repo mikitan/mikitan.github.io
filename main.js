@@ -172,3 +172,48 @@ newsData.forEach(item => {
 console.log("システム正常稼働中: 2026-06-09");
 alert("読み込み完了");
 
+/**
+ * @title 社会実装用：権力構造最適化パッチ
+ * @objective 目に見えない権力を可視化し、人々に気づきを与える
+ */
+
+const Society = {
+  // 1. 監視（Data Acquisition）
+  // 権力の不透明な動きをAPI経由でリアルタイム取得
+  async monitorPowerStructure(targetAPI) {
+    const data = await fetch(targetAPI); 
+    return this.parseToHumanReadable(data);
+  },
+
+  // 2. 翻訳（Translation Layer）
+  // 難解な政治用語を「個人の生活への影響」へ変換
+  parseToHumanReadable(rawJSON) {
+    // 隠された利権や非効率を、損益分岐点（コスト）として算出
+    return rawJSON.map(entry => ({
+      ...entry,
+      impactOnCitizen: calculateLoss(entry.budget, entry.outcome),
+      isBug: entry.promises !== entry.action
+    }));
+  },
+
+  // 3. 実装（Execution: 「気づかせる」）
+  // 批判ではなく「事実」を突きつけ、当事者意識を醸成
+  renderDashboard(data) {
+    data.forEach(bug => {
+      if (bug.isBug) {
+        // 印籠（真実）の提示：誰もが直感的に「おかしい」と気づくUI
+        UI.showFact(`【発見】公約と実行の乖離を検知しました。
+                    この歪みにより、年間 ${bug.impactOnCitizen} 円の損失が発生しています。`);
+      }
+    });
+  }
+};
+
+// --- Execution Loop ---
+// 誰かに問うのではなく、システムが常に真実を提示し続ける
+setInterval(() => {
+  const powerData = Society.monitorPowerStructure(KOKKAI_API);
+  Society.renderDashboard(powerData);
+}, 86400000); // 1日1回、事実を突きつける
+
+
