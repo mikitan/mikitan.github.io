@@ -168,4 +168,7 @@ newsData.forEach(item => {
 });
 
 
+// 動作確認用
+console.log("システム正常稼働中: 2026-06-09");
+alert("読み込み完了");
 
