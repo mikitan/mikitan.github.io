@@ -227,6 +227,22 @@ function calculatePRTransparency(budget, reach, agencyFee) {
     transparencyScore: (budget / (budget + estimatedWaste)) * 100
   };
 }
+async function fetchBudget() {
+    // 大阪市の予算データをAPIから取得する関数（第一歩）
+    console.log("監視システム起動...");
+    // ここにAPIエンドポイントを順次追加していきます
+}
+// 予算データのバグを見つけるロジック
+function analyzeBudget(data) {
+    const totalPRBudget = data.reduce((sum, item) => sum + item.cost, 0);
+    const perCitizen = totalPRBudget / 2750000; // 大阪市の推定人口
+    
+    return {
+        total: totalPRBudget,
+        costPerPerson: perCitizen.toFixed(2),
+        warning: perCitizen > 500 ? "⚠️ この広報予算は平均を大きく超過しています。" : "正常"
+    };
+}
 
 
 
