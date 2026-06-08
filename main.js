@@ -216,4 +216,17 @@ setInterval(() => {
   Society.renderDashboard(powerData);
 }, 86400000); // 1日1回、事実を突きつける
 
+// 権力の「見えない宣伝費」を透視する計算式
+function calculatePRTransparency(budget, reach, agencyFee) {
+  // 予算のうち、本来の目的に使われず中抜き・手数料として消えていると推定される額
+  const estimatedWaste = agencyFee * 0.3; 
+  const impactPerCitizen = budget / populationOfOsaka;
+  
+  return {
+    waste: estimatedWaste,
+    transparencyScore: (budget / (budget + estimatedWaste)) * 100
+  };
+}
+
+
 
