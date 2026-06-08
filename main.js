@@ -316,6 +316,17 @@ function analyzeDependency(records) {
         concentration: concentration.toFixed(1)
     };
 }
+/**
+ * 拡散用：市民への「気づき」提供回路
+ */
+function generatePersonalizedWarning(costPerPerson) {
+  // ユーザーの行動を促すトリガー
+  const message = `あなたの一年分の税金のうち、約 ${costPerPerson} 円が、
+                 市民の生活改善ではなく「特定のPR事業」に割り当てられています。
+                 この金額があれば、地域の図書室や保育サービスに何ができるでしょうか？`;
+  
+  return message;
+}
 
 
 
