@@ -243,6 +243,56 @@ function analyzeBudget(data) {
         warning: perCitizen > 500 ? "⚠️ この広報予算は平均を大きく超過しています。" : "正常"
     };
 }
+/**
+ * Osaka-Budget-Scanner: 権力監視エンジン
+ * 目的: 広告宣伝費の「不透明な支出」を市民のコストとして可視化する
+ */
+
+async function initPowerSearch() {
+    console.log("監視システム: 大阪市広報予算のサーチを開始します...");
+    
+    // 大阪市オープンデータAPI: 予算執行状況へのアクセス
+    const API_URL = "https://data.city.osaka.lg.jp/api/3/action/datastore_search?resource_id=...&q=広告宣伝費";
+
+    try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        
+        if (data.success) {
+            const auditResult = processAudit(data.result.records);
+            renderDashboard(auditResult);
+        }
+    } catch (e) {
+        console.error("監視回路エラー: データへのアクセスが遮断されています。", e);
+    }
+}
+
+function processAudit(records) {
+    const population = 2750000; // 大阪市推定人口
+    const total = records.reduce((sum, item) => sum + parseInt(item.cost), 0);
+    
+    return {
+        totalCost: total,
+        perCitizen: (total / population).toFixed(2),
+        riskLevel: total > 100000000 ? "HIGH_RISK" : "NORMAL"
+    };
+}
+
+function renderDashboard(result) {
+    const dashboard = document.getElementById('power-dashboard');
+    dashboard.innerHTML = `
+        <div class="audit-card">
+            <h3>監視レポート: 広報宣伝費</h3>
+            <p>総額: ${result.totalCost.toLocaleString()}円</p>
+            <p>市民一人あたりの負担: <strong>${result.perCitizen}円</strong></p>
+            <p>警告: ${result.riskLevel === "HIGH_RISK" ? "⚠️ 不透明な支出超過の疑い" : "正常"}</p>
+        </div>
+    `;
+}
+
+// システム実行
+initPowerSearch();
+
 
 
 
