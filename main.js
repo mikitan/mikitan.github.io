@@ -292,6 +292,31 @@ function renderDashboard(result) {
 
 // システム実行
 initPowerSearch();
+/**
+ * マネーフロー追跡モジュール
+ * 目的: 委託先の集中度を分析し、特定の「権力との癒着」をあぶり出す
+ */
+
+function analyzeDependency(records) {
+    const contractorMap = {};
+    
+    // 企業ごとの受注総額を算出
+    records.forEach(item => {
+        const name = item.contractor_name;
+        contractorMap[name] = (contractorMap[name] || 0) + parseInt(item.cost);
+    });
+
+    // 受注集中率の計算（上位企業が全予算の何％を占めるか）
+    const total = Object.values(contractorMap).reduce((a, b) => a + b, 0);
+    const topContractor = Object.entries(contractorMap).sort((a, b) => b[1] - a[1])[0];
+    const concentration = (topContractor[1] / total) * 100;
+
+    return {
+        top: topContractor[0],
+        concentration: concentration.toFixed(1)
+    };
+}
+
 
 
 
