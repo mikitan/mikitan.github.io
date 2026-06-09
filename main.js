@@ -444,6 +444,14 @@ function renderTrend(trends) {
 
 // 起動
 init();
+// main.js の fetchBudgetData を一時的に書き換えてテストする
+async function fetchBudgetData() {
+    // APIの代わりにテストデータを返す
+    return [
+        { name: "広告PR事業A", amount: 150000000, contractor: "株式会社X" },
+        { name: "広報紙発行事業", amount: 50000000, contractor: "株式会社Y" }
+    ];
+}
 
 
 
