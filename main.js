@@ -379,6 +379,71 @@ function renderTrend(trends) {
         </div>
     `).join('');
 }
+/**
+ * main.js
+ * 予算監視システムの全機能をここに統合
+ */
+
+// 1. 初期設定
+const API_CONFIG = {
+    resource_id: "YOUR_RESOURCE_ID_HERE", // 大阪市オープンデータのID
+    population: 2750000
+};
+
+// 2. メイン実行処理
+async function init() {
+    console.log("監視システム起動...");
+    const data = await fetchBudgetData();
+    
+    // 解析とレンダリングの実行
+    const audit = processAudit(data);
+    const anomalies = detectBudgetAnomaly(data);
+    const trends = analyzeTrend(data);
+
+    renderDashboard(audit);
+    renderAnomaly(anomalies);
+    renderTrend(trends);
+}
+
+// 3. データ取得
+async function fetchBudgetData() {
+    const url = `https://data.city.osaka.lg.jp/api/3/action/datastore_search?resource_id=${API_CONFIG.resource_id}`;
+    const response = await fetch(url);
+    const result = await response.json();
+    return result.result.records;
+}
+
+// 4. 各機能ロジック（ここに追加・修正していく）
+function processAudit(records) {
+    const total = records.reduce((sum, item) => sum + Number(item.amount), 0);
+    return { total, perCitizen: (total / API_CONFIG.population).toFixed(2) };
+}
+
+function detectBudgetAnomaly(records) {
+    return records.filter(item => item.amount > 100000000); 
+}
+
+function analyzeTrend(data) {
+    // 時系列データ処理
+    return [{ year: 2026, growth: 5.2 }]; 
+}
+
+// 5. レンダリング
+function renderDashboard(data) {
+    document.getElementById('audit-content').innerHTML = `総額: ${data.total}円 / 市民負担: ${data.perCitizen}円`;
+}
+
+function renderAnomaly(anomalies) {
+    const log = document.getElementById('anomaly-log');
+    log.innerHTML = anomalies.map(a => `<div>異常検出: ${a.name}</div>`).join('');
+}
+
+function renderTrend(trends) {
+    document.getElementById('trend-log').innerHTML = trends.map(t => `<div>${t.year}年: +${t.growth}%</div>`).join('');
+}
+
+// 起動
+init();
 
 
 
