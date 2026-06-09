@@ -358,6 +358,18 @@ function updateUI(anomalies) {
         </div>
     `).join('');
 }
+/**
+ * 予算の急激な肥大化（バグの成長）を検知する
+ */
+function analyzeTrend(dataHistory) {
+    // dataHistory: [{year: 2024, amount: 100}, {year: 2025, amount: 150}, ...]
+    return dataHistory.map((entry, index, arr) => {
+        if (index === 0) return { ...entry, growth: 0 };
+        const prev = arr[index - 1].amount;
+        const growth = ((entry.amount - prev) / prev) * 100;
+        return { ...entry, growth: growth.toFixed(1) };
+    }).filter(entry => entry.growth > 30); // 30%以上の急増をバグとして抽出
+}
 
 
 
