@@ -328,6 +328,25 @@ function generatePersonalizedWarning(costPerPerson) {
   return message;
 }
 
+/**
+ * マネーフロー異常検知スクリプト
+ */
+function detectBudgetAnomaly(records) {
+    const contractorSummary = records.reduce((acc, curr) => {
+        acc[curr.contractor] = (acc[curr.contractor] || 0) + Number(curr.amount);
+        return acc;
+    }, {});
+
+    const total = Object.values(contractorSummary).reduce((a, b) => a + b, 0);
+
+    return Object.entries(contractorSummary)
+        .map(([name, amount]) => ({
+            name,
+            amount,
+            ratio: ((amount / total) * 100).toFixed(2)
+        }))
+        .filter(entry => entry.ratio > 20); // 1社で20%超を占める異常値を抽出
+}
 
 
 
