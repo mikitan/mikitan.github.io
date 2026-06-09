@@ -347,6 +347,17 @@ function detectBudgetAnomaly(records) {
         }))
         .filter(entry => entry.ratio > 20); // 1社で20%超を占める異常値を抽出
 }
+function updateUI(anomalies) {
+    const container = document.getElementById('anomaly-log');
+    container.innerHTML = anomalies.map(a => `
+        <div class="alert-box">
+            <strong>警告: 特定企業への集中検知</strong><br>
+            企業: ${a.name}<br>
+            シェア: ${a.ratio}%<br>
+            <a href="https://github.com/your-repo/issues/new?title=調査依頼:${a.name}">詳細を議論する</a>
+        </div>
+    `).join('');
+}
 
 
 
