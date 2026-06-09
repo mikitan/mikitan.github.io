@@ -370,6 +370,15 @@ function analyzeTrend(dataHistory) {
         return { ...entry, growth: growth.toFixed(1) };
     }).filter(entry => entry.growth > 30); // 30%以上の急増をバグとして抽出
 }
+function renderTrend(trends) {
+    const log = document.getElementById('trend-log');
+    log.innerHTML = trends.map(t => `
+        <div class="trend-item">
+            ${t.year}年: 前年比 +${t.growth}% 
+            <span class="warning">異常な成長を検知</span>
+        </div>
+    `).join('');
+}
 
 
 
