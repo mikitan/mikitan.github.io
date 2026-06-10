@@ -453,6 +453,48 @@ async function fetchBudgetData() {
     ];
 }
 
+/**
+ * main.js - 動作確認用
+ */
+
+window.onload = () => {
+    console.log("監視システム起動...");
+    
+    // APIの代わりに手動データで動作を確認する
+    const mockData = [
+        { name: "市政PR広告費", amount: 120000000, contractor: "株式会社大手広報" },
+        { name: "イベント宣伝費", amount: 45000000, contractor: "株式会社イベント企画" }
+    ];
+
+    runSystem(mockData);
+};
+
+function runSystem(data) {
+    const total = data.reduce((sum, item) => sum + item.amount, 0);
+    const population = 2750000;
+    const perCitizen = (total / population).toFixed(2);
+
+    // 1. 予算概要表示
+    document.getElementById('audit-content').innerHTML = `
+        総額: ${total.toLocaleString()}円<br>
+        市民一人あたりの負担: <strong>${perCitizen}円</strong>
+    `;
+
+    // 2. 異常検知ログ表示
+    const anomalyLog = document.getElementById('anomaly-log');
+    anomalyLog.innerHTML = data.map(item => `
+        <div class="alert-box">
+            <strong>${item.name}</strong><br>
+            委託先: ${item.contractor}<br>
+            支出額: ${item.amount.toLocaleString()}円
+        </div>
+    `).join('');
+
+    // 3. 予算肥大化アラート
+    document.getElementById('trend-log').innerHTML = `
+        <div class="trend-item">前年比 +12.4% (警告: 上昇傾向)</div>
+    `;
+}
 
 
 
