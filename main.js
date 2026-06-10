@@ -495,6 +495,28 @@ function runSystem(data) {
         <div class="trend-item">前年比 +12.4% (警告: 上昇傾向)</div>
     `;
 }
+/**
+ * 企業別受注額の集計・可視化
+ */
+function analyzeContractors(data) {
+    const summary = data.reduce((acc, curr) => {
+        acc[curr.contractor] = (acc[curr.contractor] || 0) + curr.amount;
+        return acc;
+    }, {});
+
+    // 受注額が多い順に並び替え
+    return Object.entries(summary).sort((a, b) => b[1] - a[1]);
+}
+
+// runSystem 内でこれを呼び出し、UIに反映させる
+function renderContractors(contractorData) {
+    const container = document.getElementById('anomaly-log'); // または新しいコンテナ
+    container.innerHTML += `
+        <h4>主な受注先:</h4>
+        ${contractorData.map(c => `<div>${c[0]}: ${c[1].toLocaleString()}円</div>`).join('')}
+    `;
+}
+
 
 
 
