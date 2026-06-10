@@ -517,6 +517,12 @@ function renderContractors(contractorData) {
     `;
 }
 
+// main.js 内のテストデータを極端にする
+const mockData = [
+    { name: "市政PR広告費", amount: 999999999, contractor: "株式会社大手広報" } // ここを大きくする
+];
+// main.js の一番上に配置
+console.log("DEBUG: main.js が読み込まれました。時刻: " + new Date().toLocaleTimeString());
 
 
 
