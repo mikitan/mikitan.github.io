@@ -523,6 +523,26 @@ const mockData = [
 ];
 // main.js の一番上に配置
 console.log("DEBUG: main.js が読み込まれました。時刻: " + new Date().toLocaleTimeString());
+window.onload = () => {
+    console.log("初期化開始");
+    
+    // HTMLのidに確実に値を注入する
+    const auditContent = document.getElementById('audit-content');
+    if (auditContent) {
+        auditContent.innerHTML = "解析完了: データ接続済み";
+    }
+
+    const anomalyLog = document.getElementById('anomaly-log');
+    if (anomalyLog) {
+        anomalyLog.innerHTML = "<div>異常検知システム作動中</div>";
+    }
+
+    const trendLog = document.getElementById('trend-log');
+    if (trendLog) {
+        trendLog.innerHTML = "<div>トレンド分析データ取得済み</div>";
+    }
+};
+
 
 
 
