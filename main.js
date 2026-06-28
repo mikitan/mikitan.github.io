@@ -1,3 +1,22 @@
+
+// ボタンを取得
+const btn = document.getElementById('generateBtn');
+
+// クリックイベントを追加
+btn.addEventListener('click', () => {
+    // ここにAIへリクエストを送る処理や、画像加工の指示を書く
+    alert("AI処理を開始します： " + document.getElementById('prompt').value);
+    
+    // この中で実際にCanvasを書き換える関数を呼ぶ
+    processImage(); 
+});
+
+
+
+
+
+
+
 す// フロントエンドでプロンプトのカテゴリーを管理
 const prompts = {
     portrait: ["高品質なポートレート...", "サイバーパンク風の人物..."],
