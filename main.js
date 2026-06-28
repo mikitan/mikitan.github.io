@@ -544,5 +544,35 @@ window.onload = () => {
 };
 
 
+// 1. 状態の管理
+let processedImage = null; // AI結果を一時保存する場所
+
+// 2. ボタンを押した瞬間（重い処理）
+runBtn.addEventListener('click', async () => {
+  // ① AIモデルで加工を実行
+  const result = await runAIModel(originalImage);
+  
+  // ② 結果を別のCanvas（裏方）に保存
+  processedCanvas.getContext('2d').drawImage(result, 0, 0);
+  processedImage = processedCanvas; 
+});
+
+// 3. スライダーを動かしているリアルタイム（軽い処理）
+slider.addEventListener('input', (e) => {
+  if (!processedImage) return;
+  
+  const alpha = e.target.value / 100;
+  
+  // 表示用Canvasをクリアして合成
+  mainCtx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // オリジナルを描画
+  mainCtx.globalAlpha = 1.0;
+  mainCtx.drawImage(originalCanvas, 0, 0);
+  
+  // その上にAI結果を適用度（alpha）で重ねる
+  mainCtx.globalAlpha = alpha;
+  mainCtx.drawImage(processedImage, 0, 0);
+});
 
 
