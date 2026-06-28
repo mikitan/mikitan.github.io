@@ -12,12 +12,17 @@ btn.addEventListener('click', () => {
 });
 
 
+function processImage() {
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // 例：反転（崩壊感）の処理を呼び出す
+    ctx.filter = 'invert(100%)';
+    ctx.drawImage(img, 0, 0); // 読み込んだ画像を描画
+}
 
 
-
-
-
-す// フロントエンドでプロンプトのカテゴリーを管理
+// フロントエンドでプロンプトのカテゴリーを管理
 const prompts = {
     portrait: ["高品質なポートレート...", "サイバーパンク風の人物..."],
     scenery: ["美しい夕暮れの風景...", "未来的な都市の夜景..."]
