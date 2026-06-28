@@ -672,5 +672,41 @@ input.addEventListener('change', (e) => {
 
   reader.readAsDataURL(file);
 });
+import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers';
+
+// 1. モデルの初期化（これを一度だけ実行）
+let pipelineInstance = null;
+async function initAI() {
+    if (!pipelineInstance) {
+        // 画像生成パイプラインを準備
+        pipelineInstance = await pipeline('text-to-image', 'Xenova/stable-diffusion-2-small');
+    }
+    return pipelineInstance;
+}
+
+// 2. ボタンを押した時の処理
+document.getElementById('runBtn').addEventListener('click', async () => {
+    const prompt = document.getElementById('prompt').value;
+    const statusDiv = document.getElementById('status'); // 状態表示用
+    
+    statusDiv.innerText = "AI処理中...（数秒かかります）";
+    
+    try {
+        const generator = await initAI();
+        const output = await generator(prompt);
+        
+        // Canvasへの反映
+        const canvas = document.getElementById('canvas');
+        const img = await createImageBitmap(output);
+        canvas.width = img.width;
+        canvas.height = img.height;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        
+        statusDiv.innerText = "完了！";
+    } catch (err) {
+        console.error(err);
+        statusDiv.innerText = "エラー: " + err.message;
+    }
+});
 
 
