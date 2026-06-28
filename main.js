@@ -575,4 +575,20 @@ slider.addEventListener('input', (e) => {
   mainCtx.drawImage(processedImage, 0, 0);
 });
 
+// utils.js (共通ユーティリティ)
+export const CanvasHelper = {
+  // 画像をCanvasにリセットして描画する共通関数
+  draw(canvas, image) {
+    const ctx = canvas.getContext('2d');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    ctx.drawImage(image, 0, 0);
+  },
+  // フィルターを一括適用する共通関数
+  apply(canvas, filterString) {
+    const ctx = canvas.getContext('2d');
+    ctx.filter = filterString;
+    ctx.drawImage(canvas, 0, 0);
+  }
+};
 
