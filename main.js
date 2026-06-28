@@ -632,4 +632,45 @@ input.addEventListener('change', (e) => {
   reader.readAsDataURL(file);
 });
 
+// HTML側のCanvas要素が正しく取得されているか確認
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const input = document.getElementById('imageInput');
+
+input.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) {
+    console.error("ファイルが選択されていません");
+    return;
+  }
+
+  const reader = new FileReader();
+
+  // FileReaderで読み込み完了後に実行
+  reader.onload = (event) => {
+    const img = new Image();
+    
+    // 画像ロード完了後にCanvasに描画
+    img.onload = () => {
+      // 1. Canvasのサイズを画像に合わせる（重要：ここがないと0x0で表示されない）
+      canvas.width = img.width;
+      canvas.height = img.height;
+      
+      // 2. 描画を実行
+      ctx.clearRect(0, 0, canvas.width, canvas.height); // 一旦クリア
+      ctx.drawImage(img, 0, 0);
+      
+      console.log("画像表示成功:", img.width, "x", img.height);
+    };
+
+    img.onerror = () => {
+      console.error("画像の読み込みに失敗しました");
+    };
+
+    img.src = event.target.result;
+  };
+
+  reader.readAsDataURL(file);
+});
+
 
