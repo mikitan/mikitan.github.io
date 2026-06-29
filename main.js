@@ -1,3 +1,14 @@
+<script>
+    function changeEffect(filterStyle) {
+        // IDが displayImage の画像を探してフィルターを適用
+        const img = document.getElementById('displayImage');
+        if (img) {
+            img.style.filter = filterStyle;
+        } else {
+            alert("画像が見つかりません。id='displayImage' を確認してください。");
+        }
+    }
+</script>
 
 // ボタンを取得
 const btn = document.getElementById('generateBtn');
