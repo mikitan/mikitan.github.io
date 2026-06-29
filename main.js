@@ -1,3 +1,36 @@
+
+/**
+ * AI動画生成APIへのリクエスト送信関数
+ * @param {string} service - 'luma' または 'runway'
+ * @param {string} prompt - ユーザーのプロンプト
+ * @param {string} apiKey - ユーザー入力フォームから取得したキー
+ */
+async function callVideoAI(service, prompt, apiKey) {
+    // 各サービスのAPIエンドポイント（実際のマニュアルに合わせて調整してください）
+    const endpoints = {
+        luma: 'https://api.lumalabs.ai/v1/dream-machine/generate',
+        runway: 'https://api.runwayml.com/v1/generate'
+    };
+
+    const response = await fetch(endpoints[service], {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({ prompt: prompt })
+    });
+
+    if (!response.ok) {
+        throw new Error(`${service} APIの呼び出しに失敗しました: ${response.statusText}`);
+    }
+
+    return await response.json(); // 生成IDやステータスが返ります
+}
+
+
+
+
 // api.js
 const API_CONFIG = {
     // 実際にはここにキーを書かない！
