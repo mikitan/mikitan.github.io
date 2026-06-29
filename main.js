@@ -1,3 +1,39 @@
+// api.js
+const API_CONFIG = {
+    // 実際にはここにキーを書かない！
+    // ユーザーに環境変数や入力フォームから渡す設計にします
+};
+
+/**
+ * AI動画生成APIを呼び出す関数（例: Luma AIやRunwayのAPI形式を想定）
+ * @param {string} prompt - ユーザーのプロンプト
+ * @param {string} apiKey - セキュリティのため入力フォームから取得する想定
+ */
+async function generateVideo(prompt, apiKey) {
+    const url = 'https://api.example.com/v1/generate'; // 各AIサービスのAPIエンドポイント
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                prompt: prompt,
+                aspect_ratio: '16:9'
+            })
+        });
+
+        const data = await response.json();
+        return data; // 生成された動画のURLやIDを返す
+    } catch (error) {
+        console.error('API呼び出しエラー:', error);
+        throw error;
+    }
+}
+
+
 <script>
     function changeEffect(filterStyle) {
         // IDが displayImage の画像を探してフィルターを適用
