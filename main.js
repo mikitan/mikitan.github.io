@@ -1,3 +1,35 @@
+// api.js
+
+/**
+ * 動画生成APIを呼び出す関数
+ * @param {string} service - 'luma' または 'runway'
+ * @param {string} prompt - プロンプト
+ * @param {string} apiKey - セキュリティのため入力欄から受け取る
+ */
+async function triggerVideoGeneration(service, prompt, apiKey) {
+    const endpoints = {
+        luma: 'https://api.lumalabs.ai/v1/dream-machine/generate',
+        runway: 'https://api.runwayml.com/v1/generate'
+    };
+
+    try {
+        const response = await fetch(endpoints[service], {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({ prompt: prompt })
+        });
+
+        if (!response.ok) throw new Error('API通信エラー');
+        return await response.json();
+    } catch (error) {
+        console.error(error);
+        throw error;
+    }
+}
+
 document.getElementById('runway-btn').addEventListener('click', async () => {
     const prompt = document.querySelector('textarea').value;
     const apiKey = document.getElementById('api-key-input').value; // UI上の入力欄から取得
