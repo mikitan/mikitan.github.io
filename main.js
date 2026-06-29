@@ -1,3 +1,6 @@
+localStorage.setItem('lastGenerationId', result.id);
+
+
 /**
  * 動画生成API 接続モジュール
  */
