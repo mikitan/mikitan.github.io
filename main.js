@@ -1,3 +1,40 @@
+/**
+ * 動画生成API 接続モジュール
+ */
+const VideoManager = {
+    // 生成リクエスト送信
+    async requestGeneration(service, prompt, apiKey) {
+        const endpoints = {
+            luma: 'https://api.lumalabs.ai/v1/dream-machine/generations',
+            runway: 'https://api.runwayml.com/v1/generate'
+        };
+        
+        const response = await fetch(endpoints[service], {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt })
+        });
+        return await response.json(); // ここで生成IDを取得
+    },
+
+    // 完了するまでステータスを確認し続ける（ポーリング処理）
+    async pollStatus(service, generationId, apiKey) {
+        return new Promise((resolve, reject) => {
+            const interval = setInterval(async () => {
+                const status = await this.checkStatus(service, generationId, apiKey);
+                
+                if (status.state === 'completed') {
+                    clearInterval(interval);
+                    resolve(status.video_url); // 完成したURLを返す
+                } else if (status.state === 'failed') {
+                    clearInterval(interval);
+                    reject('生成が失敗しました');
+                }
+                // 'processing' ならそのまま継続
+            }, 5000); // 5秒ごとに確認
+        });
+    }
+};
 
 // app.js
 document.addEventListener('DOMContentLoaded', () => {
