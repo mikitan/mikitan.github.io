@@ -1,3 +1,24 @@
+
+// app.js
+document.addEventListener('DOMContentLoaded', () => {
+    // Luma AI ボタンの処理
+    document.querySelector('.luma-button').addEventListener('click', async () => {
+        const prompt = document.querySelector('textarea').value;
+        const apiKey = prompt("APIキーを入力してください（安全のため保存されません）"); // 簡易的な入力
+
+        if (!apiKey) return;
+
+        try {
+            const result = await triggerVideoGeneration('luma', prompt, apiKey);
+            alert('生成開始！ID: ' + result.id);
+            // ここに生成履歴を表示する処理を追加
+        } catch (e) {
+            alert('生成に失敗しました');
+        }
+    });
+});
+
+
 // api.js
 
 /**
