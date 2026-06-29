@@ -1,3 +1,16 @@
+document.getElementById('runway-btn').addEventListener('click', async () => {
+    const prompt = document.querySelector('textarea').value;
+    const apiKey = document.getElementById('api-key-input').value; // UI上の入力欄から取得
+
+    try {
+        alert('動画生成を開始します...');
+        const result = await callVideoAI('runway', prompt, apiKey);
+        console.log('生成ID:', result.id);
+        alert('生成リクエスト成功！ID: ' + result.id);
+    } catch (err) {
+        alert(err.message);
+    }
+});
 
 /**
  * AI動画生成APIへのリクエスト送信関数
