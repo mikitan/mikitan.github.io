@@ -1,3 +1,28 @@
+async function startTictopeGeneration(prompt, apiKey) {
+    const statusText = document.getElementById('status-text');
+    const videoElement = document.getElementById('tictope-preview');
+    
+    statusText.innerText = "生成リクエスト送信中...";
+    
+    try {
+        // 1. リクエスト送信
+        const result = await VideoManager.requestGeneration('luma', prompt, apiKey);
+        const genId = result.id;
+        
+        statusText.innerText = "動画生成中（約1〜2分かかります）...";
+        
+        // 2. ポーリング（生成完了まで待つ）
+        const videoUrl = await VideoManager.pollStatus('luma', genId, apiKey);
+        
+        // 3. 表示
+        videoElement.src = videoUrl;
+        videoElement.style.display = 'block';
+        statusText.innerText = "完成！TikTokへ投稿可能です。";
+        
+    } catch (err) {
+        statusText.innerText = "エラー: " + err;
+    }
+}
 
 // TikTok用に比率を固定する
 async function generateTikTokVideo(prompt, apiKey) {
