@@ -1,3 +1,20 @@
+
+// TikTok用に比率を固定する
+async function generateTikTokVideo(prompt, apiKey) {
+    const response = await fetch('https://api.lumalabs.ai/v1/dream-machine/generations', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            prompt: prompt,
+            aspect_ratio: "9:16", // ここを固定
+            duration: 5 // ショート動画に最適な秒数
+        })
+    });
+    return await response.json();
+}
+
+
+
 localStorage.setItem('lastGenerationId', result.id);
 
 
