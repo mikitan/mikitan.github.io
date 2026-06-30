@@ -1,3 +1,4 @@
+
 localStorage.setItem('videoHistory', JSON.stringify(currentHistoryArray));
 
 // ...（前略）
