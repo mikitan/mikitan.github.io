@@ -1,3 +1,31 @@
+
+// ...（前略）
+// 4. 完成した動画を表示した直後に、履歴に追加する
+statusText.innerText = "生成完了！";
+videoArea.innerHTML = `<video src="${videoUrl}" controls autoplay width="100%"></video>`;
+
+// ★ここを追加
+addToHistory(prompt, videoUrl); 
+// ...（後略）
+localStorage.setItem('videoHistory', JSON.stringify(currentHistoryArray));
+/**
+ * 履歴リストに新しい動画を追加する関数
+ */
+function addToHistory(prompt, videoUrl) {
+    const historyList = document.getElementById('historyList'); // 履歴を表示する<ul>タグ
+    
+    // 履歴アイテムを作成
+    const listItem = document.createElement('li');
+    listItem.innerHTML = `
+        <span>${prompt.substring(0, 20)}...</span>
+        <a href="${videoUrl}" target="_blank">動画を見る</a>
+        <button onclick="downloadVideo('${videoUrl}')">DL</button>
+    `;
+    
+    // リストの先頭に追加（新しいものが一番上にくるように）
+    historyList.prepend(listItem);
+}
+
 /**
  * 動画生成の一連の流れを管理するメイン関数
  */
