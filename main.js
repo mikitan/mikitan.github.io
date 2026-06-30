@@ -1,3 +1,4 @@
+localStorage.setItem('videoHistory', JSON.stringify(currentHistoryArray));
 
 // ...（前略）
 // 4. 完成した動画を表示した直後に、履歴に追加する
