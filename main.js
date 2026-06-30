@@ -1,3 +1,65 @@
+/**
+ * 完璧な動画生成フローを管理するスクリプト
+ */
+
+// 1. 生成ボタンのイベントリスナー設定
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('lumaBtn').addEventListener('click', () => handleGenerate('luma'));
+    document.getElementById('runwayBtn').addEventListener('click', () => handleGenerate('runway'));
+});
+
+async function handleGenerate(service) {
+    const prompt = document.querySelector('textarea').value;
+    const idField = document.getElementById('idField');
+    const statusText = document.getElementById('statusText');
+    const resultArea = document.getElementById('resultArea');
+
+    if (!prompt) return alert("プロンプトを入力してください");
+
+    try {
+        statusText.innerText = "リクエスト送信中...";
+        
+        // APIリクエスト実行
+        const result = await triggerVideoGeneration(service, prompt, "YOUR_API_KEY");
+        
+        // IDを自動セット
+        idField.value = result.id;
+        statusText.innerText = "動画生成中...完了までお待ちください";
+
+        // ポーリング（完了待ち）
+        const videoUrl = await pollVideoStatus(service, result.id, "YOUR_API_KEY");
+
+        // 動画を表示
+        statusText.innerText = "完成！";
+        resultArea.innerHTML = `<video src="${videoUrl}" controls width="100%"></video>`;
+        
+    } catch (err) {
+        statusText.innerText = "エラー: " + err.message;
+        console.error(err);
+    }
+}
+
+/**
+ * 動画の生成状況を定期的に確認する関数
+ */
+async function pollVideoStatus(service, id, apiKey) {
+    return new Promise((resolve, reject) => {
+        const interval = setInterval(async () => {
+            const data = await checkStatusFromApi(service, id, apiKey);
+            if (data.state === 'completed') {
+                clearInterval(interval);
+                resolve(data.video_url);
+            } else if (data.state === 'failed') {
+                clearInterval(interval);
+                reject(new Error("生成失敗"));
+            }
+        }, 5000); // 5秒ごとにチェック
+    });
+}
+
+
+
+
 // 生成ボタン（Luma AI / Runway）が押された時の処理
 async function handleGenerate(service) {
     const prompt = document.getElementById('promptInput').value;
