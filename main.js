@@ -1,3 +1,54 @@
+/**
+ * 1. ID管理と生成フローを統合
+ */
+async function handleGenerate(service) {
+    const prompt = document.getElementById('promptInput').value;
+    const idField = document.getElementById('idField'); // 自動生成IDを表示する場所
+    const statusText = document.getElementById('statusText'); // 状態表示エリア
+
+    if (!prompt) return alert("プロンプトを入力してください");
+
+    try {
+        // APIリクエスト送信
+        const result = await requestGeneration(service, prompt);
+        
+        // 【重要】ID欄に自動入力
+        idField.value = result.id;
+        statusText.innerText = "生成中...（待機中）";
+
+        // ポーリング開始
+        const videoUrl = await pollStatus(service, result.id);
+
+        // 生成完了後の処理
+        statusText.innerText = "生成完了！";
+        
+        // 【重要】履歴への自動追加
+        addVideoToHistoryList(prompt, videoUrl);
+
+    } catch (err) {
+        statusText.innerText = "エラー: " + err.message;
+    }
+}
+
+/**
+ * 2. 履歴リスト（ul要素）に動的追加する関数
+ */
+function addVideoToHistoryList(prompt, videoUrl) {
+    const historyList = document.getElementById('historyList'); // 履歴リストのID
+    const listItem = document.createElement('li');
+    
+    // リストのデザインを現在のUIに合わせる
+    listItem.className = 'history-item';
+    listItem.innerHTML = `
+        <div class="history-content">
+            <span class="prompt-text">${prompt.substring(0, 15)}...</span>
+            <a href="${videoUrl}" target="_blank" class="play-btn">▶ 再生</a>
+        </div>
+    `;
+    
+    // リストの先頭に追加
+    historyList.prepend(listItem);
+}
 
 localStorage.setItem('videoHistory', JSON.stringify(currentHistoryArray));
 
