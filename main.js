@@ -1,4 +1,55 @@
 /**
+ * 動画生成の一連の流れを管理するメイン関数
+ */
+async function handleGenerate(service) {
+    const prompt = document.getElementById('promptInput').value;
+    const idField = document.getElementById('idField');
+    const statusText = document.getElementById('statusText');
+    const videoArea = document.getElementById('videoDisplayArea');
+
+    if (!prompt) return alert("プロンプトを入力してください");
+
+    // 1. リクエスト送信
+    statusText.innerText = "リクエスト送信中...";
+    const result = await requestGeneration(service, prompt);
+    
+    // 2. IDの自動書き込み
+    idField.value = result.id;
+    statusText.innerText = "生成中...（完了まで自動で待機します）";
+
+    // 3. ポーリング処理（完了するまで繰り返す）
+    try {
+        const videoUrl = await pollStatus(service, result.id);
+        
+        // 4. 完成した動画を表示
+        statusText.innerText = "生成完了！";
+        videoArea.innerHTML = `<video src="${videoUrl}" controls autoplay width="100%"></video>`;
+    } catch (error) {
+        statusText.innerText = "エラーが発生しました: " + error.message;
+    }
+}
+
+/**
+ * 定期的に状態を確認するポーリング関数
+ */
+async function pollStatus(service, id) {
+    return new Promise((resolve, reject) => {
+        const interval = setInterval(async () => {
+            const status = await checkStatusFromApi(service, id);
+            if (status.state === 'completed') {
+                clearInterval(interval);
+                resolve(status.video_url);
+            } else if (status.state === 'failed') {
+                clearInterval(interval);
+                reject(new Error("生成が失敗しました"));
+            }
+        }, 5000); // 5秒ごとに確認
+    });
+}
+
+
+
+/**
  * 完璧な動画生成フローを管理するスクリプト
  */
 
