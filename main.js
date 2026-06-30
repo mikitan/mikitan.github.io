@@ -1,3 +1,32 @@
+
+function displayVideo(url) {
+    const historySection = document.querySelector('.history');
+    const video = document.createElement('video');
+    video.src = url;
+    video.controls = true;
+    historySection.appendChild(video);
+}
+// 生成状態をチェックする関数
+async function checkGenerationStatus(service, id, apiKey) {
+    // 各サービスのステータス確認用エンドポイントへリクエスト
+    const response = await fetch(`https://api.example.com/v1/${service}/status/${id}`, {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    return await response.json();
+}
+
+// 完了を待つメインループ
+async function waitForCompletion(service, id, apiKey) {
+    while (true) {
+        const data = await checkGenerationStatus(service, id, apiKey);
+        if (data.state === 'completed') return data.url;
+        if (data.state === 'failed') throw new Error('生成失敗');
+        await new Promise(r => setTimeout(r, 5000)); // 5秒待機
+    }
+}
+
+
+
 async function startTictopeGeneration(prompt, apiKey) {
     const statusText = document.getElementById('status-text');
     const videoElement = document.getElementById('tictope-preview');
