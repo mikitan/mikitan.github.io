@@ -1,3 +1,25 @@
+// 生成ボタン（Luma AI / Runway）が押された時の処理
+async function handleGenerate(service) {
+    const prompt = document.getElementById('promptInput').value;
+    const idField = document.getElementById('idField'); // 画面上のID入力欄
+    const statusText = document.getElementById('statusText'); // ステータス表示エリア
+
+    statusText.innerText = "リクエスト送信中...";
+    
+    // 1. 生成リクエスト
+    const result = await VideoManager.requestGeneration(service, prompt, "YOUR_API_KEY");
+    
+    // 2. IDを自動セット
+    idField.value = result.id;
+    
+    // 3. ポーリング開始
+    statusText.innerText = "生成中...";
+    const videoUrl = await VideoManager.pollStatus(service, result.id, "YOUR_API_KEY");
+    
+    // 4. 完了
+    statusText.innerText = "動画が完成しました！";
+    // ここで動画プレビューを表示
+}
 
 function displayVideo(url) {
     const historySection = document.querySelector('.history');
