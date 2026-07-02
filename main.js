@@ -1,3 +1,10 @@
+// JavaScript: フロントプレビューと状態管理
+const handleGenerate = async (prompt) => {
+    const data = await fetch('/generate-all', { method: 'POST', body: JSON.stringify({ prompt }) });
+    // プレビューを一括表示（各AIの生成結果をタイル状に並べる）
+    renderPreviews(data); 
+    updateDashboard(data); // 資産統計を更新
+};
 
 // プロンプト生成ブリッジの概念コード
 const generateContent = async (prompt, tools) => {
