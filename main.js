@@ -1,3 +1,13 @@
+
+// プロンプト生成ブリッジの概念コード
+const generateContent = async (prompt, tools) => {
+  // 重複入力の排除：1つのプロンプトを各APIに一括送信
+  const results = await Promise.all(tools.map(tool => apiCall(tool, prompt)));
+  updateDashboard(results); // ダッシュボードへ自動反映
+  saveToDatabase(results);   // 自動保存
+};
+
+
 /**
  * 1. ID管理と生成フローを統合
  */
