@@ -1,3 +1,16 @@
+// 改善案：ボタン押下後に次のアクションをポップアップ表示
+function applyFilter(filter) {
+    ctx.filter = filter;
+    ctx.drawImage(img, 0, 0);
+    // 処理完了後にアクションを促す
+    setTimeout(() => {
+        alert("加工完了！この戦略を保存して次のフェーズへ進みますか？");
+        // ここに戦略保存用APIへのリンクを挿入
+    }, 500);
+}
+
+
+
 // JavaScript: フロントプレビューと状態管理
 const handleGenerate = async (prompt) => {
     const data = await fetch('/generate-all', { method: 'POST', body: JSON.stringify({ prompt }) });
