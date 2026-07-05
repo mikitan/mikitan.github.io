@@ -1,3 +1,30 @@
+
+// 戦略家の分身：AIニュース解析エンジン
+async function analyzeNewsAndGenerateStrategy() {
+    const rawNews = await fetchLatestRSS(); // 日経/ロイターRSS取得
+    
+    // AI戦略生成プロンプト（AIに指示する内容）
+    const strategyPersona = "あなたは冷徹な戦略家です。以下のニュースを分析し、2026年の資産防衛の観点から、1行で「具体的なアクション」を指示せよ。";
+    
+    rawNews.forEach(news => {
+        const strategyComment = generateAIComment(news.title, strategyPersona);
+        displayToDashboard(news, strategyComment);
+    });
+}
+
+function displayToDashboard(news, comment) {
+    const stream = document.getElementById('news-stream');
+    stream.innerHTML += `
+        <div class="strategy-card">
+            <h4>${news.title}</h4>
+            <p class="strategy-comment" style="color:#d4af37; border-left:3px solid #d4af37; padding-left:10px;">
+                戦略：${comment}
+            </p>
+        </div>
+    `;
+}
+
+
 // 自動投稿トリガー関数
 function triggerSNS(videoUrl, caption) {
     const webhookUrl = "YOUR_WEBHOOK_URL_HERE"; // Make/ZapierのURL
