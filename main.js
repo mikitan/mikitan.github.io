@@ -1,3 +1,14 @@
+// 自動投稿トリガー関数
+function triggerSNS(videoUrl, caption) {
+    const webhookUrl = "YOUR_WEBHOOK_URL_HERE"; // Make/ZapierのURL
+    fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: videoUrl, text: caption })
+    }).then(() => alert("SNSへの配信を予約しました"));
+}
+
+
 // 改善案：ボタン押下後に次のアクションをポップアップ表示
 function applyFilter(filter) {
     ctx.filter = filter;
