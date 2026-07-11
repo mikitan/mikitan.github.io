@@ -1274,4 +1274,22 @@ document.getElementById('runBtn').addEventListener('click', async () => {
     }
 });
 
+// サンプルのロジック構成
+const status = {
+  isThinking: true,
+  isAnalyzing: false,
+};
+
+function renderStatus() {
+  const container = document.getElementById('status-container');
+  
+  if (status.isThinking) {
+    container.innerHTML = `<p>市場データ解析中：最新潮流を同期中...</p>`;
+  } else if (status.isAnalyzing) {
+    container.innerHTML = `<p>エリート戦略を策定中...</p>`;
+  } else {
+    container.innerHTML = `<p>準備完了</p>`;
+  }
+}
+
 
