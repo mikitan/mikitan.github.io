@@ -1,4 +1,15 @@
 
+// VS Code用スニペット例：AIへの指示テンプレート
+"AI Optimize Task": {
+    "prefix": "aiopt",
+    "body": [
+        "以下のタスクを効率化するためのステップを考えてください。",
+        "タスク：${1:ここに作業内容を入力}",
+        "制約条件：${2:時間は30分以内、手作業を減らすこと}",
+        "出力形式：ステップバイステップで手順を提示してください。"
+    ],
+    "description": "AIによる業務効率化案の作成"
+}
 // 戦略家の分身：AIニュース解析エンジン
 async function analyzeNewsAndGenerateStrategy() {
     const rawNews = await fetchLatestRSS(); // 日経/ロイターRSS取得
