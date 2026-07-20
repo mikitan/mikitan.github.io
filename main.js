@@ -1,3 +1,9 @@
+const comp = ctx.createDynamicsCompressor();
+comp.threshold.value = -24;
+comp.knee.value = 30;
+comp.ratio.value = 12;
+comp.connect(ctx.destination);
+// 各音源を comp に接続するように変更
 
 async function analyzeNewsAndGenerateStrategy() {
     const rawNews = await fetchLatestRSS(); // 日経/ロイターRSS取得
