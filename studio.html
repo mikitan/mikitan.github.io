@@ -38,3 +38,363 @@
     </script>
 </body>
 </html>
+import { useState, useEffect, useRef, useCallback } from "react";
+
+// ── 定数 ──────────────────────────────────────────────
+const STEPS = 12; // 12小節
+const TRACKS = [
+  { id:"guitar", label:"GUITAR", color:"#e8b800", emoji:"🎸", isNote:true },
+  { id:"bass",   label:"BASS",   color:"#00cc66", emoji:"🟢", isNote:true },
+  { id:"kick",   label:"KICK",   color:"#ff4444", emoji:"🔴", isNote:false },
+  { id:"snare",  label:"SNARE",  color:"#ff9f0a", emoji:"🟠", isNote:false },
+  { id:"hihat",  label:"HI-HAT", color:"#44ddff", emoji:"🔵", isNote:false },
+  { id:"clap",   label:"CLAP",   color:"#ffffff", emoji:"⚪", isNote:false },
+];
+
+// ドレミ音名（日本語 + 英語）
+const NOTE_NAMES_JP = ["ド","レ","ミ","ファ","ソ","ラ","シ","ド↑","レ↑","ミ↑","ファ↑","ソ↑"];
+const NOTE_NAMES_EN = ["C4","D4","E4","F4","G4","A4","B4","C5","D5","E5","F5","G5"];
+const NOTE_MIDI     = [60,62,64,65,67,69,71,72,74,76,77,79];
+const midiToFreq = m => 440*Math.pow(2,(m-69)/12);
+
+const BASS_MIDI = [36,38,40,41,43,45,47,48]; // C2〜C3
+const BASS_NAMES_JP = ["ド低","レ低","ミ低","ファ低","ソ低","ラ低","シ低","ド中"];
+
+const TEMPOS = [
+  {label:"BALLAD",bpm:70},{label:"SLOW",bpm:85},{label:"GROOVE",bpm:100},
+  {label:"ECHO",bpm:120},{label:"FAST",bpm:140},{label:"UPTEMPO",bpm:160},
+];
+const RHYTHMS = [
+  {label:"8beat",pattern:[1,1,1,1,1,1,1,1,1,1,1,1].map(Boolean)},
+  {label:"16beat",pattern:[1,0,1,0,1,0,1,0,1,0,1,0].map(Boolean)},
+  {label:"reggae",pattern:[0,1,0,1,0,1,0,1,0,1,0,1].map(Boolean)},
+  {label:"waltz",pattern:[1,0,0,1,0,0,1,0,0,1,0,0].map(Boolean)},
+  {label:"free",pattern:Array(12).fill(false)},
+];
+
+// ── Audio ──────────────────────────────────────────────
+// ギター（カルプスストロング合成）
+function playGuitar(ctx, t, freq, v=1) {
+  const sr = ctx.sampleRate;
+  const N = Math.round(sr / freq);
+  const buf = ctx.createBuffer(1, sr * 1.5, sr);
+  const d = buf.getChannelData(0);
+  // ランダムノイズでシード
+  for (let i = 0; i < N; i++) d[i] = (Math.random() * 2 - 1);
+  // カルプスストロングループ
+  const decay = 0.995;
+  for (let i = N; i < d.length; i++) d[i] = decay * 0.5 * (d[i-N] + d[i-N+1 < N ? i-N+1 : i-N]);
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const g = ctx.createGain(); g.gain.value = v * 0.7;
+  g.gain.setValueAtTime(v*0.7, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+  src.connect(g); g.connect(ctx.destination);
+  src.start(t); src.stop(t + 1.5);
+}
+
+function playBass(ctx,t,freq,v=1){
+  const o=ctx.createOscillator(),o2=ctx.createOscillator();
+  const f=ctx.createBiquadFilter();f.type="lowpass";f.frequency.value=300;f.Q.value=2;
+  const e=ctx.createGain(),g=ctx.createGain();g.gain.value=v*0.9;
+  o.type="sawtooth";o.frequency.value=freq;o2.type="square";o2.frequency.value=freq*0.5;
+  o.connect(f);o2.connect(f);f.connect(e);e.connect(g);g.connect(ctx.destination);
+  e.gain.setValueAtTime(0.9,t);e.gain.exponentialRampToValueAtTime(0.001,t+0.4);
+  o.start(t);o.stop(t+0.45);o2.start(t);o2.stop(t+0.45);
+}
+function playKick(ctx,t,v=1){const o=ctx.createOscillator(),e=ctx.createGain(),g=ctx.createGain();g.gain.value=v*1.5;o.connect(e);e.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(160,t);o.frequency.exponentialRampToValueAtTime(40,t+0.15);e.gain.setValueAtTime(1,t);e.gain.exponentialRampToValueAtTime(0.001,t+0.4);o.start(t);o.stop(t+0.5);}
+function playSnare(ctx,t,v=1){const buf=ctx.createBuffer(1,ctx.sampleRate*0.2,ctx.sampleRate),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;const s=ctx.createBufferSource();s.buffer=buf;const f=ctx.createBiquadFilter();f.type="highpass";f.frequency.value=1000;const e=ctx.createGain(),g=ctx.createGain();g.gain.value=v*0.6;s.connect(f);f.connect(e);e.connect(g);g.connect(ctx.destination);e.gain.setValueAtTime(0.8,t);e.gain.exponentialRampToValueAtTime(0.001,t+0.15);s.start(t);s.stop(t+0.2);}
+function playHihat(ctx,t,v=1){const buf=ctx.createBuffer(1,ctx.sampleRate*0.08,ctx.sampleRate),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;const s=ctx.createBufferSource();s.buffer=buf;const f=ctx.createBiquadFilter();f.type="bandpass";f.frequency.value=9000;const e=ctx.createGain(),g=ctx.createGain();g.gain.value=v*0.28;s.connect(f);f.connect(e);e.connect(g);g.connect(ctx.destination);e.gain.setValueAtTime(0.6,t);e.gain.exponentialRampToValueAtTime(0.001,t+0.05);s.start(t);s.stop(t+0.1);}
+function playClap(ctx,t,v=1){for(let i=0;i<3;i++){const buf=ctx.createBuffer(1,ctx.sampleRate*0.05,ctx.sampleRate),d=buf.getChannelData(0);for(let j=0;j<d.length;j++)d[j]=Math.random()*2-1;const s=ctx.createBufferSource();s.buffer=buf;const f=ctx.createBiquadFilter();f.type="bandpass";f.frequency.value=1200;const e=ctx.createGain(),g=ctx.createGain();g.gain.value=v*0.4;s.connect(f);f.connect(e);e.connect(g);g.connect(ctx.destination);e.gain.setValueAtTime(0.7,t+i*0.01);e.gain.exponentialRampToValueAtTime(0.001,t+i*0.01+0.08);s.start(t+i*0.01);s.stop(t+i*0.01+0.1);}}
+
+function fireTrack(ctx,id,ni=0,v=1){
+  const t=ctx.currentTime+0.01;
+  if(id==="guitar") playGuitar(ctx,t,midiToFreq(NOTE_MIDI[ni%12]),v);
+  else if(id==="bass") playBass(ctx,t,midiToFreq(BASS_MIDI[ni%8]),v);
+  else if(id==="kick") playKick(ctx,t,v);
+  else if(id==="snare") playSnare(ctx,t,v);
+  else if(id==="hihat") playHihat(ctx,t,v);
+  else if(id==="clap") playClap(ctx,t,v);
+}
+
+// ── WAV render ─────────────────────────────────────────
+async function renderBeat(grid,noteMap,bpm,bars,vols){
+  const stepDur=60/bpm/4,sr=44100,totalSteps=STEPS*bars,total=totalSteps*stepDur+1.6;
+  const ctx=new OfflineAudioContext(2,Math.ceil(sr*total),sr);
+  for(let b=0;b<bars;b++) for(let s=0;s<STEPS;s++){
+    const t=(b*STEPS+s)*stepDur+0.005;
+    TRACKS.forEach(tr=>{
+      if(grid[tr.id][s]){
+        const ni=noteMap[tr.id]?.[s]||0;
+        const v=(vols[tr.id]||80)/80;
+        if(tr.id==="guitar") playGuitar(ctx,t,midiToFreq(NOTE_MIDI[ni%12]),v);
+        else if(tr.id==="bass") playBass(ctx,t,midiToFreq(BASS_MIDI[ni%8]),v);
+        else if(tr.id==="kick") playKick(ctx,t,v);
+        else if(tr.id==="snare") playSnare(ctx,t,v);
+        else if(tr.id==="hihat") playHihat(ctx,t,v);
+        else if(tr.id==="clap") playClap(ctx,t,v);
+      }
+    });
+  }
+  return ctx.startRendering();
+}
+function toWav(buf){
+  const nc=buf.numberOfChannels,sr=buf.sampleRate,len=buf.length;
+  const ab=new ArrayBuffer(44+len*nc*2),v=new DataView(ab);
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  w(0,"RIFF");v.setUint32(4,36+len*nc*2,true);w(8,"WAVE");w(12,"fmt ");
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,nc,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*nc*2,true);v.setUint16(32,nc*2,true);
+  v.setUint16(34,16,true);w(36,"data");v.setUint32(40,len*nc*2,true);
+  let off=44;
+  for(let i=0;i<len;i++)for(let c=0;c<nc;c++){const s=Math.max(-1,Math.min(1,buf.getChannelData(c)[i]));v.setInt16(off,s<0?s*0x8000:s*0x7FFF,true);off+=2;}
+  return new Blob([ab],{type:"audio/wav"});
+}
+
+// ── Storage ────────────────────────────────────────────
+const SK=k=>`gtr26:${k}`;
+async function sto(cmd,k,v){try{if(cmd==="set")return await window.storage.set(SK(k),JSON.stringify(v));if(cmd==="get"){const r=await window.storage.get(SK(k));return r?JSON.parse(r.value):null;}if(cmd==="del")return await window.storage.delete(SK(k));if(cmd==="list"){const r=await window.storage.list(SK(k));return r?.keys||[];}}catch{return null;}}
+
+// ── helpers ────────────────────────────────────────────
+const emptyGrid=()=>Object.fromEntries(TRACKS.map(t=>[t.id,Array(STEPS).fill(false)]));
+const emptyNotes=()=>Object.fromEntries(TRACKS.filter(t=>t.isNote).map(t=>[t.id,Array(STEPS).fill(0)]));
+const emptyVols=()=>Object.fromEntries(TRACKS.map(t=>[t.id,t.id==="guitar"?100:70]));
+
+function Btn({ch,onClick,color="#e8b800",bg="#1a1200",disabled,full,style={}}){
+  return <button onClick={onClick} disabled={disabled} style={{padding:"7px 13px",borderRadius:6,border:`1px solid ${color}55`,cursor:disabled?"not-allowed":"pointer",fontFamily:"'Courier New',monospace",fontWeight:700,letterSpacing:"0.06em",fontSize:11,color,background:bg,opacity:disabled?0.5:1,width:full?"100%":undefined,transition:"all 0.15s",...style}}>{ch}</button>;
+}
+
+// ── ドレミ選択パネル ────────────────────────────────────
+function NoteSelector({trackId, stepIdx, value, onChange, onClose, isGuitar}) {
+  const names = isGuitar ? NOTE_NAMES_JP : BASS_NAMES_JP;
+  const count = isGuitar ? 12 : 8;
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
+      <div style={{background:"#0a0f02",border:"1px solid #e8b80055",borderRadius:12,padding:16,minWidth:260}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:10,color:"#e8b800",fontWeight:900,letterSpacing:"0.15em",marginBottom:12}}>
+          🎸 {isGuitar?"ギター":"ベース"} 音程選択 (小節{stepIdx+1})
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+          {Array(count).fill(0).map((_,i)=>(
+            <button key={i} onClick={()=>{onChange(i);onClose();}} style={{padding:"10px 4px",border:`2px solid ${value===i?"#e8b800":"#2a3a10"}`,borderRadius:8,background:value===i?"#2a1a00":"#0d1505",color:value===i?"#e8b800":"#6a8a50",cursor:"pointer",fontFamily:"'Courier New',monospace",fontWeight:900,fontSize:13,textAlign:"center",lineHeight:1.3}}>
+              <div>{names[i]}</div>
+              <div style={{fontSize:8,color:value===i?"#b8960a":"#3a4a20",marginTop:2}}>{isGuitar?NOTE_NAMES_EN[i]:["C2","D2","E2","F2","G2","A2","B2","C3"][i]}</div>
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} style={{marginTop:12,width:"100%",padding:"8px",background:"#1a0000",border:"1px solid #ff444444",borderRadius:6,color:"#ff4444",cursor:"pointer",fontFamily:"'Courier New',monospace",fontWeight:700,fontSize:11}}>✕ 閉じる</button>
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN ───────────────────────────────────────────────
+export default function App(){
+  const [grid,setGrid]=useState(emptyGrid);
+  const [noteMap,setNoteMap]=useState(emptyNotes);
+  const [bpm,setBpm]=useState(120);
+  const [vols,setVols]=useState(emptyVols);
+  const [swing,setSwing]=useState(0);
+  const [playing,setPlaying]=useState(false);
+  const [curStep,setCurStep]=useState(-1);
+  const [tab,setTab]=useState("seq");
+  const [flash,setFlash]=useState(null);
+  const [toast,setToast]=useState("");
+
+  // ノート選択モーダル
+  const [noteModal,setNoteModal]=useState(null); // {trackId, stepIdx}
+
+  // リズムプリセット
+  const [rhythmIdx,setRhythmIdx]=useState(0);
+
+  // Library
+  const [patterns,setPatterns]=useState([]);
+  const [saveName,setSaveName]=useState("");
+
+  // WAV
+  const [recBars,setRecBars]=useState(2);
+  const [recState,setRecState]=useState("idle");
+  const [recPct,setRecPct]=useState(0);
+  const [wavUrl,setWavUrl]=useState(null);
+  const [wavBlob,setWavBlob]=useState(null);
+
+  // Mic
+  const [micState,setMicState]=useState("idle");
+  const [micUrl,setMicUrl]=useState(null);
+  const [micBlob,setMicBlob]=useState(null);
+  const micRef=useRef(null);
+  const micChunks=useRef([]);
+
+  const [refUrl,setRefUrl]=useState(null);
+
+  const canvasRef=useRef(null);
+  const analyserRef=useRef(null);
+  const animRef=useRef(null);
+  const ctxRef=useRef(null);
+  const stepRef=useRef(0);
+  const timerRef=useRef(null);
+  const gridR=useRef(grid),noteMapR=useRef(noteMap),bpmR=useRef(bpm),volsR=useRef(vols),swingR=useRef(swing);
+  useEffect(()=>{gridR.current=grid;},[grid]);
+  useEffect(()=>{noteMapR.current=noteMap;},[noteMap]);
+  useEffect(()=>{bpmR.current=bpm;},[bpm]);
+  useEffect(()=>{volsR.current=vols;},[vols]);
+  useEffect(()=>{swingR.current=swing;},[swing]);
+
+  const getCtx=useCallback(()=>{
+    if(!ctxRef.current){ctxRef.current=new AudioContext();const an=ctxRef.current.createAnalyser();an.fftSize=512;an.connect(ctxRef.current.destination);analyserRef.current=an;}
+    return ctxRef.current;
+  },[]);
+
+  const showToast=msg=>{setToast(msg);setTimeout(()=>setToast(""),2400);};
+
+  // Visualizer
+  useEffect(()=>{
+    if(!playing||!canvasRef.current||!analyserRef.current){cancelAnimationFrame(animRef.current);return;}
+    const cv=canvasRef.current,an=analyserRef.current;
+    const draw=()=>{
+      animRef.current=requestAnimationFrame(draw);
+      const W=cv.width,H=cv.height,c=cv.getContext("2d");
+      const data=new Uint8Array(an.frequencyBinCount);
+      an.getByteFrequencyData(data);
+      c.fillStyle="rgba(0,8,0,0.6)";c.fillRect(0,0,W,H);
+      const bw=W/data.length;
+      data.forEach((v,i)=>{const h=v/255*H,hue=30+i/data.length*30;c.fillStyle=`hsla(${hue},100%,55%,0.85)`;c.fillRect(i*bw,H-h,bw-1,h);});
+    };
+    draw();
+    return()=>cancelAnimationFrame(animRef.current);
+  },[playing]);
+
+  // Tick
+  const tick=useCallback(()=>{
+    const ctx=getCtx(),s=stepRef.current,sd=(60/bpmR.current)/4;
+    const swOff=(s%2===1)?(swingR.current/100)*sd*0.5:0;
+    TRACKS.forEach(tr=>{
+      if(gridR.current[tr.id][s]){
+        const ni=noteMapR.current[tr.id]?.[s]||0;
+        const v=(volsR.current[tr.id]||80)/80;
+        const t=ctx.currentTime+0.005+swOff;
+        if(tr.id==="guitar") playGuitar(ctx,t,midiToFreq(NOTE_MIDI[ni%12]),v);
+        else if(tr.id==="bass") playBass(ctx,t,midiToFreq(BASS_MIDI[ni%8]),v);
+        else if(tr.id==="kick") playKick(ctx,t,v);
+        else if(tr.id==="snare") playSnare(ctx,t,v);
+        else if(tr.id==="hihat") playHihat(ctx,t,v);
+        else if(tr.id==="clap") playClap(ctx,t,v);
+      }
+    });
+    setCurStep(s);stepRef.current=(s+1)%STEPS;
+    timerRef.current=setTimeout(tick,sd*1000);
+  },[getCtx]);
+
+  const togglePlay=useCallback(()=>{
+    if(playing){clearTimeout(timerRef.current);setPlaying(false);setCurStep(-1);stepRef.current=0;}
+    else{getCtx().resume();setPlaying(true);stepRef.current=0;tick();}
+  },[playing,tick,getCtx]);
+
+  // リズムプリセット適用
+  const applyRhythm=(idx)=>{
+    setRhythmIdx(idx);
+    const pat=RHYTHMS[idx].pattern;
+    setGrid(prev=>{
+      const n={...prev};
+      // kick/hihat にパターン適用
+      n.kick=[...pat];
+      n.hihat=pat.map((_,i)=>i%2===1);
+      n.snare=Array(STEPS).fill(false).map((_,i)=>[3,9].includes(i));
+      return n;
+    });
+    showToast(`🥁 ${RHYTHMS[idx].label}リズム適用！`);
+  };
+
+  const toggleStep=(id,i)=>{
+    const wasOff=!grid[id][i];
+    setGrid(p=>{const n={...p,[id]:[...p[id]]};n[id][i]=!n[id][i];return n;});
+    if(wasOff){
+      const ni=noteMap[id]?.[i]||0;
+      fireTrack(getCtx(),id,ni,(vols[id]||80)/80);
+      setFlash(id);setTimeout(()=>setFlash(null),80);
+    }
+  };
+
+  const openNoteModal=(trackId,stepIdx)=>{
+    if(!grid[trackId][stepIdx]) return;
+    setNoteModal({trackId,stepIdx});
+  };
+
+  const setNoteVal=(trackId,stepIdx,val)=>{
+    setNoteMap(p=>({...p,[trackId]:p[trackId].map((n,i)=>i===stepIdx?val:n)}));
+  };
+
+  const clearAll=()=>{setGrid(emptyGrid());setNoteMap(emptyNotes());showToast("✕ クリア");};
+
+  // Piano keyboard preview
+  const previewNote=(ni,isGuitar=true)=>{
+    const ctx=getCtx();ctx.resume();
+    if(isGuitar) playGuitar(ctx,ctx.currentTime+0.01,midiToFreq(NOTE_MIDI[ni%12]),0.6);
+    else playBass(ctx,ctx.currentTime+0.01,midiToFreq(BASS_MIDI[ni%8]),0.7);
+  };
+
+  // Library
+  const loadLib=useCallback(async()=>{
+    const keys=await sto("list","pat:");
+    const items=[];
+    for(const k of keys){const v=await sto("get",k.replace("gtr26:",""));if(v)items.push({...v,_key:k.replace("gtr26:","")});}
+    setPatterns(items.sort((a,b)=>b.ts-a.ts));
+  },[]);
+  useEffect(()=>{if(tab==="lib")loadLib();},[tab,loadLib]);
+
+  const handleSave=async()=>{
+    const name=saveName.trim()||`Guitar ${bpm}BPM`;
+    await sto("set",`pat:${Date.now()}`,{name,bpm,grid,noteMap,vols,swing,ts:Date.now()});
+    setSaveName("");showToast("✅ 保存完了！");loadLib();
+  };
+  const handleLoad=p=>{setGrid(p.grid);setNoteMap(p.noteMap||emptyNotes());setBpm(p.bpm);if(p.vols)setVols(p.vols);if(p.swing!=null)setSwing(p.swing);setTab("seq");showToast(`📂 "${p.name}"ロード`);};
+  const handleDel=async k=>{await sto("del",k);loadLib();showToast("🗑 削除");};
+
+  const exportJSON=()=>{const d=JSON.stringify({name:saveName||"guitar_beat",bpm,grid,noteMap,vols,swing,v:1});const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([d],{type:"application/json"}));a.download=`${saveName||"guitar"}_${bpm}bpm.json`;a.click();};
+  const importJSON=async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());setGrid(d.grid);if(d.noteMap)setNoteMap(d.noteMap);setBpm(d.bpm);if(d.vols)setVols(d.vols);if(d.swing!=null)setSwing(d.swing);showToast(`📥 ${d.name||f.name}`);setTab("seq");}catch{showToast("読込エラー");}e.target.value="";};
+
+  // WAV
+  const handleRender=async()=>{
+    setRecState("rendering");setRecPct(0);setWavUrl(null);
+    const total=STEPS*recBars,iv=(60/bpm/4)*1000;
+    let done=0;const prog=setInterval(()=>{done++;setRecPct(Math.min(99,Math.round(done/total*100)));if(done>=total)clearInterval(prog);},iv);
+    try{const buf=await renderBeat(grid,noteMap,bpm,recBars,vols);const blob=toWav(buf),url=URL.createObjectURL(blob);setWavBlob(blob);setWavUrl(url);setRecState("done");setRecPct(100);showToast("🎵 WAV完成！");}
+    catch(e){showToast("エラー: "+e.message);setRecState("idle");}
+    clearInterval(prog);
+  };
+  const dlWav=()=>{const a=document.createElement("a");a.href=wavUrl;a.download=`guitar_${bpm}bpm_${recBars}bar.wav`;a.click();};
+
+  // Mic
+  const startMic=async()=>{try{const st=await navigator.mediaDevices.getUserMedia({audio:true,video:false});micChunks.current=[];const mr=new MediaRecorder(st);mr.ondataavailable=e=>micChunks.current.push(e.data);mr.onstop=()=>{const blob=new Blob(micChunks.current,{type:"audio/webm"}),url=URL.createObjectURL(blob);setMicBlob(blob);setMicUrl(url);setMicState("done");st.getTracks().forEach(t=>t.stop());showToast("🎙 録音完了！");};mr.start();micRef.current=mr;setMicState("recording");}catch{showToast("マイク許可が必要です");}};
+  const stopMic=()=>micRef.current?.stop();
+  const dlMic=()=>{const a=document.createElement("a");a.href=micUrl;a.download=`rec_guitar_${Date.now()}.webm`;a.click();};
+
+  const shareText=`🎸 GUITAR BEAT (${bpm}BPM)\n`+TRACKS.map(t=>`${t.emoji}${t.label.padEnd(6)} ${grid[t.id].map((v,i)=>v?(t.isNote?(noteMap[t.id]?.[i]!=null?NOTE_NAMES_JP[noteMap[t.id][i]]:"●"):"●"):"·").join(" ")}`).join("\n")+`\n#Guitar #BeatMaker #MicVictory #FIFA2026`;
+  const copyShare=()=>{navigator.clipboard.writeText(shareText);showToast("📋 コピー！");};
+
+  const TABS=[["seq","🎸 SEQ"],["keys","🎹 KEYS"],["rhythm","🥁 RHYTHM"],["mix","🎚 MIX"],["rec","⏺ REC"],["lib","📂 LIB"]];
+  const gold="#e8b800",red="#ff4444",grn="#00cc66",bg="#020802",panel="#070d02",border="#1a2a08";
+
+  return(
+    <div style={{minHeight:"100vh",background:bg,fontFamily:"'Courier New',monospace",color:"#e0f0c0",display:"flex",flexDirection:"column",maxWidth:700,margin:"0 auto"}}>
+
+      {/* Note Modal */}
+      {noteModal&&(
+        <NoteSelector
+          trackId={noteModal.trackId}
+          stepIdx={noteModal.stepIdx}
+          value={noteMap[noteModal.trackId]?.[noteModal.stepIdx]||0}
+          onChange={v=>setNoteVal(noteModal.trackId,noteModal.stepIdx,v)}
+          onClose={()=>setNoteModal(null)}
+          isGuitar={noteModal.trackId==="guitar"}
+        />
+      )}
+
+      {toast&&<div style={{position:"fixed",top:12,left:"50%",transform:"translateX(-50%)",background:gold,color:"#000",padding:"7px 20px",borderRadius:20,fontSize:12,fontWeight:900,zIndex:9999,boxShadow:`0 4px 24px ${gold}66`,whiteSpace:"nowrap"}}>{toast}</div>}
+
+      {/* HEADER */}
+      <div style={{background:`linear-gradient(135deg,#020802,#001500)`,borderBottom:`2px solid ${gold}44`,padding:"12px 14px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+          <span style={{fontSize:24}}>🎸</span>
+          <div style={{flex:1}}>
+            <div style={{fontSize:15,fontWeight:900,letterSpacing:"0.15em",color:gold}}>GUITAR BEAT STUDIO</div>
+            <div style={{fontSize:8,color:"#555",letterSpacing:"0.15em"}}>12小節 · ドレミ編集 · テンポ/リズム · 録音</div
