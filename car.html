@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>自己管理ライフログ App（完全版）</title>
+    <title>自己管理ライフログ App（完全版・削除機能付き）</title>
     <style>
         :root {
             --primary-color: #4f46e5;
@@ -179,7 +179,6 @@
             color: var(--text-muted);
         }
 
-        /* グラフ風の簡易バー表示 */
         .chart-bar-container {
             margin-top: 8px;
         }
@@ -308,12 +307,13 @@
             </div>
         </div>
 
-        <!-- 保存データ管理（確認・編集・削除・コピー・Googleカレンダー連携・エクスポート） -->
+        <!-- 保存データ管理（確認・編集・削除・全て削除・共有） -->
         <div class="card full-width">
             <h2>保存データ一覧（確認・編集・削除・共有）</h2>
             <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
                 <button style="background-color: #059669; width: auto;" onclick="exportDataJson()">JSONエクスポート</button>
                 <button style="background-color: #3b82f6; width: auto;" onclick="exportDataText()">テキストコピー</button>
+                <button style="background-color: var(--danger-color); width: auto;" onclick="deleteAllRecords()">全てのデータを削除</button>
             </div>
             <div style="overflow-x: auto;">
                 <table>
@@ -334,7 +334,6 @@
     </div>
 
     <script>
-        // テーマ設定の保存と切り替え
         function setTheme(themeName) {
             document.body.className = themeName;
             localStorage.setItem('lifelog_theme', themeName);
@@ -347,7 +346,6 @@
             updateChart();
         });
 
-        // データ管理
         let records = JSON.parse(localStorage.getItem('lifelog_records')) || [
             { id: 1, date: '2026-07-25 08:00', category: '目標', detail: '健康的な体重維持と毎日継続' }
         ];
@@ -422,6 +420,17 @@
             }
         }
 
+        // 全て削除機能
+        function deleteAllRecords() {
+            if (confirm('本当にすべての保存データを削除しますか？この操作は元に戻せません。')) {
+                records = [];
+                syncStorage();
+                renderTable();
+                updateChart();
+                alert('すべてのデータを削除しました。');
+            }
+        }
+
         function copyText(text) {
             navigator.clipboard.writeText(text).then(() => {
                 alert('クリップボードにコピーしました！');
@@ -430,7 +439,6 @@
             });
         }
 
-        // Googleカレンダー連携（エラーのないURLスキーム方式：ワンクリックでGoogleカレンダーに予定追加画面を開く）
         function addToGoogleCalendar(category, detail) {
             const title = encodeURIComponent(`【自己管理】${category}`);
             const details = encodeURIComponent(detail);
@@ -487,7 +495,6 @@
 
         function updateChart() {
             const container = document.getElementById('chart-container');
-            // 最新の記録から歩数や睡眠などを簡易抽出してバー表示
             let latestSteps = 8000;
             let latestSleep = 7.0;
             let latestWater = 1500;
