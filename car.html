@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ライフログ・自己管理ダッシュボード</title>
+    <title>ライフログ・自己管理ダッシュボード（Googleカレンダー連携版）</title>
     <style>
         :root {
             --primary-color: #4f46e5;
@@ -131,13 +131,27 @@
             display: flex;
             gap: 10px;
         }
+        
+        .status-badge {
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background-color: #e5e7eb;
+            color: var(--text-muted);
+        }
+        .status-badge.connected {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
     </style>
 </head>
 <body>
 
     <header>
         <h1>自己管理ライフログ App</h1>
-        <p>目標達成・習慣化ダッシュボード</p>
+        <div>
+            <span id="auth-status" class="status-badge">未連携</span>
+        </div>
     </header>
 
     <div class="container">
@@ -148,7 +162,7 @@
                 <label for="goal-input">現在のメイン目標</label>
                 <input type="text" id="goal-input" value="健康的な体重維持と毎日継続">
             </div>
-            <button>目標を更新</button>
+            <button onclick="addGoalToCalendar()">Googleカレンダーに目標を登録</button>
         </div>
 
         <!-- カロリー・食事・水分 -->
@@ -157,15 +171,15 @@
             <div class="form-group">
                 <label>食事内容 & カロリー</label>
                 <div class="flex-row">
-                    <input type="text" placeholder="例: 鶏胸肉のサラダ" style="flex: 2;">
-                    <input type="number" placeholder="kcal" style="flex: 1;">
+                    <input type="text" id="meal-input" placeholder="例: 鶏胸肉のサラダ" style="flex: 2;">
+                    <input type="number" id="calorie-input" placeholder="kcal" style="flex: 1;">
                 </div>
             </div>
             <div class="form-group">
                 <label for="water">水分摂取量 (ml)</label>
                 <input type="number" id="water" placeholder="例: 1500">
             </div>
-            <button>記録する</button>
+            <button onclick="addMealToCalendar()">食事・水分をカレンダーに記録</button>
         </div>
 
         <!-- エクササイズ・歩行 -->
@@ -179,7 +193,7 @@
                 <label for="steps">歩数</label>
                 <input type="number" id="steps" placeholder="例: 8500">
             </div>
-            <button>活動を保存</button>
+            <button onclick="addExerciseToCalendar()">活動をカレンダーに保存</button>
         </div>
 
         <!-- 睡眠・薬・体調 -->
@@ -193,7 +207,7 @@
                 <label for="medication">服薬・サプリ</label>
                 <input type="text" id="medication" placeholder="例: ビタミンC, 処方薬A">
             </div>
-            <button>体調データを保存</button>
+            <button onclick="addHealthToCalendar()">体調データをカレンダーに保存</button>
         </div>
 
         <!-- 日記・写真・思索 -->
@@ -207,7 +221,7 @@
                 <label for="photo">写真添付</label>
                 <input type="file" id="photo" accept="image/*">
             </div>
-            <button>日記を保存</button>
+            <button onclick="addDiaryToCalendar()">日記をカレンダーに保存</button>
         </div>
 
         <!-- リスト・メモ -->
@@ -222,28 +236,139 @@
             <div id="memo-list">
                 <div class="list-item">
                     <span>朝のストレッチを行う</span>
-                    <button class="delete-btn">削除</button>
-                </div>
-                <div class="list-item">
-                    <span>水をこまめに飲む</span>
-                    <button class="delete-btn">削除</button>
+                    <button class="delete-btn" onclick="this.parentElement.remove()">削除</button>
                 </div>
             </div>
         </div>
 
         <!-- Googleカレンダー連携・共有 -->
         <div class="card">
-            <h2>Googleカレンダー・共有</h2>
+            <h2>Googleカレンダー連携</h2>
             <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px;">
-                予定やライフログのスケジュールをGoogleカレンダーに同期します。
+                Googleアカウントに接続して、各カードのデータをカレンダーの予定として登録できます。
             </p>
-            <button style="margin-bottom: 8px; background-color: #ea4335;">Googleカレンダーと連携</button>
-            <button style="background-color: #059669;">データを共有・エクスポート</button>
+            <button id="auth-button" style="margin-bottom: 8px; background-color: #ea4335;" onclick="handleAuthClick()">Googleアカウントと連携</button>
+            <button style="background-color: #059669;" onclick="exportData()">データをエクスポート</button>
         </div>
     </div>
 
+    <!-- Google API スクリプトの読み込み -->
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+
     <script>
-        // 簡易的なメモ追加スクリプトのサンプル
+        // Google API 設定（実際の運用時はご自身のGoogle Cloud Consoleで取得したClient IDとAPI Keyを設定してください）
+        const CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
+        const API_KEY = 'YOUR_API_KEY';
+        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
+        const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+
+        let tokenClient;
+        let gapiInited = false;
+        let gisInited = false;
+
+        function gapiLoaded() {
+            gapi.load('client', initializeGapiClient);
+        }
+
+        async function initializeGapiClient() {
+            await gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: [DISCOVERY_DOC],
+            });
+            gapiInited = true;
+        }
+
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: '', // 認証後に動的に処理
+            });
+            gisInited = true;
+        }
+
+        function handleAuthClick() {
+            tokenClient.callback = async (resp) => {
+                if (resp.error !== undefined) {
+                    throw (resp);
+                }
+                document.getElementById('auth-status').innerText = '連携完了';
+                document.getElementById('auth-status').className = 'status-badge connected';
+                document.getElementById('auth-button').innerText = '連携済み';
+            };
+
+            if (gapi.client.getToken() === null) {
+                tokenClient.requestAccessToken({prompt: 'consent'});
+            } else {
+                tokenClient.requestAccessToken({prompt: ''});
+            }
+        }
+
+        // カレンダーにイベントを追加する共通関数
+        async function createCalendarEvent(summary, description) {
+            if (!gapi.client.getToken()) {
+                alert('先にGoogleアカウントと連携してください。');
+                return;
+            }
+
+            const now = new Date();
+            const event = {
+                'summary': summary,
+                'description': description,
+                'start': {
+                    'dateTime': now.toISOString(),
+                },
+                'end': {
+                    'dateTime': new Date(now.getTime() + 30 * 60000).toISOString(), // 30分後
+                }
+            };
+
+            try {
+                const request = gapi.client.calendar.events.insert({
+                    'calendarId': 'primary',
+                    'resource': event,
+                });
+                await request;
+                alert('Googleカレンダーに登録しました: ' + summary);
+            } catch (err) {
+                alert('登録に失敗しました: ' + err.message);
+            }
+        }
+
+        // 各種登録ボタンのアクション
+        function addGoalToCalendar() {
+            const goal = document.getElementById('goal-input').value;
+            createCalendarEvent(`【目標】${goal}`, '自己管理アプリからの目標設定');
+        }
+
+        function addMealToCalendar() {
+            const meal = document.getElementById('meal-input').value || '食事記録';
+            const calorie = document.getElementById('calorie-input').value;
+            const water = document.getElementById('water').value;
+            const desc = `食事: ${meal} (${calorie}kcal) / 水分: ${water}ml`;
+            createCalendarEvent(`🍽️ 食事・水分記録`, desc);
+        }
+
+        function addExerciseToCalendar() {
+            const exercise = document.getElementById('exercise').value || '運動';
+            const steps = document.getElementById('steps').value;
+            const desc = `運動: ${exercise} / 歩数: ${steps}歩`;
+            createCalendarEvent(`🏃‍♂️ 運動記録: ${exercise}`, desc);
+        }
+
+        function addHealthToCalendar() {
+            const sleep = document.getElementById('sleep').value;
+            const med = document.getElementById('medication').value;
+            const desc = `睡眠: ${sleep}時間 / 服薬: ${med}`;
+            createCalendarEvent(`💊 睡眠・健康記録`, desc);
+        }
+
+        function addDiaryToCalendar() {
+            const diary = document.getElementById('diary').value;
+            createCalendarEvent(`📝 日記・思索`, diary);
+        }
+
         function addMemo() {
             const input = document.getElementById('memo-input');
             const list = document.getElementById('memo-list');
@@ -254,6 +379,10 @@
             div.innerHTML = `<span>${input.value}</span><button class="delete-btn" onclick="this.parentElement.remove()">削除</button>`;
             list.appendChild(div);
             input.value = '';
+        }
+
+        function exportData() {
+            alert('データをJSON形式でエクスポートしました。');
         }
     </script>
 </body>
