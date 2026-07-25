@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ライフログ・自己管理ダッシュボード（Googleカレンダー連携版）</title>
+    <title>自己管理ライフログ App（カレンダー連携・管理機能付き）</title>
     <style>
         :root {
             --primary-color: #4f46e5;
@@ -13,6 +13,8 @@
             --text-color: #1f2937;
             --text-muted: #6b7280;
             --border-color: #e5e7eb;
+            --danger-color: #ef4444;
+            --danger-hover: #dc2626;
         }
 
         * {
@@ -48,6 +50,10 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
         }
 
         .card {
@@ -88,7 +94,7 @@
 
         textarea {
             resize: vertical;
-            height: 80px;
+            height: 70px;
         }
 
         button {
@@ -111,21 +117,36 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
+            padding: 10px;
             border-bottom: 1px solid var(--border-color);
             font-size: 0.9rem;
+            gap: 10px;
         }
 
-        .list-item button.delete-btn {
-            background-color: #ef4444;
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 6px;
+        }
+
+        button.edit-btn {
+            background-color: #f59e0b;
             width: auto;
-            padding: 4px 8px;
+            padding: 6px 12px;
             font-size: 0.8rem;
         }
+        button.edit-btn:hover { background-color: #d97706; }
 
-        .list-item button.delete-btn:hover {
-            background-color: #dc2626;
+        button.delete-btn {
+            background-color: var(--danger-color);
+            width: auto;
+            padding: 6px 12px;
+            font-size: 0.8rem;
         }
+        button.delete-btn:hover { background-color: var(--danger-hover); }
 
         .flex-row {
             display: flex;
@@ -134,7 +155,7 @@
         
         .status-badge {
             font-size: 0.8rem;
-            padding: 2px 8px;
+            padding: 4px 10px;
             border-radius: 4px;
             background-color: #e5e7eb;
             color: var(--text-muted);
@@ -143,6 +164,24 @@
             background-color: #d1fae5;
             color: #065f46;
         }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            margin-top: 8px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #f9fafb;
+            color: var(--text-muted);
+        }
     </style>
 </head>
 <body>
@@ -150,7 +189,7 @@
     <header>
         <h1>自己管理ライフログ App</h1>
         <div>
-            <span id="auth-status" class="status-badge">未連携</span>
+            <span id="auth-status" class="status-badge">未連携（シミュレーションモード）</span>
         </div>
     </header>
 
@@ -162,7 +201,7 @@
                 <label for="goal-input">現在のメイン目標</label>
                 <input type="text" id="goal-input" value="健康的な体重維持と毎日継続">
             </div>
-            <button onclick="addGoalToCalendar()">Googleカレンダーに目標を登録</button>
+            <button onclick="saveRecord('目標', document.getElementById('goal-input').value)">カレンダーに保存・追加</button>
         </div>
 
         <!-- カロリー・食事・水分 -->
@@ -179,7 +218,7 @@
                 <label for="water">水分摂取量 (ml)</label>
                 <input type="number" id="water" placeholder="例: 1500">
             </div>
-            <button onclick="addMealToCalendar()">食事・水分をカレンダーに記録</button>
+            <button onclick="saveMealRecord()">食事・水分を保存・追加</button>
         </div>
 
         <!-- エクササイズ・歩行 -->
@@ -193,7 +232,7 @@
                 <label for="steps">歩数</label>
                 <input type="number" id="steps" placeholder="例: 8500">
             </div>
-            <button onclick="addExerciseToCalendar()">活動をカレンダーに保存</button>
+            <button onclick="saveExerciseRecord()">活動を保存・追加</button>
         </div>
 
         <!-- 睡眠・薬・体調 -->
@@ -207,10 +246,10 @@
                 <label for="medication">服薬・サプリ</label>
                 <input type="text" id="medication" placeholder="例: ビタミンC, 処方薬A">
             </div>
-            <button onclick="addHealthToCalendar()">体調データをカレンダーに保存</button>
+            <button onclick="saveHealthRecord()">体調データを保存・追加</button>
         </div>
 
-        <!-- 日記・写真・思索 -->
+        <!-- 日記・思索・写真 -->
         <div class="card">
             <h2>日記・思索・写真</h2>
             <div class="form-group">
@@ -221,7 +260,7 @@
                 <label for="photo">写真添付</label>
                 <input type="file" id="photo" accept="image/*">
             </div>
-            <button onclick="addDiaryToCalendar()">日記をカレンダーに保存</button>
+            <button onclick="saveRecord('日記', document.getElementById('diary').value)">日記を保存・追加</button>
         </div>
 
         <!-- リスト・メモ -->
@@ -230,34 +269,48 @@
             <div class="form-group">
                 <div class="flex-row">
                     <input type="text" id="memo-input" placeholder="新しいタスクやメモ...">
-                    <button style="width: 80px;" onclick="addMemo()">追加</button>
+                    <button style="width: 80px;" onclick="addMemoItem()">追加</button>
                 </div>
             </div>
-            <div id="memo-list">
-                <div class="list-item">
-                    <span>朝のストレッチを行う</span>
-                    <button class="delete-btn" onclick="this.parentElement.remove()">削除</button>
-                </div>
+            <div id="memo-list-container">
+                <!-- 動的にリスト追加 -->
             </div>
         </div>
 
-        <!-- Googleカレンダー連携・共有 -->
-        <div class="card">
-            <h2>Googleカレンダー連携</h2>
+        <!-- Googleカレンダー連携・データ管理（確認・編集・削除） -->
+        <div class="card full-width">
+            <h2>カレンダー連携・保存データ管理（確認・編集・削除）</h2>
             <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px;">
-                Googleアカウントに接続して、各カードのデータをカレンダーの予定として登録できます。
+                保存されたライフログデータの確認、内容の編集、削除が行えます。「Googleアカウントと連携」を行うと実際のGoogleカレンダーにも反映されます。
             </p>
-            <button id="auth-button" style="margin-bottom: 8px; background-color: #ea4335;" onclick="handleAuthClick()">Googleアカウントと連携</button>
-            <button style="background-color: #059669;" onclick="exportData()">データをエクスポート</button>
+            <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+                <button id="auth-button" style="background-color: #ea4335; width: auto;" onclick="handleAuthClick()">Googleアカウントと連携</button>
+                <button style="background-color: #059669; width: auto;" onclick="loadRecords()">データを更新・確認</button>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>日時</th>
+                            <th>カテゴリ</th>
+                            <th>内容詳細</th>
+                            <th>操作 (編集 / 削除)</th>
+                        </tr>
+                    <thead id="record-table-body">
+                        <!-- レコードがここに一覧表示されます -->
+                    </thead>
+                </table>
+            </div>
         </div>
     </div>
 
-    <!-- Google API スクリプトの読み込み -->
+    <!-- Google API スクリプト -->
     <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
     <script>
-        // Google API 設定（実際の運用時はご自身のGoogle Cloud Consoleで取得したClient IDとAPI Keyを設定してください）
+        // Google API 設定（テスト時はプレースホルダーのままでローカル動作します）
         const CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
         const API_KEY = 'YOUR_API_KEY';
         const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
@@ -266,124 +319,187 @@
         let tokenClient;
         let gapiInited = false;
         let gisInited = false;
+        let isConnected = false;
+
+        // ローカルストレージを使用したデータ管理
+        let records = JSON.parse(localStorage.getItem('lifelog_records')) || [
+            { id: 1, date: '2026-07-25 08:00', category: '目標', detail: '健康的な体重維持と毎日継続' },
+            { id: 2, date: '2026-07-25 08:30', category: '食事', detail: '食事: 鶏胸肉のサラダ (350kcal) / 水分: 500ml' }
+        ];
 
         function gapiLoaded() {
-            gapi.load('client', initializeGapiClient);
+            if(typeof gapi !== 'undefined') {
+                gapi.load('client', initializeGapiClient);
+            }
         }
 
         async function initializeGapiClient() {
-            await gapi.client.init({
-                apiKey: API_KEY,
-                discoveryDocs: [DISCOVERY_DOC],
-            });
-            gapiInited = true;
+            try {
+                await gapi.client.init({
+                    apiKey: API_KEY,
+                    discoveryDocs: [DISCOVERY_DOC],
+                });
+                gapiInited = true;
+            } catch(e) {
+                console.log('GAPI init skipped or failed (using local mode)');
+            }
         }
 
         function gisLoaded() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: '', // 認証後に動的に処理
-            });
-            gisInited = true;
+            if(typeof google !== 'undefined') {
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: CLIENT_ID,
+                    scope: SCOPES,
+                    callback: '',
+                });
+                gisInited = true;
+            }
         }
 
         function handleAuthClick() {
+            if (CLIENT_ID.includes('YOUR_CLIENT_ID')) {
+                alert('Google Cloud Consoleで取得した正しいClient IDを設定してください。\n現在はローカル・シミュレーションモードで動作しています。');
+                return;
+            }
             tokenClient.callback = async (resp) => {
                 if (resp.error !== undefined) {
                     throw (resp);
                 }
-                document.getElementById('auth-status').innerText = '連携完了';
+                isConnected = true;
+                document.getElementById('auth-status').innerText = 'Googleカレンダー連携完了';
                 document.getElementById('auth-status').className = 'status-badge connected';
                 document.getElementById('auth-button').innerText = '連携済み';
             };
-
-            if (gapi.client.getToken() === null) {
-                tokenClient.requestAccessToken({prompt: 'consent'});
-            } else {
-                tokenClient.requestAccessToken({prompt: ''});
-            }
+            tokenClient.requestAccessToken({prompt: 'consent'});
         }
 
-        // カレンダーにイベントを追加する共通関数
-        async function createCalendarEvent(summary, description) {
-            if (!gapi.client.getToken()) {
-                alert('先にGoogleアカウントと連携してください。');
+        // データの保存（カレンダー＆ローカル）
+        function saveRecord(category, detail) {
+            if(!detail || detail.trim() === '') {
+                alert('内容を入力してください。');
                 return;
             }
 
-            const now = new Date();
-            const event = {
-                'summary': summary,
-                'description': description,
-                'start': {
-                    'dateTime': now.toISOString(),
-                },
-                'end': {
-                    'dateTime': new Date(now.getTime() + 30 * 60000).toISOString(), // 30分後
-                }
+            const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
+            const newEntry = {
+                id: Date.now(),
+                date: nowStr,
+                category: category,
+                detail: detail
             };
 
-            try {
-                const request = gapi.client.calendar.events.insert({
-                    'calendarId': 'primary',
-                    'resource': event,
-                });
-                await request;
-                alert('Googleカレンダーに登録しました: ' + summary);
-            } catch (err) {
-                alert('登録に失敗しました: ' + err.message);
+            records.unshift(newEntry);
+            syncStorage();
+            renderTable();
+
+            // Googleカレンダーへの反映試行
+            if (isConnected && gapiInited) {
+                tryAddEventToGoogleCalendar(category, detail);
+            } else {
+                alert(`「${category}」を保存・カレンダー連携リストに追加しました！`);
             }
         }
 
-        // 各種登録ボタンのアクション
-        function addGoalToCalendar() {
-            const goal = document.getElementById('goal-input').value;
-            createCalendarEvent(`【目標】${goal}`, '自己管理アプリからの目標設定');
-        }
-
-        function addMealToCalendar() {
+        function saveMealRecord() {
             const meal = document.getElementById('meal-input').value || '食事記録';
-            const calorie = document.getElementById('calorie-input').value;
-            const water = document.getElementById('water').value;
-            const desc = `食事: ${meal} (${calorie}kcal) / 水分: ${water}ml`;
-            createCalendarEvent(`🍽️ 食事・水分記録`, desc);
+            const calorie = document.getElementById('calorie-input').value || '0';
+            const water = document.getElementById('water').value || '0';
+            saveRecord('食事・水分', `食事: ${meal} (${calorie}kcal) / 水分: ${water}ml`);
         }
 
-        function addExerciseToCalendar() {
+        function saveExerciseRecord() {
             const exercise = document.getElementById('exercise').value || '運動';
-            const steps = document.getElementById('steps').value;
-            const desc = `運動: ${exercise} / 歩数: ${steps}歩`;
-            createCalendarEvent(`🏃‍♂️ 運動記録: ${exercise}`, desc);
+            const steps = document.getElementById('steps').value || '0';
+            saveRecord('エクササイズ', `運動: ${exercise} / 歩数: ${steps}歩`);
         }
 
-        function addHealthToCalendar() {
-            const sleep = document.getElementById('sleep').value;
-            const med = document.getElementById('medication').value;
-            const desc = `睡眠: ${sleep}時間 / 服薬: ${med}`;
-            createCalendarEvent(`💊 睡眠・健康記録`, desc);
+        function saveHealthRecord() {
+            const sleep = document.getElementById('sleep').value || '0';
+            const med = document.getElementById('medication').value || 'なし';
+            saveRecord('睡眠・健康', `睡眠: ${sleep}時間 / 服薬: ${med}`);
         }
 
-        function addDiaryToCalendar() {
-            const diary = document.getElementById('diary').value;
-            createCalendarEvent(`📝 日記・思索`, diary);
+        async function tryAddEventToGoogleCalendar(title, description) {
+            const event = {
+                'summary': `【自己管理】${title}`,
+                'description': description,
+                'start': { 'dateTime': new Date().toISOString() },
+                'end': { 'dateTime': new Date(Date.now() + 30*60000).toISOString() }
+            };
+            try {
+                await gapi.client.calendar.events.insert({ 'calendarId': 'primary', 'resource': event });
+                alert('Googleカレンダーへの同期と保存が完了しました！');
+            } catch (err) {
+                alert('ローカル保存しましたが、Googleカレンダー同期に失敗しました: ' + err.message);
+            }
         }
 
-        function addMemo() {
+        // データの編集
+        function editRecord(id) {
+            const record = records.find(r => r.id === id);
+            if (!record) return;
+
+            const newDetail = prompt('内容を編集してください:', record.detail);
+            if (newDetail !== null && newDetail.trim() !== '') {
+                record.detail = newDetail;
+                syncStorage();
+                renderTable();
+                alert('データを編集しました。');
+            }
+        }
+
+        // データの削除
+        function deleteRecord(id) {
+            if (confirm('この記録を削除しますか？')) {
+                records = records.filter(r => r.id !== id);
+                syncStorage();
+                renderTable();
+            }
+        }
+
+        function syncStorage() {
+            localStorage.setItem('lifelog_records', JSON.stringify(records));
+        }
+
+        // テーブル一覧の描画（確認画面）
+        function renderTable() {
+            const tbody = document.getElementById('record-table-body');
+            tbody.innerHTML = '';
+
+            if (records.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">保存されたデータはありません。</td></tr>';
+                return;
+            }
+
+            records.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${r.date}</td>
+                    <td><strong>${r.category}</strong></td>
+                    <td>${r.detail}</td>
+                    <td>
+                        <div class="btn-group">
+                            <button class="edit-btn" onclick="editRecord(${r.id})">編集</button>
+                            <button class="delete-btn" onclick="deleteRecord(${r.id})">削除</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // メモ追加用
+        function addMemoItem() {
             const input = document.getElementById('memo-input');
-            const list = document.getElementById('memo-list');
             if(input.value.trim() === '') return;
-
-            const div = document.createElement('div');
-            div.className = 'list-item';
-            div.innerHTML = `<span>${input.value}</span><button class="delete-btn" onclick="this.parentElement.remove()">削除</button>`;
-            list.appendChild(div);
+            saveRecord('リストメモ', input.value);
             input.value = '';
         }
 
-        function exportData() {
-            alert('データをJSON形式でエクスポートしました。');
-        }
+        // 初期表示
+        window.onload = function() {
+            renderTable();
+        };
     </script>
 </body>
 </html>
