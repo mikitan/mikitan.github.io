@@ -26,89 +26,94 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 6px 10px;
+            padding: 5px 10px;
             background: #111827;
             border-bottom: 1px solid #1f2937;
             flex-shrink: 0;
         }
+        .logo-area {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
         .logo {
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: bold;
             background: linear-gradient(90deg, #38bdf8, #c084fc);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         .version {
-            font-size: 0.6rem;
+            font-size: 0.55rem;
             background: #1e3a8a;
             color: #93c5fd;
-            padding: 2px 4px;
+            padding: 1px 3px;
             border-radius: 3px;
-            margin-left: 4px;
         }
         .top-controls {
             display: flex;
-            gap: 6px;
+            gap: 5px;
             align-items: center;
         }
         .btn-stop {
             background: #f97316;
             color: #fff;
             border: none;
-            padding: 4px 8px;
+            padding: 3px 8px;
             border-radius: 4px;
             font-weight: bold;
             cursor: pointer;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
         }
         .bpm-box {
             background: #1e293b;
             padding: 3px 6px;
             border-radius: 4px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
         }
         .btn-ai-top {
             background: #0ea5e9;
             color: #fff;
             border: none;
-            width: 26px;
-            height: 26px;
-            border-radius: 50%;
+            padding: 3px 8px;
+            border-radius: 4px;
             font-weight: bold;
             cursor: pointer;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
         }
 
-        /* 小節バー */
+        /* 小節バー（12小節） */
         .bar-container {
             display: flex;
             align-items: center;
             padding: 4px 8px;
             background: #0f172a;
             border-bottom: 1px solid #1e293b;
-            overflow-x: auto;
             flex-shrink: 0;
         }
         .bar-label {
-            font-size: 0.65rem;
+            font-size: 0.6rem;
             color: #94a3b8;
             margin-right: 6px;
             white-space: nowrap;
         }
         .bars {
             display: flex;
-            gap: 2px;
+            gap: 3px;
+            flex: 1;
+            overflow-x: auto;
         }
         .bar-num {
             background: #1e293b;
             color: #cbd5e1;
             font-size: 0.65rem;
-            width: 20px;
+            width: 22px;
             height: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: 3px;
+            flex-shrink: 0;
         }
         .bar-num.active {
             background: #06b6d4;
@@ -133,10 +138,10 @@
             background: #1e293b;
             color: #e2e8f0;
             border: none;
-            padding: 4px 5px;
+            padding: 4px 6px;
             border-radius: 3px;
-            font-size: 0.6rem;
-            width: 95px;
+            font-size: 0.58rem;
+            width: 100px;
             text-align: left;
             white-space: nowrap;
             overflow: hidden;
@@ -155,9 +160,31 @@
             border: 1px solid #1e293b;
             position: relative;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 0 2px;
         }
         .track-timeline.selected {
             border-color: #ec4899;
+        }
+        .note-block {
+            width: 8px;
+            height: 12px;
+            background: #38bdf8;
+            border-radius: 2px;
+            margin-right: 2px;
+            display: inline-block;
+        }
+
+        /* ステータス表示バー（ポップアップの代わり） */
+        .status-bar {
+            background: #1e293b;
+            color: #38bdf8;
+            font-size: 0.65rem;
+            padding: 2px 10px;
+            text-align: center;
+            flex-shrink: 0;
+            border-top: 1px solid #334155;
         }
 
         /* フッターコントロール */
@@ -176,7 +203,7 @@
             border: none;
             padding: 5px 0;
             border-radius: 3px;
-            font-size: 0.55rem;
+            font-size: 0.53rem;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -194,25 +221,28 @@
 
     <!-- ヘッダー -->
     <header>
-        <div style="display: flex; align-items: center;">
+        <div class="logo-area">
             <span class="logo">RHYTHM FORGE</span>
             <span class="version">v4.8</span>
         </div>
         <div class="top-controls">
             <button class="btn-stop" id="stopBtn">停止</button>
             <div class="bpm-box">BPM 110</div>
-            <button class="btn-ai-top" id="aiTopBtn">AI</button>
+            <button class="btn-ai-top" id="aiTopBtn">AI作曲</button>
         </div>
     </header>
 
-    <!-- 小節表示 -->
+    <!-- 小節表示（12小節） -->
     <div class="bar-container">
-        <div class="bar-label">小節<br>(BAR):</div>
+        <div class="bar-label">12小節:</div>
         <div class="bars" id="barContainer"></div>
     </div>
 
     <!-- トラック一覧 -->
     <div class="track-list" id="trackList"></div>
+
+    <!-- ステータス表示（ポップアップを出さずにここに文字で状態を表示） -->
+    <div class="status-bar" id="statusBar">準備完了 - ボタンを押して演奏</div>
 
     <!-- フッター -->
     <footer>
@@ -238,6 +268,10 @@
             }
         }
 
+        function setStatus(msg) {
+            document.getElementById('statusBar').textContent = msg;
+        }
+
         // 音を鳴らす関数
         function playSound(type) {
             initAudio();
@@ -250,28 +284,25 @@
 
             const now = audioCtx.currentTime;
 
-            if (type === 'KICK') {
-                osc.frequency.setValueAtTime(130, now);
-                osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.15);
+            if (type === 'KICK' || type === 'AFRICAN DRUMS') {
+                osc.frequency.setValueAtTime(type === 'AFRICAN DRUMS' ? 180 : 120, now);
+                osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.12);
                 gain.gain.setValueAtTime(1, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-                osc.start(now);
-                osc.stop(now + 0.15);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
             } else if (type === 'SNARE') {
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(220, now);
-                gain.gain.setValueAtTime(0.5, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                osc.start(now);
-                osc.stop(now + 0.1);
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
             } else {
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(523.25, now); // ドの音
                 gain.gain.setValueAtTime(0.2, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-                osc.start(now);
-                osc.stop(now + 0.2);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
             }
+
+            osc.start(now);
+            osc.stop(now + 0.15);
         }
 
         const trackNames = [
@@ -284,13 +315,15 @@
         const trackListEl = document.getElementById('trackList');
         const barContainerEl = document.getElementById('barContainer');
 
-        for (let i = 1; i <= 16; i++) {
+        // 12小節の生成
+        for (let i = 1; i <= 12; i++) {
             const div = document.createElement('div');
             div.className = `bar-num ${i === 1 ? 'active' : ''}`;
             div.textContent = i;
             barContainerEl.appendChild(div);
         }
 
+        // トラックの生成とタイムラインへのノート自動配置
         trackNames.forEach((name, index) => {
             const row = document.createElement('div');
             row.className = 'track-row';
@@ -298,42 +331,73 @@
             const btn = document.createElement('button');
             btn.className = 'track-btn';
             btn.textContent = name;
-            btn.onclick = () => playSound(name);
+            btn.onclick = () => {
+                playSound(name);
+                setStatus(`${name} を再生しました`);
+            };
 
             const timeline = document.createElement('div');
             timeline.className = 'track-timeline';
             if(index === 0) timeline.classList.add('selected');
+
+            // リズム・メロディっぽくいくつかノートを配置
+            if (index === 0 || index === 2 || index === 10) {
+                for (let n = 0; n < 12; n += (index === 10 ? 1 : 2)) {
+                    const note = document.createElement('div');
+                    note.className = 'note-block';
+                    if (index === 10) note.style.background = '#f97316'; // アフリカ太鼓は色を変える
+                    timeline.appendChild(note);
+                }
+            }
 
             row.appendChild(btn);
             row.appendChild(timeline);
             trackListEl.appendChild(row);
         });
 
-        // ボタン動作
+        // フッターボタンの動作（ポップアップなしでスムーズに処理）
         document.getElementById('playBtn').onclick = () => {
             initAudio();
             playSound('KICK');
-            alert("再生を開始しました！");
+            setStatus("▶ 再生中 (12小節ループ)");
         };
 
         document.getElementById('stopBtn').onclick = () => {
-            alert("停止しました。");
+            setStatus("⏹ 停止しました");
         };
 
         document.getElementById('clearBtn').onclick = () => {
-            if(confirm("クリアしますか？")) alert("クリアしました。");
+            setStatus("✖ トラックをクリアしました");
         };
 
         document.getElementById('randomBtn').onclick = () => {
-            alert("AIランダムフレーズを作成しました！");
+            setStatus("🔀 ランダムフレーズを生成しました");
         };
 
         document.getElementById('repeatBtn').onclick = (e) => {
             e.currentTarget.classList.toggle('active');
+            setStatus(e.currentTarget.classList.contains('active') ? "🔁 リピート：ON" : "🔁 リピート：OFF");
         };
 
         document.getElementById('aiTopBtn').onclick = () => {
-            alert("AIメロディ追加メニューを開きます。");
+            setStatus("✨ AIメロディ ＆ アフリカ太鼓AIを適用しました！");
+            playSound('AFRICAN DRUMS');
+        };
+
+        document.getElementById('synthBtn').onclick = () => {
+            setStatus("🧩 トラックを合成しました");
+        };
+
+        document.getElementById('editBtn').onclick = () => {
+            setStatus("⚙ 編集モード");
+        };
+
+        document.getElementById('shareBtn').onclick = () => {
+            setStatus("🔗 共有リンクを作成しました");
+        };
+
+        document.getElementById('recBtn').onclick = () => {
+            setStatus("🔴 録音スタンバイ中...");
         };
     </script>
 </body>
