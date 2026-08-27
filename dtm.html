@@ -9,8 +9,10 @@
 <script src="https://unpkg.com/tone@14.7.77/build/Tone.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
-  html, body { margin:0; padding:0; background:#080b10; }
+  html, body { margin:0; padding:0; background:#080b10; color:#e2e8f0; font-family: sans-serif; }
   #root { min-height: 100vh; }
+  .app-container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+  button { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -18,8 +20,6 @@
 <script type="text/babel" data-presets="react">
 const { useState, useRef, useEffect, useCallback } = React;
 
-
-// ---------- constants ----------
 const BAR_STEPS = 16;
 const BARS = 18;
 const TOTAL_STEPS = BAR_STEPS * BARS;
@@ -40,86 +40,20 @@ const DRUM_PRESETS = {
   TRAP:   { kick:[1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], snap:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1] },
   FUNK:   { kick:[1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,1], snap:[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
   RAP:    { kick:[1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0], snap:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
-  SOUL:   { kick:[1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,1,0,1,1,0,1,0,1,1,0,1,1,0], snap:[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
-  "8ビート":  { kick:[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0], snap:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
-  "16ビート": { kick:[1,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], snap:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
-  "アフリカン": { kick:[1,0,0,1,0,0,1,0,0,1,0,0,1,0,1,0], snare:[0,0,1,0,0,0,0,1,0,0,1,0,0,0,0,1], hihat:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], snap:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], tom:[1,0,1,0,1,1,0,1,0,1,0,1,1,0,1,0], shaker:[1,0,1,1,0,1,1,0,1,0,1,1,0,1,1,0] },
-  "テクノ":    { kick:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0], snare:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], hihat:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0], snap:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], electro:[0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1] },
-  "ファンクポップ": { kick:[1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1], hihat:[1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1], snap:[0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], shaker:[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1] },
+  SOUL:   { kick:[1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,1,0,1,1,0,1,0,1,1,0,1,1,0], snap:[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] }
 };
 
-const DJ_PATTERNS = [
-  { kick:[1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0], snap:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
-  { kick:[1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1], snap:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
-  { kick:[1,0,0,1,0,0,0,1,0,0,1,0,0,1,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1], snap:[0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1] },
-  { kick:[1,0,1,0,0,0,0,0,1,0,1,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,1,1,1,0,0,1,1,1,1,1,1,0,0,1,1], snap:[0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
-  { kick:[1,0,0,0,0,1,0,0,1,0,0,0,0,1,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0], snap:[0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,1], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0] },
-  { kick:[1,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0], snap:[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
-  { kick:[1,0,0,0,1,0,0,0,1,0,0,1,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1], snap:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
-  { kick:[1,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], snap:[0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,1], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1] },
-];
-
-const BPM_PRESETS = [70, 90, 110, 130, 150];
-const BASS_NOTES = ["C1","D1","E1","F1","G1","A1","B1","C2"];
-const HIGH_BASS_NOTES = ["C2","D2","E2","F2","G2","A2","B2","C3"];
-const SYNTH_NOTES = ["C4","D4","E4","F4","G4","A4","B4","C5"];
-const SOLFEGE = { C4:"ド", D4:"レ", E4:"ミ", F4:"ファ", G4:"ソ", A4:"ラ", B4:"シ", C5:"ド" };
-// シンセの音色プリセット: リード/エレキギター/トランペット/バイオリン/電子音
 const INSTRUMENTS = {
   "リード":       { osc: { type: "sawtooth" }, env: { attack: 0.01, decay: 0.15, sustain: 0.4, release: 0.2 }, filt: 2600 },
   "エレキギター": { osc: { type: "fatsawtooth", count: 3, spread: 20 }, env: { attack: 0.005, decay: 0.25, sustain: 0.15, release: 0.15 }, filt: 3200 },
-  "アコギ":       { osc: { type: "triangle" }, env: { attack: 0.004, decay: 0.4, sustain: 0, release: 0.3 }, filt: 3000 },
   "トランペット": { osc: { type: "square" }, env: { attack: 0.08, decay: 0.1, sustain: 0.7, release: 0.2 }, filt: 4200 },
-  "パイプ":       { osc: { type: "sine" }, env: { attack: 0.2, decay: 0.1, sustain: 0.9, release: 0.8 }, filt: 2200 },
-  "バイオリン":   { osc: { type: "sawtooth" }, env: { attack: 0.25, decay: 0.1, sustain: 0.8, release: 0.4 }, filt: 2000 },
-  "電子音":       { osc: { type: "square" }, env: { attack: 0.001, decay: 0.1, sustain: 0.3, release: 0.05 }, filt: 6000 },
-  "木琴":         { osc: { type: "triangle" }, env: { attack: 0.001, decay: 0.25, sustain: 0, release: 0.1 }, filt: 5000 },
-  "アフリカ太鼓": { osc: { type: "triangle" }, env: { attack: 0.001, decay: 0.35, sustain: 0, release: 0.15 }, filt: 900 },
-};
-// エレキギター向けリフ・プリセット(SYNTHステップに適用)
-const RIFFS = {
-  "ペンタリフ":   ["C4",null,"D4",null,"E4",null,"G4",null,"C4",null,"D4",null,"E4",null,null,null],
-  "ブルース":     ["C4",null,null,"E4",null,"F4",null,"G4",null,null,"E4",null,"C4",null,null,null],
-};
-// ブラックコンテンポラリー/ネオソウル向けのリッチな9thボイシング
-const CHORDS = [["C3","E3","G3","B3","D4"], ["A2","C3","E3","G3","B3"], ["F2","A2","C3","E3","G3"], ["G2","B2","D3","F3","A3"]];
-// popingsund / ブラックコンテンポラリー向けの複数コード進行プリセット
-const PROGRESSIONS = {
-  "ネオソウルA": [["C3","E3","G3","B3","D4"], ["A2","C3","E3","G3","B3"], ["F2","A2","C3","E3","G3"], ["G2","B2","D3","F3","A3"]],
-  "ネオソウルB": [["F2","A2","C3","E3","G3"], ["C3","E3","G3","B3","D4"], ["D3","F3","A3","C4","E4"], ["G2","B2","D3","F3","A3"]],
-  "ゴスペル":     [["C3","E3","G3","B3","D4"], ["A2","C3","E3","G3","B3"], ["D3","F3","A3","C4","E4"], ["G2","B2","D3","F3","A3"]],
-  "R&Bクラシック": [["D3","F3","A3","C4","E4"], ["G2","B2","D3","F3","A3"], ["C3","E3","G3","B3","D4"], ["A2","C3","E3","G3","B3"]],
-};
-const CHORD_ROOTS = ["C2","D2","E2","F2","G2","A2","B2"];
-const CHORD_TYPES = {
-  maj9: [0,4,7,11,14],
-  min9: [0,3,7,10,14],
-  dom9: [0,4,7,10,14],
-};
-
-// ジャンル別ベースライン(8小節ループ)とおすすめテンポ
-const GENRE_TEMPO = { ROCK:130, HIPHOP:90, TRAP:140, FUNK:110, RAP:85, SOUL:95 };
-const BASS_PRESETS = {
-  ROCK:   ["C1",null,null,null,"C1",null,null,null,"C1",null,null,null,"C1",null,null,null],
-  HIPHOP: ["C1",null,null,null,null,null,"C1",null,null,null,null,"D1",null,null,null,null],
-  TRAP:   ["C1",null,null,null,null,null,null,"C1",null,null,"C1",null,null,null,null,null],
-  FUNK:   ["C1",null,"C1",null,null,"E1",null,"C1",null,null,"C1",null,"D1",null,null,null],
-  RAP:    ["C1",null,null,null,null,null,null,"C1",null,null,"C1",null,null,null,null,null],
-  SOUL:   ["C1",null,"E1",null,"F1",null,"G1",null,"C1",null,null,"A1",null,"G1",null,null],
-};
-
-// ベース音色: 深いサブ(既定) / 電子的 / デジタル / メタリック
-const BASS_TONES = {
-  "深いサブ":   { type: "sine" },
-  "電子的":     { type: "square" },
-  "デジタル":   { type: "sawtooth" },
-  "メタリック": { type: "fatsquare", count: 3, spread: 15 },
+  "電子音":       { osc: { type: "square" }, env: { attack: 0.001, decay: 0.1, sustain: 0.3, release: 0.05 }, filt: 6000 }
 };
 
 function emptyNoteRow() { return new Array(TOTAL_STEPS).fill(null); }
 function patRow(presetObj, key) { return presetObj[key] || new Array(BAR_STEPS).fill(0); }
 function buildFullDrum(presetName) {
-  const p = DRUM_PRESETS[presetName];
+  const p = DRUM_PRESETS[presetName] || DRUM_PRESETS["HIPHOP"];
   const o = {};
   DRUM_ROWS.forEach(r => {
     const row = new Array(TOTAL_STEPS).fill(0);
@@ -130,155 +64,34 @@ function buildFullDrum(presetName) {
   return o;
 }
 
-// simple WAV encoder for an AudioBuffer
-function bufferToWav(buffer) {
-  const numCh = buffer.numberOfChannels;
-  const len = buffer.length * numCh * 2 + 44;
-  const arrBuf = new ArrayBuffer(len);
-  const view = new DataView(arrBuf);
-  const writeStr = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
-  writeStr(0, "RIFF"); view.setUint32(4, len - 8, true); writeStr(8, "WAVE");
-  writeStr(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
-  view.setUint16(22, numCh, true); view.setUint32(24, buffer.sampleRate, true);
-  view.setUint32(28, buffer.sampleRate * numCh * 2, true); view.setUint16(32, numCh * 2, true);
-  view.setUint16(34, 16, true); writeStr(36, "data"); view.setUint32(40, len - 44, true);
-  let offset = 44;
-  for (let i = 0; i < buffer.length; i++) {
-    for (let ch = 0; ch < numCh; ch++) {
-      let s = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
-      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-      offset += 2;
-    }
-  }
-  return new Blob([arrBuf], { type: "audio/wav" });
-}
-
 function RhythmForge() {
   const [tab, setTab] = useState("DRUM");
   const [bpm, setBpm] = useState(110);
   const [playing, setPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
-  const [currentBar, setCurrentBar] = useState(0);
   const [preset, setPreset] = useState("HIPHOP");
   const [drumSteps, setDrumSteps] = useState(() => buildFullDrum("HIPHOP"));
   const [bassSteps, setBassSteps] = useState(emptyNoteRow);
-  const [bassNote, setBassNote] = useState("C1");
-  const [bassBoost, setBassBoost] = useState(false);
-  const [bassTone, setBassTone] = useState("深いサブ");
-  const [metronomeOn, setMetronomeOn] = useState(false);
-  const [bassHighOctave, setBassHighOctave] = useState(false);
   const [synthSteps, setSynthSteps] = useState(emptyNoteRow);
-  const [synthNote, setSynthNote] = useState("C4");
-  const [instrumentType, setInstrumentType] = useState("リード");
-  const [ampOn, setAmpOn] = useState(false);
   const [masterVolume, setMasterVolume] = useState(6);
-  const [soloGuitar, setSoloGuitar] = useState(false);
-  const [robotizeAll, setRobotizeAll] = useState(false);
-  const [guitarRecording, setGuitarRecording] = useState(false);
-  const [liveCapturing, setLiveCapturing] = useState(false);
-  const [guitarRecordings, setGuitarRecordings] = useState([]);
-  const [activeGuitarId, setActiveGuitarId] = useState(null);
-  const [ambientOn, setAmbientOn] = useState(false);
-  const [backChorus, setBackChorus] = useState(false);
-  const [progressionName, setProgressionName] = useState("ネオソウルA");
-  const [progression, setProgression] = useState(PROGRESSIONS["ネオソウルA"]);
-  const [progressionSpeed, setProgressionSpeed] = useState("2m");
-  const [ambientPulse, setAmbientPulse] = useState(false);
-  const [reverbOn, setReverbOn] = useState(false);
-  const [delayOn, setDelayOn] = useState(false);
-  const [groove, setGroove] = useState(0.15);
-  const [manualMode, setManualMode] = useState(false);
-  const [flashOn, setFlashOn] = useState(false);
-  const [flashOpacity, setFlashOpacity] = useState(0);
-  const [volumes, setVolumes] = useState({ kick:-4, snare:-6, hihat:-14, snap:-10, tom:-8, electro:-8, shaker:-12, bass:-4, synth:-8, ambient:-16, rap:-2, bassrec:-2, drumrec:-2, guitarrec:-2 });
-  const [songName, setSongName] = useState("");
-  const [savedList, setSavedList] = useState([]);
-  const [status, setStatus] = useState("");
-  const [recording, setRecording] = useState(false);
-  const [rapRecordings, setRapRecordings] = useState([]);
-  const [activeRapId, setActiveRapId] = useState(null);
-  const [rapRate, setRapRate] = useState(1);
-  const [aiLyrics, setAiLyrics] = useState("");
-  const [myLyrics, setMyLyrics] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
-  const [refFiles, setRefFiles] = useState([]);
-  const [activeRefId, setActiveRefId] = useState(null);
-  const [bassRecording, setBassRecording] = useState(false);
-  const [bassRecordings, setBassRecordings] = useState([]);
-  const [activeBassId, setActiveBassId] = useState(null);
-  const [drumRecording, setDrumRecording] = useState(false);
-  const [drumRecordings, setDrumRecordings] = useState([]);
-  const [activeDrumId, setActiveDrumId] = useState(null);
-  const [exporting, setExporting] = useState(false);
-  const [recSeconds, setRecSeconds] = useState(0);
-  const recTimerRef = useRef(null);
-  const rapUrl = rapRecordings.find(r => r.id === activeRapId)?.url || null;
-  const bassRecUrl = bassRecordings.find(r => r.id === activeBassId)?.url || null;
-  const drumRecUrl = drumRecordings.find(r => r.id === activeDrumId)?.url || null;
-  const guitarRecUrl = guitarRecordings.find(r => r.id === activeGuitarId)?.url || null;
-  const refUrl = refFiles.find(r => r.id === activeRefId)?.url || null;
+  const [volumes, setVolumes] = useState({ kick:-4, snare:-6, hihat:-14, snap:-10, tom:-8, electro:-8, shaker:-12, bass:-4, synth:-8 });
 
+  const synths = useRef(null);
+  const seqRef = useRef(null);
   const drumRef = useRef(drumSteps);
   const bassRef = useRef(bassSteps);
   const synthRef = useRef(synthSteps);
   const volRef = useRef(volumes);
-  const bassBoostRef = useRef(bassBoost);
-  const bassToneRef = useRef(bassTone);
-  const grooveRef = useRef(groove);
-  const instrumentRef = useRef(instrumentType);
-  const manualModeRef = useRef(manualMode);
-  const flashOnRef = useRef(flashOn);
-  const ampRef = useRef(ampOn);
-  const masterVolRef = useRef(masterVolume);
-  const robotizeAllRef = useRef(robotizeAll);
-  const backChorusRef = useRef(backChorus);
-  const progressionRef = useRef(progression);
-  const progressionSpeedRef = useRef(progressionSpeed);
-  const ambientPulseRef = useRef(ambientPulse);
-  drumRef.current = drumSteps; bassRef.current = bassSteps; synthRef.current = synthSteps; volRef.current = volumes; bassBoostRef.current = bassBoost; bassToneRef.current = bassTone; grooveRef.current = groove; instrumentRef.current = instrumentType; manualModeRef.current = manualMode; flashOnRef.current = flashOn; ampRef.current = ampOn; masterVolRef.current = masterVolume; robotizeAllRef.current = robotizeAll; backChorusRef.current = backChorus; progressionRef.current = progression; progressionSpeedRef.current = progressionSpeed; ambientPulseRef.current = ambientPulse;
 
-  const rapAudioRef = useRef(null);
-  const refAudioRef = useRef(null);
-  const bassAudioRef = useRef(null);
-  const mediaRecRef = useRef(null);
-  const chunksRef = useRef([]);
-  const bassMediaRecRef = useRef(null);
-  const bassChunksRef = useRef([]);
-  const drumAudioRef = useRef(null);
-  const drumMediaRecRef = useRef(null);
-  const drumChunksRef = useRef([]);
-  const guitarAudioRef = useRef(null);
-  const guitarRecRef = useRef(null);
-  const liveCaptureRef = useRef(null);
-  const scratchIntervalRef = useRef(null);
-  const scratchDragRef = useRef({ dragging: false, startX: 0, startTime: 0 });
-
-  const synths = useRef(null);
-  const seqRef = useRef(null);
-  const loopRef = useRef(null);
+  drumRef.current = drumSteps;
+  bassRef.current = bassSteps;
+  synthRef.current = synthSteps;
+  volRef.current = volumes;
 
   useEffect(() => {
     const master = new Tone.Gain(1);
-    const robotGain = new Tone.Gain(1);
-    const robotCarrier = new Tone.Oscillator(35, "sine").start();
-    master.connect(robotGain);
-    const masterVol = new Tone.Volume(6);
-    robotGain.connect(masterVol);
-    const comp = new Tone.Compressor({ threshold: -18, ratio: 3 });
-    const limiter = new Tone.Limiter(-1);
-    masterVol.chain(comp, limiter, Tone.Destination);
-
-    const reverb = new Tone.Reverb({ decay: 3, wet: 0 });
-    const reverbSend = new Tone.Gain(0.35);
-    master.connect(reverbSend);
-    reverbSend.connect(reverb);
-    reverb.connect(limiter);
-
-    const delay = new Tone.FeedbackDelay({ delayTime: "8n", feedback: 0.28, wet: 0 });
-    const delaySend = new Tone.Gain(0.3);
-    master.connect(delaySend);
-    delaySend.connect(delay);
-    delay.connect(limiter);
+    const masterVol = new Tone.Volume(masterVolume);
+    master.chain(masterVol, Tone.Destination);
 
     const kick = new Tone.MembraneSynth({ octaves: 6, pitchDecay: 0.05 }).connect(master);
     const snareNoise = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.15, sustain: 0 } });
@@ -296,1711 +109,157 @@ function RhythmForge() {
     const shakerFilt = new Tone.Filter(7000, "highpass").connect(master);
     const shaker = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.08, sustain: 0 } }).connect(shakerFilt);
 
-    const ampDist = new Tone.Distortion({ distortion: 0, wet: 0 });
-    const synthFilt = new Tone.Filter(2600, "lowpass").connect(master);
-    ampDist.connect(synthFilt);
     const synthLead = new Tone.MonoSynth({
       oscillator: { type: "sawtooth" },
       envelope: { attack: 0.01, decay: 0.15, sustain: 0.4, release: 0.2 },
-    }).connect(ampDist);
+    }).connect(master);
 
-    const bassFilt = new Tone.Filter(500, "lowpass").connect(master);
     const bass = new Tone.MonoSynth({
       oscillator: { type: "sine" },
       envelope: { attack: 0.01, decay: 0.2, sustain: 0.6, release: 0.3 },
-      filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.5, baseFrequency: 400, octaves: 2 },
-    }).connect(bassFilt);
-    const bassSub = new Tone.MonoSynth({
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.01, decay: 0.3, sustain: 0.7, release: 0.4 },
-    }).connect(bassFilt);
-
-    const ambient = new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: "sine" },
-      envelope: { attack: 1.2, decay: 0.5, sustain: 0.6, release: 2 },
     }).connect(master);
-    const ambientGain = new Tone.Gain(0.32);
-    ambient.disconnect();
-    ambient.chain(ambientGain, master);
 
-    const chorus = new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.6, decay: 0.4, sustain: 0.7, release: 1.5 },
-    });
-    const chorusGain = new Tone.Gain(0.16);
-    chorus.chain(chorusGain, master);
-
-    const scratchNoise = new Tone.Noise("white");
-    const scratchFilt = new Tone.Filter(800, "bandpass").connect(master);
-    scratchNoise.connect(scratchFilt);
-
-    synths.current = { master, robotGain, robotCarrier, masterVol, reverb, delay, kick, snareNoise, snareFilt, hihat, hihatFilt, snap, snapFilt, tom, electro, electroFilt, shaker, shakerFilt, bass, bassSub, bassFilt, synthLead, synthFilt, ampDist, ambient, ambientGain, chorus, chorusGain, scratchNoise, scratchFilt };
+    synths.current = { kick, snareNoise, hihat, snap, tom, electro, shaker, synthLead, bass };
 
     return () => {
-      [master, robotGain, robotCarrier, masterVol, comp, limiter, reverb, reverbSend, delay, delaySend, kick, snareNoise, snareFilt, hihat, hihatFilt, snap, snapFilt, tom, electro, electroFilt, shaker, shakerFilt, bass, bassSub, bassFilt, synthLead, synthFilt, ampDist, ambient, ambientGain, chorus, chorusGain, scratchNoise, scratchFilt].forEach(n => { try { n.dispose(); } catch(e){} });
+      master.dispose();
     };
   }, []);
 
   useEffect(() => {
-    const s = synths.current; if (!s) return;
-    s.kick.volume.value = volumes.kick;
-    s.snareNoise.volume.value = volumes.snare;
-    s.hihat.volume.value = volumes.hihat;
-    s.snap.volume.value = volumes.snap;
-    s.tom.volume.value = volumes.tom;
-    s.electro.volume.value = volumes.electro;
-    s.shaker.volume.value = volumes.shaker;
-    s.bass.volume.value = volumes.bass;
-    s.bassSub.volume.value = volumes.bass + (bassBoost ? 6 : 0);
-    s.synthLead.volume.value = volumes.synth;
-    s.ambient.volume.value = volumes.ambient;
-    if (rapAudioRef.current) rapAudioRef.current.volume = Math.min(1, Math.max(0, (volumes.rap + 30) / 30));
-    if (bassAudioRef.current) bassAudioRef.current.volume = Math.min(1, Math.max(0, (volumes.bassrec + 30) / 30));
-    if (drumAudioRef.current) drumAudioRef.current.volume = Math.min(1, Math.max(0, (volumes.drumrec + 30) / 30));
-    if (guitarAudioRef.current) guitarAudioRef.current.volume = Math.min(1, Math.max(0, (volumes.guitarrec + 30) / 30));
-  }, [volumes, bassBoost]);
-
-  useEffect(() => {
-    if (synths.current) synths.current.bassFilt.frequency.value = bassBoost ? 320 : 500;
-  }, [bassBoost]);
-
-  useEffect(() => {
-    const s = synths.current; if (!s) return;
-    const tone = BASS_TONES[bassTone];
-    s.bass.set({ oscillator: tone });
-    s.bassSub.set({ oscillator: tone });
-  }, [bassTone]);
-
-  useEffect(() => {
-    const s = synths.current; if (!s) return;
-    const inst = INSTRUMENTS[instrumentType];
-    s.synthLead.set({ oscillator: inst.osc, envelope: inst.env });
-    s.synthFilt.frequency.value = inst.filt;
-  }, [instrumentType]);
-
-  useEffect(() => {
-    if (!synths.current) return;
-    synths.current.ampDist.distortion = ampOn ? 0.4 : 0;
-    synths.current.ampDist.wet.value = ampOn ? 0.55 : 0;
-  }, [ampOn]);
-
-  useEffect(() => {
-    if (synths.current) synths.current.masterVol.volume.value = masterVolume;
-  }, [masterVolume]);
-
-  useEffect(() => {
-    const s = synths.current; if (!s) return;
-    if (robotizeAll) {
-      s.robotGain.gain.value = 0;
-      try { s.robotCarrier.connect(s.robotGain.gain); } catch (e) {}
-    } else {
-      try { s.robotCarrier.disconnect(s.robotGain.gain); } catch (e) {}
-      s.robotGain.gain.value = 1;
-    }
-  }, [robotizeAll]);
-
-  useEffect(() => {
-    const s = synths.current; if (!s) return;
-    [s.kick, s.snareNoise, s.hihat, s.snap, s.tom, s.electro, s.bass, s.bassSub, s.ambient].forEach(n => { try { n.mute = soloGuitar; } catch (e) {} });
-  }, [soloGuitar]);
-
-  useEffect(() => { if (rapAudioRef.current) rapAudioRef.current.playbackRate = rapRate; }, [rapRate, rapUrl]);
-
-  useEffect(() => { if (synths.current) synths.current.reverb.wet.value = reverbOn ? 0.3 : 0; }, [reverbOn]);
-  useEffect(() => { if (synths.current) synths.current.delay.wet.value = delayOn ? 0.25 : 0; }, [delayOn]);
-  useEffect(() => { Tone.Transport.bpm.value = bpm; }, [bpm]);
-
-  useEffect(() => {
-    Tone.Transport.swingSubdivision = "16n";
-    Tone.Transport.swing = groove;
-  }, [groove]);
-
-  useEffect(() => {
-    let loop;
-    if (metronomeOn) {
-      loop = new Tone.Loop((time) => {
-        if (synths.current) synths.current.hihat.triggerAttackRelease("32n", time);
-      }, "4n");
-      loop.start(0);
-    }
-    return () => { if (loop) loop.dispose(); };
-  }, [metronomeOn]);
-
-  useEffect(() => {
-    const seq = new Tone.Sequence((time, step) => {
-      const s = synths.current;
-      const d = drumRef.current;
-      if (d.kick[step]) s.kick.triggerAttackRelease("C1", "8n", time);
-      if (d.snare[step]) s.snareNoise.triggerAttackRelease("8n", time);
-      if (d.hihat[step]) s.hihat.triggerAttackRelease("16n", time);
-      if (d.snap[step]) s.snap.triggerAttackRelease("16n", time);
-      if (d.tom[step]) s.tom.triggerAttackRelease("G1", "8n", time);
-      if (d.electro[step]) s.electro.triggerAttackRelease("A2", "16n", time);
-      if (d.shaker[step]) s.shaker.triggerAttackRelease("32n", time);
-      const bn = bassRef.current[step];
-      if (bn) { s.bass.triggerAttackRelease(bn, "8n", time); s.bassSub.triggerAttackRelease(Tone.Frequency(bn).transpose(-12), "8n", time); }
-      const sn = synthRef.current[step];
-      if (sn) s.synthLead.triggerAttackRelease(sn, "8n", time);
-      Tone.Draw.schedule(() => {
-        setCurrentStep(step);
-        setCurrentBar(Math.floor(step / BAR_STEPS));
-        if (flashOnRef.current && d.kick[step]) {
-          setFlashOpacity(0.55);
-          setTimeout(() => setFlashOpacity(0), 120);
-        }
-      }, time);
-    }, Array.from({ length: TOTAL_STEPS }, (_, i) => i), "16n");
-    seq.start(0);
-    seqRef.current = seq;
-    return () => seq.dispose();
-  }, []);
-
-  useEffect(() => {
-    if (loopRef.current) { loopRef.current.dispose(); loopRef.current = null; }
-    if (ambientOn) {
-      let chordIdx = 0;
-      const speed = progressionSpeed;
-      const loop = new Tone.Loop((time) => {
-        const chord = progressionRef.current[chordIdx % progressionRef.current.length];
-        if (ambientPulseRef.current) {
-          const intervalSec = Tone.Time(speed).toSeconds();
-          const subdivisions = 8;
-          for (let s = 0; s < subdivisions; s++) {
-            synths.current.ambient.triggerAttackRelease(chord, "16n", time + s * (intervalSec / subdivisions));
-          }
-        } else {
-          synths.current.ambient.triggerAttackRelease(chord, speed, time);
-        }
-        if (backChorusRef.current) {
-          const chorusNotes = chord.map(n => Tone.Frequency(n).transpose(12).toNote());
-          synths.current.chorus.triggerAttackRelease(chorusNotes, speed, time);
-        }
-        chordIdx++;
-      }, speed);
-      loop.start(0);
-      loopRef.current = loop;
-    }
-    return () => { if (loopRef.current) { loopRef.current.dispose(); loopRef.current = null; } };
-  }, [ambientOn, progressionSpeed]);
+    Tone.Transport.bpm.value = bpm;
+  }, [bpm]);
 
   const togglePlay = async () => {
     await Tone.start();
-    if (!playing) {
-      Tone.Transport.start();
-      if (rapAudioRef.current) { rapAudioRef.current.currentTime = 0; rapAudioRef.current.play().catch(()=>{}); }
-      if (refAudioRef.current) { refAudioRef.current.currentTime = 0; refAudioRef.current.play().catch(()=>{}); }
-      if (bassAudioRef.current) { bassAudioRef.current.currentTime = 0; bassAudioRef.current.play().catch(()=>{}); }
-      if (drumAudioRef.current) { drumAudioRef.current.currentTime = 0; drumAudioRef.current.play().catch(()=>{}); }
-      if (guitarAudioRef.current) { guitarAudioRef.current.currentTime = 0; guitarAudioRef.current.play().catch(()=>{}); }
-      setPlaying(true);
-    } else {
+    if (playing) {
       Tone.Transport.stop();
-      if (rapAudioRef.current) rapAudioRef.current.pause();
-      if (refAudioRef.current) refAudioRef.current.pause();
-      if (bassAudioRef.current) bassAudioRef.current.pause();
-      if (drumAudioRef.current) drumAudioRef.current.pause();
-      if (guitarAudioRef.current) guitarAudioRef.current.pause();
       setPlaying(false);
       setCurrentStep(-1);
-    }
-  };
+    } else {
+      Tone.Transport.position = 0;
+      setCurrentStep(0);
+      if (seqRef.current) seqRef.current.dispose();
 
-  const restartFromTop = async () => {
-    await Tone.start();
-    Tone.Transport.stop();
-    Tone.Transport.position = 0;
-    setCurrentStep(-1);
-    setCurrentBar(0);
-    Tone.Transport.start();
-    if (rapAudioRef.current) { rapAudioRef.current.currentTime = 0; rapAudioRef.current.play().catch(()=>{}); }
-    if (refAudioRef.current) { refAudioRef.current.currentTime = 0; refAudioRef.current.play().catch(()=>{}); }
-    if (bassAudioRef.current) { bassAudioRef.current.currentTime = 0; bassAudioRef.current.play().catch(()=>{}); }
-    if (drumAudioRef.current) { drumAudioRef.current.currentTime = 0; drumAudioRef.current.play().catch(()=>{}); }
-    if (guitarAudioRef.current) { guitarAudioRef.current.currentTime = 0; guitarAudioRef.current.play().catch(()=>{}); }
-    setPlaying(true);
-  };
+      const stepArray = Array.from({ length: TOTAL_STEPS }, (_, i) => i);
+      seqRef.current = new Tone.Sequence((time, step) => {
+        setCurrentStep(step);
+        const d = drumRef.current;
+        const b = bassRef.current;
+        const s = synthRef.current;
+        const v = volRef.current;
 
-  const startRecTimer = () => {
-    setRecSeconds(0);
-    if (recTimerRef.current) clearInterval(recTimerRef.current);
-    recTimerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
-  };
-  const stopRecTimer = () => {
-    if (recTimerRef.current) { clearInterval(recTimerRef.current); recTimerRef.current = null; }
-    setRecSeconds(0);
-  };
+        if (synths.current) {
+          if (d.kick && d.kick[step]) synths.current.kick.triggerAttackRelease("C1", "8n", time, Tone.dbToGain(v.kick));
+          if (d.snare && d.snare[step]) synths.current.snareNoise.triggerAttackRelease("8n", time, Tone.dbToGain(v.snare));
+          if (d.hihat && d.hihat[step]) synths.current.hihat.triggerAttackRelease("16n", time, Tone.dbToGain(v.hihat));
+          if (d.snap && d.snap[step]) synths.current.snap.triggerAttackRelease("16n", time, Tone.dbToGain(v.snap));
+          if (d.tom && d.tom[step]) synths.current.tom.triggerAttackRelease("G2", "8n", time, Tone.dbToGain(v.tom));
+          if (d.electro && d.electro[step]) synths.current.electro.triggerAttackRelease("C2", "8n", time, Tone.dbToGain(v.electro));
+          if (d.shaker && d.shaker[step]) synths.current.shaker.triggerAttackRelease("32n", time, Tone.dbToGain(v.shaker));
 
-  const toggleDrumStep = (row, i) => {
-    const idx = currentBar * BAR_STEPS + i;
-    setDrumSteps(prev => { const next = { ...prev, [row]: [...prev[row]] }; next[row][idx] = next[row][idx] ? 0 : 1; return next; });
-  };
-  const clearDrumRow = (row) => setDrumSteps(prev => {
-    const next = { ...prev, [row]: [...prev[row]] };
-    for (let i = 0; i < BAR_STEPS; i++) next[row][currentBar * BAR_STEPS + i] = 0;
-    return next;
-  });
-  const clearAllDrum = () => setDrumSteps(prev => {
-    const next = {};
-    DRUM_ROWS.forEach(r => {
-      next[r.key] = [...prev[r.key]];
-      for (let i = 0; i < BAR_STEPS; i++) next[r.key][currentBar * BAR_STEPS + i] = 0;
-    });
-    return next;
-  });
-  const clearAllBars = () => {
-    setDrumSteps(() => {
-      const o = {};
-      DRUM_ROWS.forEach(r => { o[r.key] = new Array(TOTAL_STEPS).fill(0); });
-      return o;
-    });
-    setBassSteps(emptyNoteRow());
-    setSynthSteps(emptyNoteRow());
-    setAmbientOn(false);
-    setStatus(`${BARS}小節を削除しました`);
-  };
-
-  const applyPreset = (name) => {
-    setPreset(name);
-    setDrumSteps(prev => {
-      const next = {};
-      DRUM_ROWS.forEach(r => {
-        next[r.key] = [...prev[r.key]];
-        for (let i = 0; i < BAR_STEPS; i++) next[r.key][currentBar * BAR_STEPS + i] = patRow(DRUM_PRESETS[name], r.key)[i];
-      });
-      return next;
-    });
-  };
-
-  const copyDrumForward = () => {
-    const dest = (currentBar + 1) % BARS;
-    setDrumSteps(prev => {
-      const next = {};
-      DRUM_ROWS.forEach(r => {
-        next[r.key] = [...prev[r.key]];
-        for (let i = 0; i < BAR_STEPS; i++) next[r.key][dest * BAR_STEPS + i] = prev[r.key][currentBar * BAR_STEPS + i];
-      });
-      return next;
-    });
-  };
-  const loopDrumAll = () => {
-    setDrumSteps(prev => {
-      const next = {};
-      DRUM_ROWS.forEach(r => {
-        const src = prev[r.key].slice(currentBar * BAR_STEPS, currentBar * BAR_STEPS + BAR_STEPS);
-        const row = new Array(TOTAL_STEPS);
-        for (let b = 0; b < BARS; b++) for (let i = 0; i < BAR_STEPS; i++) row[b * BAR_STEPS + i] = src[i];
-        next[r.key] = row;
-      });
-      return next;
-    });
-  };
-
-  const toggleBassStep = (i) => {
-    const idx = currentBar * BAR_STEPS + i;
-    setBassSteps(prev => { const next = [...prev]; next[idx] = next[idx] === bassNote ? null : bassNote; return next; });
-  };
-  const clearBass = () => setBassSteps(prev => {
-    const next = [...prev];
-    for (let i = 0; i < BAR_STEPS; i++) next[currentBar * BAR_STEPS + i] = null;
-    return next;
-  });
-  const copyBassForward = () => {
-    const dest = (currentBar + 1) % BARS;
-    setBassSteps(prev => {
-      const next = [...prev];
-      for (let i = 0; i < BAR_STEPS; i++) next[dest * BAR_STEPS + i] = prev[currentBar * BAR_STEPS + i];
-      return next;
-    });
-  };
-  const loopBassAll = () => {
-    setBassSteps(prev => {
-      const src = prev.slice(currentBar * BAR_STEPS, currentBar * BAR_STEPS + BAR_STEPS);
-      const row = new Array(TOTAL_STEPS);
-      for (let b = 0; b < BARS; b++) for (let i = 0; i < BAR_STEPS; i++) row[b * BAR_STEPS + i] = src[i];
-      return row;
-    });
-  };
-
-  const fillAllBars = (pattern) => {
-    const row = new Array(TOTAL_STEPS);
-    for (let b = 0; b < BARS; b++) for (let i = 0; i < BAR_STEPS; i++) row[b * BAR_STEPS + i] = pattern[i];
-    return row;
-  };
-  const applyGenre = (name) => {
-    setBpm(GENRE_TEMPO[name]);
-    setPreset(name);
-    setDrumSteps(() => {
-      const next = {};
-      DRUM_ROWS.forEach(r => { next[r.key] = fillAllBars(patRow(DRUM_PRESETS[name], r.key)); });
-      return next;
-    });
-    setBassSteps(fillAllBars(BASS_PRESETS[name]));
-  };
-
-  // ベースAI作曲: ドラムに関係なく、ベースラインだけをランダムウォークで自動生成
-  const BASS_RHYTHM_TEMPLATES = [
-    [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
-    [1,0,0,1, 0,0,1,0, 1,0,0,1, 0,0,1,0],
-    [1,0,1,0, 0,1,0,0, 1,0,1,0, 0,1,0,0],
-    [1,0,0,0, 0,0,1,0, 1,0,0,0, 0,0,0,0],
-    [1,0,1,1, 0,0,1,0, 1,0,1,1, 0,0,1,0],
-  ];
-  // ベース起点で全楽器を合わせて作成: ベースが無ければ先に作り、そのリズムに合わせてドラム+メロディを組む
-  const composeFromBassAI = () => {
-    const scale = bassHighOctave ? HIGH_BASS_NOTES : BASS_NOTES;
-    let barBass = bassSteps.slice(currentBar * BAR_STEPS, currentBar * BAR_STEPS + BAR_STEPS);
-    const hasBass = barBass.some(v => v);
-    if (!hasBass) {
-      const template = BASS_RHYTHM_TEMPLATES[Math.floor(Math.random() * BASS_RHYTHM_TEMPLATES.length)];
-      let idx = 0;
-      barBass = new Array(BAR_STEPS).fill(null);
-      for (let i = 0; i < BAR_STEPS; i++) {
-        if (template[i]) {
-          const jump = Math.random() < 0.75 ? (Math.floor(Math.random() * 3) - 1) : (Math.random() < 0.5 ? -4 : 4);
-          idx = Math.max(0, Math.min(scale.length - 1, idx + jump));
-          barBass[i] = scale[idx];
+          if (b && b[step]) synths.current.bass.triggerAttackRelease(b[step], "8n", time, Tone.dbToGain(v.bass));
+          if (s && s[step]) synths.current.synthLead.triggerAttackRelease(s[step], "8n", time, Tone.dbToGain(v.synth));
         }
-      }
-      setBassSteps(fillAllBars(barBass));
-    }
-    const kickPattern = barBass.map(v => (v ? 1 : 0));
-    const snarePattern = new Array(BAR_STEPS).fill(0);
-    snarePattern[4] = 1; snarePattern[12] = 1;
-    const hihatPattern = new Array(BAR_STEPS).fill(0).map((_, i) => (i % 2 === 0 || Math.random() < 0.3 ? 1 : 0));
-    const shakerPattern = new Array(BAR_STEPS).fill(0).map(() => (Math.random() < 0.25 ? 1 : 0));
-    setDrumSteps(() => {
-      const next = {};
-      DRUM_ROWS.forEach(r => {
-        if (r.key === "kick") next[r.key] = fillAllBars(kickPattern);
-        else if (r.key === "snare") next[r.key] = fillAllBars(snarePattern);
-        else if (r.key === "hihat") next[r.key] = fillAllBars(hihatPattern);
-        else if (r.key === "shaker") next[r.key] = fillAllBars(shakerPattern);
-        else next[r.key] = new Array(TOTAL_STEPS).fill(0);
-      });
-      return next;
-    });
-    setPreset("");
-    const names = Object.keys(INSTRUMENTS);
-    const instPick = names[Math.floor(Math.random() * names.length)];
-    setInstrumentType(instPick);
-    let mIdx = Math.floor(Math.random() * SYNTH_NOTES.length);
-    const melodyPattern = new Array(BAR_STEPS).fill(null);
-    for (let i = 0; i < BAR_STEPS; i++) {
-      if (barBass[i] || Math.random() < 0.2) {
-        const jump = Math.floor(Math.random() * 3) - 1;
-        mIdx = Math.max(0, Math.min(SYNTH_NOTES.length - 1, mIdx + jump));
-        melodyPattern[i] = SYNTH_NOTES[mIdx];
-      }
-    }
-    setSynthSteps(fillAllBars(melodyPattern));
-    const bpmPick = 96 + Math.floor(Math.random() * 40);
-    setBpm(bpmPick);
-    setGroove(0.1 + Math.random() * 0.25);
-    const progNames = Object.keys(PROGRESSIONS);
-    const progPick = progNames[Math.floor(Math.random() * progNames.length)];
-    setProgressionName(progPick);
-    setProgression(PROGRESSIONS[progPick]);
-    setProgressionSpeed(Math.random() < 0.5 ? "1m" : "2m");
-    setAmbientOn(true);
-    setStatus(`ベース起点で全楽器を作成しました(${instPick} / テンポ${bpmPick}BPM)`);
-  };
+      }, stepArray, "16n").start(0);
 
-  // ヒットランダム: 既存のワンショットFXから毎回ランダムに1つ鳴らす
-  const hitRandom = () => {
-    const options = [callFx, maleCall, femaleChorus, glitchFx, buildupFx, electroHigh, electroLow, wobbleBass, trumpetHit, pipeHit, violinHit];
-    const pick = options[Math.floor(Math.random() * options.length)];
-    pick();
-  };
-
-  const toggleSynthStep = (i) => {
-    const idx = currentBar * BAR_STEPS + i;
-    setSynthSteps(prev => { const next = [...prev]; next[idx] = next[idx] === synthNote ? null : synthNote; return next; });
-  };
-  const clearSynth = () => setSynthSteps(prev => {
-    const next = [...prev];
-    for (let i = 0; i < BAR_STEPS; i++) next[currentBar * BAR_STEPS + i] = null;
-    return next;
-  });
-  const copySynthForward = () => {
-    const dest = (currentBar + 1) % BARS;
-    setSynthSteps(prev => {
-      const next = [...prev];
-      for (let i = 0; i < BAR_STEPS; i++) next[dest * BAR_STEPS + i] = prev[currentBar * BAR_STEPS + i];
-      return next;
-    });
-  };
-  const loopSynthAll = () => {
-    setSynthSteps(prev => {
-      const src = prev.slice(currentBar * BAR_STEPS, currentBar * BAR_STEPS + BAR_STEPS);
-      const row = new Array(TOTAL_STEPS);
-      for (let b = 0; b < BARS; b++) for (let i = 0; i < BAR_STEPS; i++) row[b * BAR_STEPS + i] = src[i];
-      return row;
-    });
-  };
-  const applyRiff = (name) => {
-    setInstrumentType(prev => (prev === "リード" ? "エレキギター" : prev));
-    setSynthSteps(fillAllBars(RIFFS[name]));
-  };
-
-  const generateMelody = () => {
-    const scale = SYNTH_NOTES;
-    let idx = Math.floor(Math.random() * scale.length);
-    const pattern = new Array(BAR_STEPS).fill(null);
-    for (let i = 0; i < BAR_STEPS; i++) {
-      if (i === 0 || Math.random() < 0.55) {
-        idx = Math.max(0, Math.min(scale.length - 1, idx + (Math.floor(Math.random() * 3) - 1)));
-        pattern[i] = scale[idx];
-      }
-    }
-    setSynthSteps(fillAllBars(pattern));
-    setStatus("メロディを作曲しました");
-  };
-
-  const addMelodyRandom = () => {
-    const scale = SYNTH_NOTES;
-    let idx = Math.floor(Math.random() * scale.length);
-    setSynthSteps(prev => {
-      const next = [...prev];
-      for (let i = 0; i < TOTAL_STEPS; i++) {
-        if (!next[i] && Math.random() < 0.35) {
-          idx = Math.max(0, Math.min(scale.length - 1, idx + (Math.floor(Math.random() * 3) - 1)));
-          next[i] = scale[idx];
-        }
-      }
-      return next;
-    });
-    setStatus("メロディをランダムでつけ足しました");
-  };
-
-  const addBassMelodyRandom = () => {
-    const scale = bassHighOctave ? HIGH_BASS_NOTES : BASS_NOTES;
-    let idx = Math.floor(Math.random() * scale.length);
-    setBassSteps(prev => {
-      const next = [...prev];
-      for (let i = 0; i < TOTAL_STEPS; i++) {
-        if (!next[i] && Math.random() < 0.3) {
-          idx = Math.max(0, Math.min(scale.length - 1, idx + (Math.floor(Math.random() * 3) - 1)));
-          next[i] = scale[idx];
-        }
-      }
-      return next;
-    });
-    setStatus("ベースメロディをランダムでつけ足しました");
-  };
-
-  const MELODY_RHYTHM_TEMPLATES = [
-    [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0],
-    [1,0,0,1, 0,1,0,0, 1,0,0,1, 0,1,0,0],
-    [1,1,0,1, 0,0,1,0, 1,1,0,1, 0,0,1,0],
-    [1,0,0,0, 1,0,1,0, 0,0,1,0, 1,0,0,1],
-    [1,0,0,0, 0,0,0,0, 1,0,1,0, 0,0,0,0],
-  ];
-
-  // アフリカ太鼓AI: ドレミファのパーカッシブなリズムパターンを太鼓音色で生成
-  const generateAfricanDrumAI = () => {
-    setInstrumentType("アフリカ太鼓");
-    setBpm(100 + Math.floor(Math.random() * 30));
-    const scale = SYNTH_NOTES;
-    const template = BASS_RHYTHM_TEMPLATES[Math.floor(Math.random() * BASS_RHYTHM_TEMPLATES.length)];
-    let idx = Math.floor(Math.random() * scale.length);
-    const pattern = new Array(BAR_STEPS).fill(null);
-    for (let i = 0; i < BAR_STEPS; i++) {
-      if (template[i]) {
-        idx = Math.max(0, Math.min(scale.length - 1, idx + (Math.floor(Math.random() * 3) - 1)));
-        pattern[i] = scale[idx];
-      }
-    }
-    setSynthSteps(fillAllBars(pattern));
-    setStatus("アフリカ太鼓のリズムをAI作曲しました");
-  };
-
-  const generateSynthAI = () => {
-    const names = Object.keys(INSTRUMENTS);
-    const pick = names[Math.floor(Math.random() * names.length)];
-    setInstrumentType(pick);
-    const scale = SYNTH_NOTES;
-    const template = MELODY_RHYTHM_TEMPLATES[Math.floor(Math.random() * MELODY_RHYTHM_TEMPLATES.length)];
-    let idx = Math.floor(Math.random() * scale.length);
-    const pattern = new Array(BAR_STEPS).fill(null);
-    for (let i = 0; i < BAR_STEPS; i++) {
-      if (template[i]) {
-        const r = Math.random();
-        const jump = r < 0.6 ? (Math.floor(Math.random() * 3) - 1) : r < 0.85 ? (Math.random() < 0.5 ? -2 : 2) : (Math.random() < 0.5 ? -4 : 4);
-        idx = Math.max(0, Math.min(scale.length - 1, idx + jump));
-        pattern[i] = scale[idx];
-      }
-    }
-    setSynthSteps(fillAllBars(pattern));
-    setStatus(`${pick}のメロディをAI作曲しました(色々パターン)`);
-  };
-
-  const startBassRecording = async () => {
-    try {
-      await restartFromTop();
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-      const rec = new MediaRecorder(stream, { audioBitsPerSecond: 256000 });
-      bassChunksRef.current = [];
-      rec.ondataavailable = e => bassChunksRef.current.push(e.data);
-      rec.onstop = () => {
-        const blob = new Blob(bassChunksRef.current, { type: "audio/webm" });
-        const url = URL.createObjectURL(blob);
-        const id = Date.now();
-        setBassRecordings(prev => [...prev, { id, url, name: `ベース録音${prev.length + 1}` }].slice(-10));
-        setActiveBassId(id);
-        stream.getTracks().forEach(t => t.stop());
-      };
-      rec.start();
-      bassMediaRecRef.current = rec;
-      setBassRecording(true);
-      startRecTimer();
-    } catch (e) { setStatus("マイクにアクセスできません"); }
-  };
-  const stopBassRecording = () => { bassMediaRecRef.current && bassMediaRecRef.current.stop(); setBassRecording(false); stopRecTimer(); };
-  const deleteBassRecording = (id) => {
-    setBassRecordings(prev => {
-      const next = prev.filter(r => r.id !== id);
-      if (activeBassId === id) setActiveBassId(next.length ? next[next.length - 1].id : null);
-      return next;
-    });
-  };
-
-  const startDrumRecording = async () => {
-    try {
-      await restartFromTop();
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-      const rec = new MediaRecorder(stream, { audioBitsPerSecond: 256000 });
-      drumChunksRef.current = [];
-      rec.ondataavailable = e => drumChunksRef.current.push(e.data);
-      rec.onstop = () => {
-        const blob = new Blob(drumChunksRef.current, { type: "audio/webm" });
-        const url = URL.createObjectURL(blob);
-        const id = Date.now();
-        setDrumRecordings(prev => [...prev, { id, url, name: `ドラム録音${prev.length + 1}` }].slice(-10));
-        setActiveDrumId(id);
-        stream.getTracks().forEach(t => t.stop());
-      };
-      rec.start();
-      drumMediaRecRef.current = rec;
-      setDrumRecording(true);
-      startRecTimer();
-    } catch (e) { setStatus("マイクにアクセスできません"); }
-  };
-  const stopDrumRecording = () => { drumMediaRecRef.current && drumMediaRecRef.current.stop(); setDrumRecording(false); stopRecTimer(); };
-  const deleteDrumRecording = (id) => {
-    setDrumRecordings(prev => {
-      const next = prev.filter(r => r.id !== id);
-      if (activeDrumId === id) setActiveDrumId(next.length ? next[next.length - 1].id : null);
-      return next;
-    });
-  };
-
-  // 6弦楽器(ギター)伴奏をエコー付きで録音(マイク→FeedbackDelay→録音)
-  const startGuitarRecording = async () => {
-    try {
-      await restartFromTop();
-      const mic = new Tone.UserMedia();
-      await mic.open();
-      const echo = new Tone.FeedbackDelay({ delayTime: 0.28, feedback: 0.35, wet: 0.4 });
-      const dest = Tone.getContext().rawContext.createMediaStreamDestination();
-      mic.connect(echo);
-      echo.connect(dest);
-      const rec = new MediaRecorder(dest.stream, { audioBitsPerSecond: 256000 });
-      const chunks = [];
-      rec.ondataavailable = e => chunks.push(e.data);
-      rec.onstop = () => {
-        const blob = new Blob(chunks, { type: "audio/webm" });
-        const url = URL.createObjectURL(blob);
-        const id = Date.now();
-        setGuitarRecordings(prev => [...prev, { id, url, name: `ギター伴奏${prev.length + 1}` }].slice(-10));
-        setActiveGuitarId(id);
-        mic.close(); echo.dispose();
-      };
-      rec.start();
-      guitarRecRef.current = { rec, mic, echo };
-      setGuitarRecording(true);
-      startRecTimer();
-    } catch (e) { setStatus("マイクにアクセスできません"); }
-  };
-  const stopGuitarRecording = () => {
-    if (guitarRecRef.current) guitarRecRef.current.rec.stop();
-    setGuitarRecording(false);
-    stopRecTimer();
-  };
-  const deleteGuitarRecording = (id) => {
-    setGuitarRecordings(prev => {
-      const next = prev.filter(r => r.id !== id);
-      if (activeGuitarId === id) setActiveGuitarId(next.length ? next[next.length - 1].id : null);
-      return next;
-    });
-  };
-
-  // エレキギター(パッド)を操作しながら、内部音声をそのまま録音
-  const startLiveCapture = async () => {
-    try {
-      await restartFromTop();
-      const dest = Tone.getContext().rawContext.createMediaStreamDestination();
-      synths.current.masterVol.connect(dest);
-      const rec = new MediaRecorder(dest.stream, { audioBitsPerSecond: 256000 });
-      const chunks = [];
-      rec.ondataavailable = e => chunks.push(e.data);
-      rec.onstop = () => {
-        const blob = new Blob(chunks, { type: "audio/webm" });
-        const url = URL.createObjectURL(blob);
-        const id = Date.now();
-        setGuitarRecordings(prev => [...prev, { id, url, name: `ギター演奏${prev.length + 1}` }].slice(-10));
-        setActiveGuitarId(id);
-        try { synths.current.masterVol.disconnect(dest); } catch (e) {}
-      };
-      rec.start();
-      liveCaptureRef.current = rec;
-      setLiveCapturing(true);
-      startRecTimer();
-    } catch (e) { setStatus("録音を開始できません"); }
-  };
-  const stopLiveCapture = () => {
-    if (liveCaptureRef.current) liveCaptureRef.current.stop();
-    setLiveCapturing(false);
-    stopRecTimer();
-  };
-
-  // 全体録音: 現在の曲(ドラム/ベース/シンセ/アンビエント)を1周分そのまま内部録音
-  const [fullMixRecording, setFullMixRecording] = useState(false);
-  const recordFullMix = async () => {
-    try {
-      await restartFromTop();
-      const dest = Tone.getContext().rawContext.createMediaStreamDestination();
-      synths.current.masterVol.connect(dest);
-      const rec = new MediaRecorder(dest.stream, { audioBitsPerSecond: 256000 });
-      const chunks = [];
-      rec.ondataavailable = e => chunks.push(e.data);
-      rec.onstop = () => {
-        const blob = new Blob(chunks, { type: "audio/webm" });
-        const url = URL.createObjectURL(blob);
-        const id = Date.now();
-        setGuitarRecordings(prev => [...prev, { id, url, name: `全体録音${prev.length + 1}` }].slice(-10));
-        setActiveGuitarId(id);
-        try { synths.current.masterVol.disconnect(dest); } catch (e) {}
-        setFullMixRecording(false);
-        stopRecTimer();
-      };
-      rec.start();
-      setFullMixRecording(true);
-      startRecTimer();
-      const secPerStep = 60 / bpm / 4;
-      const durationMs = secPerStep * TOTAL_STEPS * 1000 + 300;
-      setTimeout(() => { if (rec.state !== "inactive") rec.stop(); }, durationMs);
-    } catch (e) { setStatus("録音を開始できません"); }
-  };
-
-  const manualHitDrum = (rowKey) => {
-    const s = synths.current; if (!s) return;
-    Tone.start();
-    const now = Tone.now();
-    if (rowKey === "kick") s.kick.triggerAttackRelease("C1", "8n", now);
-    else if (rowKey === "snare") s.snareNoise.triggerAttackRelease("8n", now);
-    else if (rowKey === "hihat") s.hihat.triggerAttackRelease("16n", now);
-    else if (rowKey === "snap") s.snap.triggerAttackRelease("16n", now);
-    else if (rowKey === "tom") s.tom.triggerAttackRelease("G1", "8n", now);
-    else if (rowKey === "electro") s.electro.triggerAttackRelease("A2", "16n", now);
-    else if (rowKey === "shaker") s.shaker.triggerAttackRelease("32n", now);
-    if (manualMode && playing && currentStep >= 0) {
-      setDrumSteps(prev => { const next = { ...prev, [rowKey]: [...prev[rowKey]] }; next[rowKey][currentStep] = 1; return next; });
+      Tone.Transport.start();
+      setPlaying(true);
     }
   };
 
-  const electroHigh = () => { Tone.start(); synths.current.electro.triggerAttackRelease("A4", "16n", Tone.now()); };
-  const electroLow = () => { Tone.start(); synths.current.electro.triggerAttackRelease("A1", "16n", Tone.now()); };
-  const bassElectroHit = () => { Tone.start(); synths.current.electro.triggerAttackRelease("C1", "8n", Tone.now()); };
-  const wobbleBass = () => {
-    Tone.start();
-    const now = Tone.now();
-    const filt = new Tone.Filter(300, "lowpass").connect(synths.current.master);
-    const lfo = new Tone.LFO(8, 100, 2000).connect(filt.frequency);
-    lfo.start(now);
-    const synth = new Tone.MonoSynth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.3 } }).connect(filt);
-    synth.triggerAttackRelease("C1", "2n", now);
-    setTimeout(() => { lfo.stop(); lfo.dispose(); synth.dispose(); filt.dispose(); }, 1200);
-  };
-  const playChord = (root) => {
-    Tone.start();
-    const now = Tone.now();
-    const third = Tone.Frequency(root).transpose(4).toNote();
-    const fifth = Tone.Frequency(root).transpose(7).toNote();
-    synths.current.ambient.triggerAttackRelease([root, third, fifth], "2n", now);
-  };
-  const applyProgression = (name) => {
-    setProgressionName(name);
-    setProgression(PROGRESSIONS[name]);
-  };
-  const generateProgressionAI = () => {
-    const typeNames = Object.keys(CHORD_TYPES);
-    const chords = Array.from({ length: 4 }, () => {
-      const root = CHORD_ROOTS[Math.floor(Math.random() * CHORD_ROOTS.length)];
-      const type = typeNames[Math.floor(Math.random() * typeNames.length)];
-      return CHORD_TYPES[type].map(iv => Tone.Frequency(root).transpose(iv).toNote());
-    });
-    setProgressionName("AI生成");
-    setProgression(chords);
-    setProgressionSpeed(Math.random() < 0.5 ? "1m" : "2m");
-    setStatus("popingループをAIランダム生成しました");
-  };
-  const glitchFx = () => {
-    Tone.start();
-    const now = Tone.now();
-    ["A3", "A2", "A4", "A1", "A3"].forEach((n, i) => synths.current.electro.triggerAttackRelease(n, "64n", now + i * 0.045));
+  const handlePresetChange = (pName) => {
+    setPreset(pName);
+    setDrumSteps(buildFullDrum(pName));
   };
 
-  const buildupFx = () => {
-    Tone.start();
-    const now = Tone.now();
-    const dur = (60 / bpm) * 4;
-    const filt = new Tone.Filter(200, "highpass").connect(synths.current.master);
-    const noise = new Tone.Noise("white").connect(filt);
-    filt.frequency.setValueAtTime(200, now);
-    filt.frequency.exponentialRampToValueAtTime(9000, now + dur);
-    noise.volume.setValueAtTime(-32, now);
-    noise.volume.linearRampToValueAtTime(-4, now + dur);
-    noise.start(now).stop(now + dur + 0.05);
-    setTimeout(() => { noise.dispose(); filt.dispose(); }, (dur + 0.4) * 1000);
+  const toggleDrumCell = (rowKey, stepIdx) => {
+    setDrumSteps(prev => ({
+      ...prev,
+      [rowKey]: prev[rowKey].map((val, i) => i === stepIdx ? (val ? 0 : 1) : val)
+    }));
   };
-
-  const trumpetHit = () => {
-    Tone.start();
-    const now = Tone.now();
-    const filt = new Tone.Filter(3500, "lowpass").connect(synths.current.master);
-    const synth = new Tone.Synth({ oscillator: { type: "square" }, envelope: { attack: 0.06, decay: 0.15, sustain: 0.6, release: 0.3 } }).connect(filt);
-    synth.triggerAttackRelease("E4", "4n", now);
-    setTimeout(() => { synth.dispose(); filt.dispose(); }, 800);
-  };
-  const pipeHit = () => {
-    Tone.start();
-    const now = Tone.now();
-    const filt = new Tone.Filter(2000, "lowpass").connect(synths.current.master);
-    const synth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.3, decay: 0.2, sustain: 0.8, release: 1.2 } }).connect(filt);
-    synth.triggerAttackRelease(["C4", "E4", "G4"], "2n", now);
-    setTimeout(() => { synth.dispose(); filt.dispose(); }, 2000);
-  };
-  const violinHit = () => {
-    Tone.start();
-    const now = Tone.now();
-    const filt = new Tone.Filter(2000, "lowpass").connect(synths.current.master);
-    const synth = new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.25, decay: 0.1, sustain: 0.8, release: 0.6 } }).connect(filt);
-    synth.triggerAttackRelease("A4", "2n", now);
-    setTimeout(() => { synth.dispose(); filt.dispose(); }, 1400);
-  };
-
-  const manualHitBass = (note) => {
-    const s = synths.current; if (!s) return;
-    Tone.start();
-    const now = Tone.now();
-    s.bass.triggerAttackRelease(note, "8n", now);
-    s.bassSub.triggerAttackRelease(Tone.Frequency(note).transpose(-12), "8n", now);
-    if (manualMode && playing && currentStep >= 0) {
-      setBassSteps(prev => { const next = [...prev]; next[currentStep] = note; return next; });
-    }
-  };
-  const manualHitSynth = (note) => {
-    const s = synths.current; if (!s) return;
-    Tone.start();
-    const now = Tone.now();
-    s.synthLead.triggerAttackRelease(note, "8n", now);
-    if (playing && currentStep >= 0) {
-      setSynthSteps(prev => { const next = [...prev]; next[currentStep] = note; return next; });
-    }
-  };
-
-  const vocalScratch = () => {
-    const a = rapAudioRef.current;
-    if (!a || !rapUrl) return;
-    if (scratchIntervalRef.current) return;
-    const base = a.currentTime;
-    let t = 0;
-    a.play().catch(()=>{});
-    scratchIntervalRef.current = setInterval(() => {
-      t += 1;
-      a.currentTime = Math.max(0, base + (t % 2 === 0 ? -0.08 : 0.04));
-    }, 60);
-    setTimeout(() => { clearInterval(scratchIntervalRef.current); scratchIntervalRef.current = null; }, 480);
-  };
-
-  const handleScratchDown = (e) => {
-    const a = rapAudioRef.current;
-    if (!a || !rapUrl) return;
-    a.pause();
-    scratchDragRef.current = { dragging: true, startX: e.clientX, startTime: a.currentTime };
-  };
-  const handleScratchMove = (e) => {
-    if (!scratchDragRef.current.dragging) return;
-    const a = rapAudioRef.current;
-    if (!a) return;
-    const dx = e.clientX - scratchDragRef.current.startX;
-    a.currentTime = Math.max(0, scratchDragRef.current.startTime + dx / 150);
-  };
-  const handleScratchUp = () => { scratchDragRef.current.dragging = false; };
-
-  const scratchRepeat = () => {
-    const a = rapAudioRef.current;
-    if (!a || !rapUrl) return;
-    const base = a.currentTime;
-    let count = 0;
-    const iv = setInterval(() => {
-      a.currentTime = base;
-      a.play().catch(()=>{});
-      count++;
-      if (count > 8) clearInterval(iv);
-    }, 120);
-  };
-
-  const voiceLoopRandom = () => {
-    const a = rapAudioRef.current;
-    if (!a || !rapUrl) return;
-    const duration = a.duration || 3;
-    const start = Math.random() * Math.max(0.1, duration - 0.6);
-    let count = 0;
-    const iv = setInterval(() => {
-      a.currentTime = start;
-      a.play().catch(()=>{});
-      count++;
-      if (count > 6) clearInterval(iv);
-    }, 300);
-  };
-
-  const applyDJPattern = (idx) => {
-    setPreset(`DJ${idx + 1}`);
-    setDrumSteps(prev => {
-      const next = {};
-      DRUM_ROWS.forEach(r => {
-        next[r.key] = [...prev[r.key]];
-        for (let i = 0; i < BAR_STEPS; i++) next[r.key][currentBar * BAR_STEPS + i] = patRow(DJ_PATTERNS[idx], r.key)[i];
-      });
-      return next;
-    });
-  };
-
-  const djAiRandom = () => {
-    applyDJPattern(Math.floor(Math.random() * DJ_PATTERNS.length));
-    setStatus("DJ AIランダムを適用しました");
-  };
-
-  const shuffleDrum = () => {
-    const rand = (p) => new Array(BAR_STEPS).fill(0).map(() => (Math.random() < p ? 1 : 0));
-    setPreset("");
-    const gen = { kick: rand(0.22), snare: rand(0.14), hihat: rand(0.55), snap: rand(0.1), tom: rand(0.06), electro: rand(0.08), shaker: rand(0.3) };
-    setDrumSteps(prev => {
-      const next = {};
-      DRUM_ROWS.forEach(r => {
-        next[r.key] = [...prev[r.key]];
-        for (let i = 0; i < BAR_STEPS; i++) next[r.key][currentBar * BAR_STEPS + i] = gen[r.key][i];
-      });
-      return next;
-    });
-  };
-
-  const addDrumRandomAI = () => {
-    const probs = { kick: 0.15, snare: 0.1, hihat: 0.35, snap: 0.08, tom: 0.05, electro: 0.06, shaker: 0.2 };
-    setDrumSteps(prev => {
-      const next = {};
-      DRUM_ROWS.forEach(r => {
-        next[r.key] = [...prev[r.key]];
-        const p = probs[r.key] ?? 0.1;
-        for (let i = 0; i < TOTAL_STEPS; i++) {
-          if (!next[r.key][i] && Math.random() < p) next[r.key][i] = 1;
-        }
-      });
-      return next;
-    });
-    setStatus("ドラムをAIでつけ足しました");
-  };
-
-  // ループAI生成: 既存パターン(ジャンル/DJグルーヴ)から2つをブレンドしてAIリミックスループを作る
-  // AIランダム作曲: ジャンル・ベース・メロディ・アンビエントをまとめてランダム生成
-  const aiRandomCompose = () => {
-    const genreNames = Object.keys(GENRE_TEMPO);
-    const genreKey = genreNames[Math.floor(Math.random() * genreNames.length)];
-    setBpm(GENRE_TEMPO[genreKey]);
-    setPreset(genreKey);
-    setDrumSteps(() => {
-      const next = {};
-      DRUM_ROWS.forEach(r => { next[r.key] = fillAllBars(patRow(DRUM_PRESETS[genreKey], r.key)); });
-      return next;
-    });
-    const bassScale = bassHighOctave ? HIGH_BASS_NOTES : BASS_NOTES;
-    const bassTemplate = BASS_RHYTHM_TEMPLATES[Math.floor(Math.random() * BASS_RHYTHM_TEMPLATES.length)];
-    let bIdx = 0;
-    const bassPattern = new Array(BAR_STEPS).fill(null);
-    for (let i = 0; i < BAR_STEPS; i++) {
-      if (bassTemplate[i]) {
-        const jump = Math.random() < 0.75 ? (Math.floor(Math.random() * 3) - 1) : (Math.random() < 0.5 ? -4 : 4);
-        bIdx = Math.max(0, Math.min(bassScale.length - 1, bIdx + jump));
-        bassPattern[i] = bassScale[bIdx];
-      }
-    }
-    setBassSteps(fillAllBars(bassPattern));
-    const names = Object.keys(INSTRUMENTS);
-    const instPick = names[Math.floor(Math.random() * names.length)];
-    setInstrumentType(instPick);
-    const melodyTemplate = MELODY_RHYTHM_TEMPLATES[Math.floor(Math.random() * MELODY_RHYTHM_TEMPLATES.length)];
-    let mIdx = Math.floor(Math.random() * SYNTH_NOTES.length);
-    const melodyPattern = new Array(BAR_STEPS).fill(null);
-    for (let i = 0; i < BAR_STEPS; i++) {
-      if (melodyTemplate[i]) {
-        const r = Math.random();
-        const jump = r < 0.6 ? (Math.floor(Math.random() * 3) - 1) : r < 0.85 ? (Math.random() < 0.5 ? -2 : 2) : (Math.random() < 0.5 ? -4 : 4);
-        mIdx = Math.max(0, Math.min(SYNTH_NOTES.length - 1, mIdx + jump));
-        melodyPattern[i] = SYNTH_NOTES[mIdx];
-      }
-    }
-    setSynthSteps(fillAllBars(melodyPattern));
-    setAmbientOn(Math.random() < 0.7);
-    setGroove(Math.random() * 0.35);
-    setStatus(`AIランダム作曲しました(${genreKey} / ${instPick})`);
-  };
-
-  // dancesundAI: 踊れるダンスグルーヴをテンポ・ドラム・ベース込みで一括生成
-  const generateDanceAI = () => {
-    const danceGenres = ["TRAP", "FUNK", "16ビート"];
-    const genreKey = danceGenres[Math.floor(Math.random() * danceGenres.length)];
-    const bpmPick = 118 + Math.floor(Math.random() * 16);
-    setBpm(bpmPick);
-    setPreset(genreKey);
-    setDrumSteps(() => {
-      const next = {};
-      DRUM_ROWS.forEach(r => {
-        const base = patRow(DRUM_PRESETS[genreKey], r.key);
-        let humanized = base;
-        if (r.key === "hihat") {
-          humanized = base.map(v => (v || Math.random() < 0.15 ? 1 : 0));
-        } else if (r.key === "snare") {
-          humanized = base.map((v, i) => (v || (Math.random() < 0.08 && i % 4 !== 0) ? 1 : 0));
-        } else if (r.key === "shaker") {
-          humanized = new Array(BAR_STEPS).fill(0).map(() => (Math.random() < 0.35 ? 1 : 0));
-        }
-        next[r.key] = fillAllBars(humanized);
-      });
-      return next;
-    });
-    const bassScale = bassHighOctave ? HIGH_BASS_NOTES : BASS_NOTES;
-    const bassTemplate = BASS_RHYTHM_TEMPLATES[Math.floor(Math.random() * (BASS_RHYTHM_TEMPLATES.length - 1))];
-    let bIdx = 0;
-    const bassPattern = new Array(BAR_STEPS).fill(null);
-    for (let i = 0; i < BAR_STEPS; i++) {
-      if (bassTemplate[i]) {
-        const jump = Math.floor(Math.random() * 3) - 1;
-        bIdx = Math.max(0, Math.min(bassScale.length - 1, bIdx + jump));
-        bassPattern[i] = bassScale[bIdx];
-      }
-    }
-    setBassSteps(fillAllBars(bassPattern));
-    setBassTone("電子的");
-    setInstrumentType("電子音");
-    setGroove(0.1 + Math.random() * 0.15);
-    setAmbientOn(false);
-    setStatus(`ダンスAIで作曲しました(${genreKey} / ${bpmPick}BPM)`);
-  };
-
-  // ブラックコンテンポラリーAI: SOULドラム+コード進行+温かい音色で一括生成
-  const generateBlackContemporaryAI = () => {
-    setBpm(85 + Math.floor(Math.random() * 12));
-    setPreset("SOUL");
-    setDrumSteps(() => {
-      const next = {};
-      DRUM_ROWS.forEach(r => { next[r.key] = fillAllBars(patRow(DRUM_PRESETS.SOUL, r.key)); });
-      return next;
-    });
-    setBassSteps(fillAllBars(BASS_PRESETS.SOUL));
-    setBassTone("深いサブ");
-    const progNames = ["ネオソウルA", "ネオソウルB", "ゴスペル", "R&Bクラシック"];
-    const pick = progNames[Math.floor(Math.random() * progNames.length)];
-    setProgressionName(pick);
-    setProgression(PROGRESSIONS[pick]);
-    setAmbientOn(false);
-    setBackChorus(false);
-    const warmInst = ["パイプ", "バイオリン", "アコギ"];
-    setInstrumentType(warmInst[Math.floor(Math.random() * warmInst.length)]);
-    setGroove(0.15 + Math.random() * 0.15);
-    setStatus(`ブラックコンテンポラリーAIで作曲しました(${pick})`);
-  };
-
-  const startRecording = async () => {
-    try {
-      await restartFromTop();
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-      const rec = new MediaRecorder(stream, { audioBitsPerSecond: 256000 });
-      chunksRef.current = [];
-      rec.ondataavailable = e => chunksRef.current.push(e.data);
-      rec.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const url = URL.createObjectURL(blob);
-        const id = Date.now();
-        setRapRecordings(prev => [...prev, { id, url, name: `録音${prev.length + 1}` }].slice(-10));
-        setActiveRapId(id);
-        stream.getTracks().forEach(t => t.stop());
-      };
-      rec.start();
-      mediaRecRef.current = rec;
-      setRecording(true);
-      startRecTimer();
-    } catch (e) { setStatus("マイクにアクセスできません"); }
-  };
-  const stopRecording = () => { mediaRecRef.current && mediaRecRef.current.stop(); setRecording(false); stopRecTimer(); };
-  const deleteRapRecording = (id) => {
-    setRapRecordings(prev => {
-      const next = prev.filter(r => r.id !== id);
-      if (activeRapId === id) setActiveRapId(next.length ? next[next.length - 1].id : null);
-      return next;
-    });
-  };
-
-  // ロボット化: 選択中のボーカル録音にリングモジュレーションをかけたロボット声を新規生成
-  const robotizeVoice = async () => {
-    if (!rapUrl) { setStatus("録音がありません"); return; }
-    setStatus("ロボット化処理中...");
-    try {
-      const res = await fetch(rapUrl);
-      const arr = await res.arrayBuffer();
-      const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const buf = await tempCtx.decodeAudioData(arr);
-      tempCtx.close();
-      const offline = new OfflineAudioContext(buf.numberOfChannels, buf.length, buf.sampleRate);
-      const src = offline.createBufferSource(); src.buffer = buf;
-      const ringGain = offline.createGain(); ringGain.gain.value = 0;
-      const carrier = offline.createOscillator(); carrier.type = "sine"; carrier.frequency.value = 35;
-      const carrierGain = offline.createGain(); carrierGain.gain.value = 0.5;
-      carrier.connect(carrierGain); carrierGain.connect(ringGain.gain);
-      const dc = offline.createConstantSource(); dc.offset.value = 0.5; dc.connect(ringGain.gain);
-      src.connect(ringGain); ringGain.connect(offline.destination);
-      src.start(0); carrier.start(0); dc.start(0);
-      const rendered = await offline.startRendering();
-      const wavBlob = bufferToWav(rendered);
-      const url = URL.createObjectURL(wavBlob);
-      const id = Date.now();
-      setRapRecordings(prev => [...prev, { id, url, name: `ロボット化${prev.length + 1}` }].slice(-10));
-      setActiveRapId(id);
-      setStatus("ロボット化しました");
-    } catch (e) { setStatus("ロボット化に失敗しました"); }
-    };
-
-  // パイプ声: 録音した声を管の中を通したような共鳴フィルター音に変声
-  const pipeVoice = async () => {
-    if (!rapUrl) { setStatus("録音がありません"); return; }
-    setStatus("変声処理中...");
-    try {
-      const res = await fetch(rapUrl);
-      const arr = await res.arrayBuffer();
-      const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const buf = await tempCtx.decodeAudioData(arr);
-      tempCtx.close();
-      const offline = new OfflineAudioContext(buf.numberOfChannels, buf.length, buf.sampleRate);
-      const src = offline.createBufferSource(); src.buffer = buf;
-      const bandpass = offline.createBiquadFilter();
-      bandpass.type = "bandpass";
-      bandpass.frequency.value = 1000;
-      bandpass.Q.value = 6;
-      const resonance = offline.createBiquadFilter();
-      resonance.type = "peaking";
-      resonance.frequency.value = 1200;
-      resonance.Q.value = 8;
-      resonance.gain.value = 8;
-      src.connect(bandpass); bandpass.connect(resonance); resonance.connect(offline.destination);
-      src.start(0);
-      const rendered = await offline.startRendering();
-      const wavBlob = bufferToWav(rendered);
-      const url = URL.createObjectURL(wavBlob);
-      const id = Date.now();
-      setRapRecordings(prev => [...prev, { id, url, name: `パイプ声${prev.length + 1}` }].slice(-10));
-      setActiveRapId(id);
-      setStatus("パイプ声に変声しました");
-    } catch (e) { setStatus("変声に失敗しました"); }
-  };
-
-  const callFx = () => {
-    Tone.start();
-    const now = Tone.now();
-    const filt = new Tone.Filter(400, "bandpass").connect(synths.current.master);
-    const noise = new Tone.Noise("pink").connect(filt);
-    filt.frequency.setValueAtTime(400, now);
-    filt.frequency.exponentialRampToValueAtTime(3000, now + 0.4);
-    filt.frequency.exponentialRampToValueAtTime(500, now + 0.8);
-    noise.start(now).stop(now + 0.9);
-    const stabFilt = new Tone.Filter(2500, "lowpass").connect(synths.current.master);
-    const stab = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "square" }, envelope: { attack: 0.005, decay: 0.15, sustain: 0, release: 0.05 } }).connect(stabFilt);
-    stab.triggerAttackRelease(["C4", "E4"], "16n", now + 0.05);
-    stab.triggerAttackRelease(["C4", "E4"], "16n", now + 0.35);
-    setTimeout(() => { noise.dispose(); filt.dispose(); stab.dispose(); stabFilt.dispose(); }, 1200);
-  };
-
-  const maleCall = () => {
-    Tone.start();
-    const now = Tone.now();
-    const filt = new Tone.Filter(250, "bandpass").connect(synths.current.master);
-    const noise = new Tone.Noise("pink").connect(filt);
-    filt.frequency.setValueAtTime(250, now);
-    filt.frequency.exponentialRampToValueAtTime(1200, now + 0.3);
-    filt.frequency.exponentialRampToValueAtTime(300, now + 0.6);
-    noise.start(now).stop(now + 0.7);
-    const stabFilt = new Tone.Filter(1200, "lowpass").connect(synths.current.master);
-    const stab = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "square" }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.1 } }).connect(stabFilt);
-    stab.triggerAttackRelease(["C3", "E3"], "8n", now);
-    setTimeout(() => { noise.dispose(); filt.dispose(); stab.dispose(); stabFilt.dispose(); }, 1000);
-  };
-
-  const femaleChorus = () => {
-    Tone.start();
-    const now = Tone.now();
-    const filt = new Tone.Filter(3000, "lowpass").connect(synths.current.master);
-    const synth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.05, decay: 0.2, sustain: 0.6, release: 0.4 } }).connect(filt);
-    synth.triggerAttackRelease(["C5", "E5", "G5"], "4n", now);
-    setTimeout(() => { synth.dispose(); filt.dispose(); }, 900);
-  };
-
-  // ラップ効果音AI: 毎回違うタグ/エフェクト音をランダムに生成
-  // AIラップ作詞: 曲のテンポ/ジャンルに合わせてラップの歌詞をAIで生成
-  const generateAiRap = async () => {
-    setAiLoading(true);
-    setAiLyrics("");
-    try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 300,
-          messages: [{ role: "user", content: `日本語で、テンポ${bpm}BPM・ジャンル「${preset || "ヒップホップ"}」に合う短いラップの歌詞を4行、韻を意識して作ってください。歌詞のみを出力し、説明や前置きは不要です。` }],
-        }),
-      });
-      const data = await response.json();
-      const text = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("\n");
-      setAiLyrics(text.trim() || "生成に失敗しました");
-    } catch (e) { setAiLyrics("生成に失敗しました"); }
-    setAiLoading(false);
-  };
-
-  const pickReference = (e) => {
-    const files = e.target.files;
-    if (!files || !files.length) return;
-    Array.from(files).forEach(f => {
-      const url = URL.createObjectURL(f);
-      const id = Date.now() + Math.random();
-      setRefFiles(prev => [...prev, { id, url, name: f.name }]);
-      setActiveRefId(id);
-    });
-    e.target.value = "";
-  };
-  const loadLyricsFile = (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => setMyLyrics(String(reader.result));
-    reader.readAsText(f);
-    e.target.value = "";
-  };
-  const deleteRefFile = (id) => {
-    setRefFiles(prev => {
-      const next = prev.filter(r => r.id !== id);
-      if (activeRefId === id) setActiveRefId(next.length ? next[next.length - 1].id : null);
-      return next;
-    });
-  };
-
-  const refreshList = useCallback(async () => {
-    try {
-      const r = await window.storage.list("song:");
-      const keys = r && r.keys ? r.keys.map(k => k.replace("song:", "")) : [];
-      const withMeta = await Promise.all(keys.map(async (name) => {
-        try {
-          const rec = await window.storage.get(`song:${name}`);
-          const data = rec ? JSON.parse(rec.value) : {};
-          return { name, savedAt: data.savedAt || "" };
-        } catch (e) { return { name, savedAt: "" }; }
-      }));
-      setSavedList(withMeta);
-    } catch (e) { setSavedList([]); }
-  }, []);
-  useEffect(() => { refreshList(); }, [refreshList]);
-
-  const projectData = () => ({
-    bpm, drumSteps, bassSteps, synthSteps, preset, ambientOn, reverbOn, delayOn, bassBoost, bassTone,
-    groove, volumes, instrumentType, metronomeOn, bassHighOctave, backChorus, masterVolume, robotizeAll,
-    progressionName, progression, progressionSpeed, ambientPulse,
-  });
-  const applyProjectData = (data) => {
-    setBpm(data.bpm); setDrumSteps(data.drumSteps); setBassSteps(data.bassSteps);
-    setSynthSteps(data.synthSteps || emptyNoteRow()); setPreset(data.preset); setAmbientOn(data.ambientOn); setReverbOn(data.reverbOn);
-    setDelayOn(data.delayOn); setBassBoost(!!data.bassBoost); setBassTone(data.bassTone || "深いサブ");
-    setGroove(data.groove ?? 0.15); setVolumes(data.volumes); setInstrumentType(data.instrumentType || "リード");
-    setMetronomeOn(!!data.metronomeOn); setBassHighOctave(!!data.bassHighOctave); setBackChorus(!!data.backChorus);
-    setMasterVolume(data.masterVolume ?? 4); setRobotizeAll(!!data.robotizeAll);
-    setProgressionName(data.progressionName || "ネオソウルA"); setProgression(data.progression || PROGRESSIONS["ネオソウルA"]); setProgressionSpeed(data.progressionSpeed || "2m"); setAmbientPulse(!!data.ambientPulse);
-  };
-
-  const saveSong = async () => {
-    const name = songName.trim() || `曲${Date.now()}`;
-    const data = { ...projectData(), savedAt: new Date().toLocaleString() };
-    try {
-      await window.storage.set(`song:${name}`, JSON.stringify(data));
-      setStatus(`保存しました: ${name}`);
-      setSongName(name);
-      refreshList();
-    } catch (e) { setStatus("保存に失敗しました"); }
-  };
-  const loadSong = async (name) => {
-    try {
-      const r = await window.storage.get(`song:${name}`);
-      if (!r) return;
-      const data = JSON.parse(r.value);
-      applyProjectData(data);
-      setSongName(name);
-      setStatus(`読み込みました: ${name}(そのまま保存すると上書きされます)`);
-    } catch (e) { setStatus("読み込みに失敗しました"); }
-  };
-  const exportProjectJson = () => {
-    const data = { ...projectData(), exportedAt: new Date().toLocaleString(), songName };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `${songName || "rhythm-forge"}.json`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setStatus("エクスポートしました");
-  };
-  const importProjectJson = (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result);
-        applyProjectData(data);
-        if (data.songName) setSongName(data.songName);
-        setStatus("インポートしました");
-      } catch (err) { setStatus("インポートに失敗しました(ファイル形式を確認してください)"); }
-    };
-    reader.readAsText(f);
-    e.target.value = "";
-  };
-
-  const deleteSong = async (name) => {
-    try {
-      await window.storage.delete(`song:${name}`);
-      refreshList();
-    } catch (e) {}
-  };
-  const deleteAllSongs = async () => {
-    for (const { name } of savedList) {
-      try { await window.storage.delete(`song:${name}`); } catch (e) {}
-    }
-    refreshList();
-    setStatus("保存リストを全体削除しました");
-  };
-  const shareSong = async (name) => {
-    try {
-      if (navigator.share) await navigator.share({ title: "RHYTHM FORGE", text: `${name} を作曲しました🎵 #RHYTHMFORGE #MICVICTORY`, url: "https://mikitan.github.io/" });
-      else { await navigator.clipboard.writeText(`${name} - RHYTHM FORGEで作曲🎵 https://mikitan.github.io/`); setStatus("クリップボードにコピーしました"); }
-    } catch (e) {}
-  };
-
-  const decodeUrlToBuffer = async (url) => {
-    const res = await fetch(url);
-    const arr = await res.arrayBuffer();
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const buf = await ctx.decodeAudioData(arr);
-    ctx.close();
-    return buf;
-  };
-  const mixIn = (dest, src, gainDb) => {
-    const gain = Math.pow(10, gainDb / 20);
-    const len = Math.min(dest.length, src.length);
-    for (let ch = 0; ch < dest.numberOfChannels; ch++) {
-      const d = dest.getChannelData(ch);
-      const sSrc = src.getChannelData(Math.min(ch, src.numberOfChannels - 1));
-      for (let i = 0; i < len; i++) d[i] += sSrc[i] * gain;
-    }
-  };
-
-  // 全体録音を一つまとめ: ラップ/ベース/ドラム/ギターの各アクティブ録音を1本に合成
-  const mergeAllRecordings = async () => {
-    const urls = [rapUrl, bassRecUrl, drumRecUrl, guitarRecUrl].filter(Boolean);
-    if (urls.length === 0) { setStatus("録音がありません"); return; }
-    setStatus("録音をまとめています...");
-    try {
-      const buffers = await Promise.all(urls.map(u => decodeUrlToBuffer(u)));
-      const sr = buffers[0].sampleRate;
-      const numCh = Math.max(...buffers.map(b => b.numberOfChannels));
-      const maxLen = Math.max(...buffers.map(b => b.length));
-      const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const dest = tempCtx.createBuffer(numCh, maxLen, sr);
-      tempCtx.close();
-      buffers.forEach(b => mixIn(dest, b, 0));
-      const wavBlob = bufferToWav(dest);
-      const url = URL.createObjectURL(wavBlob);
-      const id = Date.now();
-      setRapRecordings(prev => [...prev, { id, url, name: `全体録音${prev.length + 1}` }].slice(-10));
-      setActiveRapId(id);
-      setStatus("全体録音をまとめました");
-    } catch (e) { setStatus("まとめに失敗しました"); }
-  };
-
-  const exportWav = async () => {
-    setExporting(true);
-    setStatus("全パートを合成中...");
-    try {
-      const secPerStep = 60 / bpm / 4;
-      const totalSec = secPerStep * TOTAL_STEPS + 1;
-      const swingAmt = grooveRef.current;
-      const buffer = await Tone.Offline(({ transport }) => {
-        const masterVol = new Tone.Volume(masterVolRef.current).toDestination();
-        const master = new Tone.Gain(1).connect(masterVol);
-        const kick = new Tone.MembraneSynth({ octaves: 6, pitchDecay: 0.05 }).connect(master);
-        const snareNoise = new Tone.NoiseSynth({ envelope: { attack: 0.001, decay: 0.15, sustain: 0 } });
-        const snareFilt = new Tone.Filter(1800, "bandpass").connect(master); snareNoise.connect(snareFilt);
-        const hihat = new Tone.NoiseSynth({ envelope: { attack: 0.001, decay: 0.05, sustain: 0 } });
-        const hihatFilt = new Tone.Filter(9000, "highpass").connect(master); hihat.connect(hihatFilt);
-        const snap = new Tone.NoiseSynth({ envelope: { attack: 0.001, decay: 0.045, sustain: 0 } });
-        const snapFilt = new Tone.Filter(3000, "bandpass").connect(master); snap.connect(snapFilt);
-        const tom = new Tone.MembraneSynth({ pitchDecay: 0.08, octaves: 4 }).connect(master);
-        const electroFilt = new Tone.Filter(1400, "bandpass").connect(master);
-        const electro = new Tone.MembraneSynth({ pitchDecay: 0.02, octaves: 8 }).connect(electroFilt);
-        const shakerFilt = new Tone.Filter(7000, "highpass").connect(master);
-        const shaker = new Tone.NoiseSynth({ envelope: { attack: 0.001, decay: 0.08, sustain: 0 } }).connect(shakerFilt);
-        const bassFilt = new Tone.Filter(bassBoostRef.current ? 320 : 500, "lowpass").connect(master);
-        const bass = new Tone.MonoSynth({ oscillator: BASS_TONES[bassToneRef.current], envelope: { attack: 0.01, decay: 0.2, sustain: 0.6, release: 0.3 } }).connect(bassFilt);
-        const bassSub = new Tone.MonoSynth({ oscillator: BASS_TONES[bassToneRef.current], envelope: { attack: 0.01, decay: 0.3, sustain: 0.7, release: 0.4 } }).connect(bassFilt);
-        const synthFilt = new Tone.Filter(INSTRUMENTS[instrumentRef.current].filt, "lowpass").connect(master);
-        const ampDist = new Tone.Distortion({ distortion: ampRef.current ? 0.4 : 0, wet: ampRef.current ? 0.55 : 0 }).connect(synthFilt);
-        const synthLead = new Tone.MonoSynth({ oscillator: INSTRUMENTS[instrumentRef.current].osc, envelope: INSTRUMENTS[instrumentRef.current].env }).connect(ampDist);
-        const ambient = new Tone.PolySynth(Tone.Synth, { envelope: { attack: 1.2, decay: 0.5, sustain: 0.6, release: 2 } });
-        const ambGain = new Tone.Gain(0.26); ambient.chain(ambGain, master);
-        const chorus = new Tone.PolySynth(Tone.Synth, { envelope: { attack: 0.6, decay: 0.4, sustain: 0.7, release: 1.5 } });
-        const chorusGain = new Tone.Gain(0.16); chorus.chain(chorusGain, master);
-
-        kick.volume.value = volRef.current.kick; snareNoise.volume.value = volRef.current.snare;
-        hihat.volume.value = volRef.current.hihat; snap.volume.value = volRef.current.snap;
-        tom.volume.value = volRef.current.tom; electro.volume.value = volRef.current.electro; shaker.volume.value = volRef.current.shaker; bass.volume.value = volRef.current.bass;
-        bassSub.volume.value = volRef.current.bass + (bassBoostRef.current ? 6 : 0);
-        synthLead.volume.value = volRef.current.synth;
-        ambient.volume.value = volRef.current.ambient;
-
-        transport.bpm.value = bpm;
-        for (let i = 0; i < TOTAL_STEPS; i++) {
-          const t = i * secPerStep + (i % 2 === 1 ? swingAmt * secPerStep * 0.5 : 0);
-          const d = drumRef.current;
-          if (d.kick[i]) kick.triggerAttackRelease("C1", "8n", t);
-          if (d.snare[i]) snareNoise.triggerAttackRelease("8n", t);
-          if (d.hihat[i]) hihat.triggerAttackRelease("16n", t);
-          if (d.snap[i]) snap.triggerAttackRelease("16n", t);
-          if (d.tom[i]) tom.triggerAttackRelease("G1", "8n", t);
-          if (d.electro[i]) electro.triggerAttackRelease("A2", "16n", t);
-          if (d.shaker[i]) shaker.triggerAttackRelease("32n", t);
-          const bn = bassRef.current[i];
-          if (bn) { bass.triggerAttackRelease(bn, "8n", t); bassSub.triggerAttackRelease(Tone.Frequency(bn).transpose(-12), "8n", t); }
-          const sn = synthRef.current[i];
-          if (sn) synthLead.triggerAttackRelease(sn, "8n", t);
-        }
-        if (ambientOn) {
-          const barsPerChord = progressionSpeedRef.current === "1m" ? 1 : 2;
-          for (let bar = 0; bar < BARS; bar += barsPerChord) {
-            const chord = progressionRef.current[Math.floor(bar / barsPerChord) % progressionRef.current.length];
-            const t0 = bar * secPerStep * BAR_STEPS;
-            const dur = secPerStep * BAR_STEPS * barsPerChord;
-            if (ambientPulseRef.current) {
-              const subdivisions = 8;
-              for (let s = 0; s < subdivisions; s++) ambient.triggerAttackRelease(chord, "16n", t0 + s * (dur / subdivisions));
-            } else {
-              ambient.triggerAttackRelease(chord, dur, t0);
-            }
-            if (backChorusRef.current) {
-              const chorusNotes = chord.map(n => Tone.Frequency(n).transpose(12).toNote());
-              chorus.triggerAttackRelease(chorusNotes, dur, t0);
-            }
-          }
-        }
-      }, totalSec);
-
-      const finalBuf = buffer.get();
-      const layers = [
-        [rapUrl, volumes.rap], [refUrl, 0], [bassRecUrl, volumes.bassrec], [drumRecUrl, volumes.drumrec], [guitarRecUrl, volumes.guitarrec],
-      ];
-      for (const [url, gainDb] of layers) {
-        if (!url) continue;
-        try { const src = await decodeUrlToBuffer(url); mixIn(finalBuf, src, gainDb); } catch (e) {}
-      }
-
-      if (robotizeAllRef.current) {
-        const sr = finalBuf.sampleRate;
-        for (let ch = 0; ch < finalBuf.numberOfChannels; ch++) {
-          const data = finalBuf.getChannelData(ch);
-          for (let i = 0; i < data.length; i++) data[i] *= Math.sin(2 * Math.PI * 35 * (i / sr));
-        }
-      }
-
-      const wavBlob = bufferToWav(finalBuf);
-      const url = URL.createObjectURL(wavBlob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `${songName || "rhythm-forge"}.wav`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      if (navigator.share && navigator.canShare) {
-        try {
-          const file = new File([wavBlob], "rhythmforge.wav", { type: "audio/wav" });
-          if (navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: "RHYTHM FORGE", text: `${songName || "曲"}を作曲しました🎵`, url: "https://mikitan.github.io/" });
-        } catch (e) {}
-      }
-      setStatus("合成・書き出し完了");
-    } catch (e) { setStatus("書き出しに失敗しました"); }
-    setExporting(false);
-  };
-
-  useEffect(() => {
-    const link = document.createElement("link");
-    link.href = "https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;600&display=swap";
-    link.rel = "stylesheet";
-    document.head.appendChild(link);
-    return () => document.head.removeChild(link);
-  }, []);
-
-  const C = { bg:"#080b10", panel:"#10161f", panel2:"#161d29", cyan:"#00e5ff", magenta:"#ff2fd0", gold:"#ffcf4d", rap:"#ff4d6a", dim:"#5a6579" };
-
-  const btn = (active, color) => ({
-    padding: "6px 12px", borderRadius: 6, fontFamily: "Rajdhani, sans-serif", fontWeight: 600,
-    fontSize: 13, cursor: "pointer", borderWidth: 1, borderStyle: "solid",
-    borderColor: active ? color : "#2a3140", background: active ? color + "22" : "transparent",
-    color: active ? color : C.dim, transition: "all .15s",
-  });
-
-  const localHighlight = currentStep >= 0 && Math.floor(currentStep / BAR_STEPS) === currentBar
-    ? currentStep - currentBar * BAR_STEPS : -1;
 
   return (
-    <div style={{ minHeight: "100vh", background: `radial-gradient(circle at 50% 0%, #131a24, ${C.bg})`, color: "#dfe6f0", fontFamily: "Rajdhani, sans-serif", padding: "16px 12px 40px", position: "relative" }}>
-      <div style={{ position: "fixed", inset: 0, background: C.cyan, opacity: flashOpacity, pointerEvents: "none", transition: "opacity 100ms", zIndex: 50 }} />
-      <div style={{ maxWidth: 480, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 14 }}>
-          <div style={{ fontFamily: "Orbitron, sans-serif", fontWeight: 900, fontSize: 26, letterSpacing: 2, background: `linear-gradient(90deg, ${C.cyan}, ${C.magenta})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>RHYTHM FORGE</div>
-          <div style={{ fontSize: 12, color: C.dim, letterSpacing: 3 }}>作曲スタジオ · ブラックコンテンポラリー · 世界最高のDTM · MIC VICTORY</div>
-        </div>
+    <div className="app-container">
+      <h1 style={{ color: "#38bdf8", textAlign: "center", marginBottom: "8px" }}>RHYTHM FORGE</h1>
+      <p style={{ textAlign: "center", color: "#94a3b8", marginTop: 0 }}>MIC VICTORY BEAT & SYNTH WORKSTATION</p>
 
-        <div style={{ background: C.panel, borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderStyle: "solid", borderColor: "#1c2430" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={togglePlay} style={{ ...btn(true, playing ? C.magenta : C.cyan), padding: "10px 18px", fontSize: 16, fontFamily: "Orbitron, sans-serif" }}>
-              {playing ? "■ STOP" : "▶ 再生"}
-            </button>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: C.dim }}>TEMPO {bpm} BPM</div>
-              <input type="range" min={50} max={190} value={bpm} onChange={e => setBpm(+e.target.value)} style={{ width: "100%", accentColor: C.cyan }} />
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-            {BPM_PRESETS.map(b => <button key={b} onClick={() => setBpm(b)} style={btn(bpm === b, C.gold)}>{b}</button>)}
-          </div>
-          <div style={{ marginTop: 10 }}>
-            <div style={{ fontSize: 11, color: C.dim }}>グルーヴ(踊れる感じ・スウィング) {Math.round(groove * 100)}%</div>
-            <input type="range" min={0} max={0.5} step={0.01} value={groove} onChange={e => setGroove(+e.target.value)} style={{ width: "100%", accentColor: C.magenta }} />
-          </div>
-          <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-            <button onClick={() => setManualMode(v => !v)} style={btn(manualMode, C.rap)}>手動打ち込み {manualMode ? "ON" : "OFF"}</button>
-            <button onClick={() => setFlashOn(v => !v)} style={btn(flashOn, C.gold)}>フラッシュ {flashOn ? "ON" : "OFF"}</button>
-            <button onClick={() => setRobotizeAll(v => !v)} style={btn(robotizeAll, C.magenta)}>ロボット化(全体) {robotizeAll ? "ON" : "OFF"}</button>
-            <button onClick={hitRandom} style={btn(true, C.cyan)}>ヒットランダム</button>
-          </div>
-          {(recording || bassRecording || drumRecording || guitarRecording || liveCapturing || fullMixRecording) && (
-            <div style={{ marginTop: 10, fontSize: 12, color: C.rap, fontWeight: 600 }}>
-              ● 録音中… {Math.floor(recSeconds / 60)}:{String(recSeconds % 60).padStart(2, "0")}
-            </div>
-          )}
-          <div style={{ marginTop: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-              <span style={{ fontSize: 11, color: C.dim }}>{BARS}小節(編集する小節を選択)</span>
-              <button onClick={clearAllBars} style={btn(false, C.rap)}>{BARS}小節削除</button>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 4 }}>
-              {Array.from({ length: BARS }, (_, b) => (
-                <button key={b} onClick={() => setCurrentBar(b)} style={{ ...btn(currentBar === b, C.gold), padding: "6px 0" }}>{b + 1}</button>
-              ))}
-            </div>
-          </div>
+      <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginBottom: "20px", flexWrap: "wrap" }}>
+        <button onClick={togglePlay} style={{ background: playing ? "#ef4444" : "#22c55e", color: "#fff", border: "none", padding: "10px 24px", borderRadius: "8px", fontWeight: "bold", fontSize: "16px" }}>
+          {playing ? "STOP ■" : "PLAY ▶"}
+        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#1e293b", padding: "4px 12px", borderRadius: "8px" }}>
+          <span>BPM:</span>
+          <input type="number" value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ width: "60px", background: "#0f172a", color: "#fff", border: "1px solid #475569", borderRadius: "4px", padding: "4px", textAlign: "center" }} />
         </div>
+        <select value={preset} onChange={e => handlePresetChange(e.target.value)} style={{ background: "#1e293b", color: "#fff", border: "1px solid #475569", borderRadius: "8px", padding: "8px 12px" }}>
+          {Object.keys(DRUM_PRESETS).map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+      </div>
 
-        <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-          {["DRUM", "BASS", "AMBIENT", "RAP", "MIXER"].map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{ ...btn(tab === t, t === "RAP" ? C.rap : C.cyan), flex: 1, minWidth: 68 }}>{t}</button>
+      <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginBottom: "20px" }}>
+        {["DRUM", "MIXER"].map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{ background: tab === t ? "#0284c7" : "#1e293b", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "6px", fontWeight: "bold" }}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {tab === "DRUM" && (
+        <div style={{ background: "#0f172a", padding: "16px", borderRadius: "12px", border: "1px solid #1e293b", overflowX: "auto" }}>
+          <h3 style={{ marginTop: 0, color: "#38bdf8" }}>DRUM PATTERN SEQUENCER</h3>
+          {DRUM_ROWS.map(row => (
+            <div key={row.key} style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
+              <div style={{ width: "90px", fontSize: "12px", fontWeight: "bold", color: "#cbd5e1" }}>{row.label}</div>
+              <div style={{ display: "flex", gap: "4px" }}>
+                {drumSteps[row.key] && drumSteps[row.key].map((val, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => toggleDrumCell(row.key, idx)}
+                    style={{
+                      width: "24px",
+                      height: "32px",
+                      background: currentStep === idx ? "#f59e0b" : val ? "#38bdf8" : "#1e293b",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      border: idx % 4 === 0 ? "1px solid #64748b" : "1px solid #334155"
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
+      )}
 
-        <div style={{ background: C.panel, borderRadius: 12, padding: 14, borderWidth: 1, borderStyle: "solid", borderColor: "#1c2430" }}>
-          {tab === "DRUM" && (
-            <div>
-              <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-                <button onClick={electroHigh} style={btn(true, C.cyan)}>電子音(高)</button>
-                <button onClick={electroLow} style={btn(true, C.cyan)}>電子音(低)</button>
-                <button onClick={glitchFx} style={btn(true, C.magenta)}>グリッチFX</button>
-                <button onClick={buildupFx} style={btn(true, C.gold)}>ビルドアップFX</button>
+      {tab === "MIXER" && (
+        <div style={{ background: "#0f172a", padding: "16px", borderRadius: "12px", border: "1px solid #1e293b" }}>
+          <h3 style={{ marginTop: 0, color: "#38bdf8" }}>MIXER / VOLUMES</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "16px" }}>
+            {Object.keys(volumes).map(k => (
+              <div key={k} style={{ background: "#1e293b", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+                <div style={{ fontSize: "12px", fontWeight: "bold", marginBottom: "8px", textTransform: "uppercase" }}>{k}</div>
+                <input
+                  type="range"
+                  min="-30"
+                  max="6"
+                  step="1"
+                  value={volumes[k]}
+                  onChange={e => setVolumes({ ...volumes, [k]: Number(e.target.value) })}
+                  style={{ width: "100%" }}
+                />
+                <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "4px" }}>{volumes[k]} dB</div>
               </div>
-              <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-                {Object.keys(DRUM_PRESETS).map(p => <button key={p} onClick={() => applyPreset(p)} style={btn(preset === p, C.magenta)}>{p}</button>)}
-                <button onClick={shuffleDrum} style={btn(false, C.gold)}>🎲 シャッフル</button>
-                <button onClick={addDrumRandomAI} style={btn(true, C.cyan)}>ドラムつけ足しAI</button>
-                <button onClick={aiRandomCompose} style={btn(true, C.magenta)}>AIランダム作曲</button>
-                <button onClick={generateDanceAI} style={btn(true, C.cyan)}>ダンスAI作曲</button>
-                <button onClick={generateBlackContemporaryAI} style={btn(true, C.gold)}>ブラックコンテンポラリーAI</button>
-                <button onClick={copyDrumForward} style={btn(false, C.cyan)}>→次にコピー</button>
-                <button onClick={loopDrumAll} style={btn(false, C.cyan)}>{BARS}小節ループ</button>
-                <button onClick={clearAllDrum} style={btn(false, C.rap)}>CLEAR ALL</button>
-              </div>
-              {DRUM_ROWS.map(row => (
-                <div key={row.key} style={{ marginBottom: 8 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.dim, marginBottom: 4 }}>
-                    <span>{row.label}</span>
-                    <span onClick={() => clearDrumRow(row.key)} style={{ cursor: "pointer", color: C.rap }}>Clear</span>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(16, 1fr)", gap: 3 }}>
-                    {drumSteps[row.key].slice(currentBar * BAR_STEPS, currentBar * BAR_STEPS + BAR_STEPS).map((v, i) => (
-                      <div key={i} onClick={() => toggleDrumStep(row.key, i)}
-                        style={{ height: 22, borderRadius: 3, cursor: "pointer",
-                          background: v ? C.cyan : (i % 4 === 0 ? "#1a2230" : "#151b25"),
-                          outline: localHighlight === i && playing ? `2px solid ${C.gold}` : "none" }} />
-                    ))}
-                  </div>
-                </div>
-              ))}
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
-              <div style={{ fontSize: 11, color: C.dim, marginBottom: 6, marginTop: 10, borderTopWidth: 1, borderTopStyle: "solid", borderTopColor: "#232b38", paddingTop: 10 }}>普通のドラム音を録音してつけ足し(合成)</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                {!drumRecording ? (
-                  <button onClick={startDrumRecording} style={btn(true, C.rap)}>● 録音</button>
-                ) : (
-                  <button onClick={stopDrumRecording} style={btn(true, C.gold)}>■ 停止</button>
-                )}
-              </div>
-              {drumRecUrl && <audio ref={drumAudioRef} src={drumRecUrl} controls style={{ width: "100%", marginBottom: 8 }} />}
-              {drumRecordings.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 11, color: C.dim, marginBottom: 4 }}>録音リスト</div>
-                  {drumRecordings.map(r => (
-                    <div key={r.id} style={{ display: "flex", gap: 6, alignItems: "center", padding: "4px 0", borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: "#1c2430" }}>
-                      <span style={{ flex: 1, fontSize: 12, color: r.id === activeDrumId ? C.gold : C.dim }}>{r.name}{r.id === activeDrumId ? "(再生中)" : ""}</span>
-                      {r.id !== activeDrumId && <button onClick={() => setActiveDrumId(r.id)} style={btn(false, C.cyan)}>選択</button>}
-                      <button onClick={() => deleteDrumRecording(r.id)} style={btn(false, C.rap)}>削除</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {tab === "BASS" && (
-            <div>
-              <div style={{ fontSize: 11, color: C.dim, marginBottom: 6 }}>手動演奏パッド(リアル演奏で打ち込み)</div>
-              <div style={{ display: "flex", gap: 5, marginBottom: 10, flexWrap: "wrap" }}>
-                {(bassHighOctave ? HIGH_BASS_NOTES : BASS_NOTES).map(n => <button key={n} onClick={() => manualHitBass(n)} style={btn(true, C.rap)}>{n}</button>)}
-                <button onClick={() => setBassHighOctave(v => !v)} style={btn(bassHighOctave, C.gold)}>高音ベース {bassHighOctave ? "ON" : "OFF"}</button>
-                <button onClick={bassElectroHit} style={btn(true, C.cyan)}>低音電子音</button>
-                <button onClick={wobbleBass} style={btn(true, C.magenta)}>ワブルベース</button>
-                <button onClick={() => setMetronomeOn(v => !v)} style={btn(metronomeOn, C.magenta)}>テンポ音 {metronomeOn ? "ON" : "OFF"}</button>
-              </div>
-              <div style={{ fontSize: 11, color: C.dim, marginBottom: 6 }}>ドレミファコード(アンビエントで和音を鳴らす)</div>
-              <div style={{ display: "flex", gap: 5, marginBottom: 10, flexWrap: "wrap" }}>
-                {SYNTH_NOTES.map(n => <button key={n} onClick={() => playChord(n)} style={btn(true, C.gold)}>{SOLFEGE[n]}</button>)}
-              </div>
-              <div style={{ fontSize: 11, color: C.dim, marginBottom: 6 }}>シンセサイザー音色 / メロディ作曲</div>
-              <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
-                {Object.keys(INSTRUMENTS).map(name => (
-                  <button key={name} onClick={() => setInstrumentType(name)} style={btn(instrumentType === name, C.magenta)}>{name}</button>
-                ))}
-              </div>
-              <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-                <button onClick={generateMelody} style={btn(true, C.cyan)}>メロディ作曲</button>
-                <button onClick={addMelodyRandom} style={btn(true, C.gold)}>メロディつけ足しランダム</button>
-                <button onClick={generateAfricanDrumAI} style={btn(true, C.gold)}>アフリカ太鼓AI</button>
-                <button onClick={generateSynthAI} style={btn(true, C.gold)}>シンセAI作曲</button>
-                {Object.keys(RIFFS).map(name => (
-                  <button key={name} onClick={() => applyRiff(name)} style={btn(false, C.gold)}>{name}</button>
-                ))}
-              </div>
-              <div style={{ display: "flex", gap: 5, marginBottom: 6, flexWrap: "wrap" }}>
-                {SYNTH_NOTES.map(n => <button key={n} onClick={() => setSynthNote(n)} style={btn(synthNote === n, C.gold)}>{SOLFEGE[n]}</button>)}
-                <button onClick={clearSynth} style={btn(false, C.rap)}>CLEAR</button>
-                <button onClick={copySynthForward} style={btn(false, C.cyan)}>→次にコピー</button>
-                <button onClick={loopSynthAll} style={btn(false, C.cyan)}>{BARS}小節ループ</button>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(16, 1fr)", gap: 3, marginBottom: 14 }}>
-                {synthSteps.slice(currentBar * BAR_STEPS, currentBar * BAR_STEPS + BAR_STEPS).map((v, i) => (
-                  <div key={i} onClick={() => toggleSynthStep(i)}
-                    style={{ height: 30, borderRadius: 3, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 9, color: v ? "#08121a" : C.dim,
-                      background: v ? C.cyan : (i % 4 === 0 ? "#1a2230" : "#151b25"),
-                      outline: localHighlight === i && playing ? `2px solid ${C.magenta}` : "none" }}>
-                    {v ? SOLFEGE[v] : ""}
-                  </div>
-                ))}
-              </div>
-              <div style={{ fontSize: 11, color: C.dim, marginBottom: 6 }}>ジャンル(テンポ+ドラム+ベースを{BARS}小節に一括設定)</div>
-              <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-                {Object.keys(GENRE_TEMPO).map(g => (
-                  <button key={g} onClick={() => applyGenre(g)} style={btn(preset === g, C.gold)}>{g} {GENRE_TEMPO[g]}</button>
-                ))}
-                <button onClick={composeFromBassAI} style={btn(true, C.gold)}>ベース起点で全楽器作成AI</button>
-              </div>
-              <div style={{ fontSize: 11, color: C.dim, marginBottom: 6 }}>ベース音色</div>
-              <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-                {Object.keys(BASS_TONES).map(name => (
-                  <button key={name} onClick={() => setBassTone(name)} style={btn(bassTone === name, C.magenta)}>{name}</button>
-                ))}
-              </div>
-              <div style={{ fontSize: 11, color: C.dim, marginBottom: 6 }}>ノート選択 → ステップをタップで配置(重低音)</div>
-              <div style={{ display: "flex", gap: 5, marginBottom: 10, flexWrap: "wrap" }}>
-                {(bassHighOctave ? HIGH_BASS_NOTES : BASS_NOTES).map(n => <button key={n} onClick={() => setBassNote(n)} style={btn(bassNote === n, C.gold)}>{n}</button>)}
-                <button onClick={clearBass} style={btn(false, C.rap)}>CLEAR</button>
-                <button onClick={() => setBassBoost(v => !v)} style={btn(bassBoost, C.magenta)}>重低音ブースト {bassBoost ? "ON" : "OFF"}</button>
-                <button onClick={copyBassForward} style={btn(false, C.cyan)}>→次にコピー</button>
-                <button onClick={loopBassAll} style={btn(false, C.cyan)}>ベースを{BARS}小節ループ</button>
-                <button onClick={addBassMelodyRandom} style={btn(true, C.gold)}>ベースメロディつけ足し</button>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(16, 1fr)", gap: 3, marginBottom: 14 }}>
-                {bassSteps.slice(currentBar * BAR_STEPS, currentBar * BAR_STEPS + BAR_STEPS).map((v, i) => (
-                  <div key={i} onClick={() => toggleBassStep(i)}
-                    style={{ height: 34, borderRadius: 3, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 9, color: v ? "#08121a" : C.dim,
-                      background: v ? C.gold : (i % 4 === 0 ? "#1a2230" : "#151b25"),
-                      outline: localHighlight === i && playing ? `2px solid ${C.cyan}` : "none" }}>
-                    {v || ""}
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ fontSize: 11, color: C.dim, marginBottom: 6, borderTopWidth: 1, borderTopStyle: "solid", borderTopColor: "#232b38", paddingTop: 10 }}>ベースリズム録音(つけ足し・合成)</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                {!bassRecording ? (
-                  <button onClick={startBassRecording} style={btn(true, C.rap)}>● 録音</button>
-                ) : (
-                  <button onClick={stopBassRecording} style={btn(true, C.gold)}>■ 停止</button>
-                )}
-              </div>
-              {bassRecUrl && <audio ref={bassAudioRef} src={bassRecUrl} controls style={{ width: "100%", marginBottom: 8 }} />}
-              {bassRecordings.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 11, color: C.dim, marginBottom: 4 }}>録音リスト</div>
-                  {bassRecordings.map(r => (
-                    <div key={r.id} style={{ display: "flex", gap: 6, alignItems: "center", padding: "4px 0", borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: "#1c2430" }}>
-                      <span style={{ flex: 1, fontSize: 12, color: r.id === activeBassId ? C.gold : C.dim }}>{r.name}{r.id === activeBassId ? "(再生中)" : ""}</span>
-                      {r.id !== activeBassId && <button onClick={() => setActiveBassId(r.id)} style={btn(false, C.cyan)}>選択</button>}
-                      <button onClick={() => deleteBassRecording(r.id)} style={btn(false, C.rap)}>削除</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div style={{ fontSize: 11, color: C.dim, marginBottom: 6, marginTop: 10, borderTopWidth: 1, borderTopStyle: "solid", borderTopColor: "#232b38", paddingTop: 10 }}>6弦楽器(ギター)伴奏を録音・エコー付きでつけ足し</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                {!guitarRecording ? (
-                  <button onClick={startGuitarRecording} style={btn(true, C.rap)}>● 録音(マイク)</button>
-                ) : (
-                  <button onClick={stopGuitarRecording} style={btn(true, C.gold)}>■ 停止</button>
-                )}
-                {!liveCapturing ? (
-                  <button onClick={startLiveCapture} style={btn(true, C.magenta)}>● パッド操作しながら録音</button>
-                ) : (
-                  <button onClick={stopLiveCapture} style={btn(true, C.gold)}>■ 停止</button>
-                )}
-              </div>
-              {guitarRecUrl && <audio ref={guitarAudioRef} src={guitarRecUrl} controls style={{ width: "100%", marginBottom: 8 }} />}
-              {guitarRecordings.length > 0 && (
-                <div>
-           
+ReactDOM.render(<RhythmForge />, document.getElementById("root"));
+</script>
+</body>
+</html>
