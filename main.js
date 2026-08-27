@@ -1298,3 +1298,901 @@ function renderStatus() {
 }
 
 
+        kick.volume.value = volRef.current.kick; snareNoise.volume.value = volRef.current.snare;
+        hihat.volume.value = volRef.current.hihat; snap.volume.value = volRef.current.snap;
+        tom.volume.value = volRef.current.tom; electro.volume.value = volRef.current.electro;
+        shaker.volume.value = volRef.current.shaker; bass.volume.value = volRef.current.bass;
+        bassSub.volume.value = volRef.current.bass + (bassBoostRef.current ? 6 : 0);
+        synthLead.volume.value = volRef.current.synth;
+
+        const d = drumSteps;
+        const bSteps = bassSteps;
+        const sSteps = synthSteps;
+
+        transport.schedule((time) => {
+          for (let step = 0; step < TOTAL_STEPS; step++) {
+            const t = time + step * secPerStep;
+            if (d.kick[step]) kick.triggerAttackRelease("C1", "8n", t);
+            if (d.snare[step]) snareNoise.triggerAttackRelease("8n", t);
+            if (d.hihat[step]) hihat.triggerAttackRelease("16n", t);
+            if (d.snap[step]) snap.triggerAttackRelease("16n", t);
+            if (d.tom[step]) tom.triggerAttackRelease("G1", "8n", t);
+            if (d.electro[step]) electro.triggerAttackRelease("A2", "16n", t);
+            if (d.shaker[step]) shaker.triggerAttackRelease("32n", t);
+            const bn = bSteps[step];
+            if (bn) {
+              bass.triggerAttackRelease(bn, "8n", t);
+              bassSub.triggerAttackRelease(Tone.Frequency(bn).transpose(-12), "8n", t);
+            }
+            const sn = sSteps[step];
+            if (sn) synthLead.triggerAttackRelease(sn, "8n", t);
+          }
+        }, 0);
+
+        if (ambientOn) {
+          let chordIdx = 0;
+          const speedSec = Tone.Time(progressionSpeedRef.current).toSeconds();
+          for (let t = 0; t < totalSec; t += speedSec) {
+            const chord = progressionRef.current[chordIdx % progressionRef.current.length];
+            transport.schedule((time) => {
+              ambient.triggerAttackRelease(chord, progressionSpeedRef.current, time);
+              if (backChorusRef.current) {
+                chorus.triggerAttackRelease(chord.map(n => Tone.Frequency(n).transpose(12).toNote()), progressionSpeedRef.current, time);
+              }
+            }, t);
+            chordIdx++;
+          }
+        }
+      }, totalSec);
+
+      const wavBlob = bufferToWav(buffer);
+      const url = URL.createObjectURL(wavBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${songName || "rhythm-forge"}.wav`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setStatus("WAVエクスポートが完了しました🎵");
+    } catch (err) {
+      setStatus("WAVエクスポートに失敗しました");
+    }
+    setExporting(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-16 select-none relative">
+      {/* 画面フラッシュ演出 */}
+      <div
+        className="fixed inset-0 bg-cyan-500 pointer-events-none transition-opacity duration-75 z-50"
+        style={{ opacity: flashOpacity }}
+      />
+
+      {/* ヘッダー */}
+      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40 px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl font-black bg-gradient-to-r from-cyan-400 via-indigo-400 to-fuchsia-400 bg-clip-text text-transparent">
+            RHYTHM FORGE
+          </span>
+          <span className="text-xs px-2 py-0.5 bg-slate-800 border border-slate-700 rounded text-cyan-400 font-mono">
+            PRO DAW v4.8
+          </span>
+        </div>
+
+        {/* トランスポートコントロール */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={togglePlay}
+            className={`px-4 py-2 rounded-lg font-bold text-sm shadow transition flex items-center gap-1.5 ${
+              playing
+                ? "bg-amber-500 hover:bg-amber-600 text-slate-950"
+                : "bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+            }`}
+          >
+            {playing ? "⏹ 停止" : "▶ 再生"}
+          </button>
+          <button
+            onClick={restartFromTop}
+            className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm border border-slate-700"
+            title="最初から再生"
+          >
+            ⏮ 頭出し
+          </button>
+
+          <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 px-2 py-1 rounded-lg">
+            <span className="text-xs text-slate-400">BPM</span>
+            <input
+              type="number"
+              value={bpm}
+              onChange={e => setBpm(Math.max(40, Math.min(240, Number(e.target.value))))}
+              className="w-12 bg-slate-950 text-cyan-400 font-mono text-center text-sm border border-slate-800 rounded"
+            />
+            <div className="flex gap-1 ml-1">
+              {BPM_PRESETS.map(b => (
+                <button
+                  key={b}
+                  onClick={() => setBpm(b)}
+                  className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                    bpm === b
+                      ? "bg-cyan-500 text-slate-950 border-cyan-400 font-bold"
+                      : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                  }`}
+                >
+                  {b}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* プロジェクト・ファイル操作 */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <input
+            type="text"
+            value={songName}
+            onChange={e => setSongName(e.target.value)}
+            placeholder="曲名を入力..."
+            className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 w-28 focus:border-cyan-500 outline-none"
+          />
+          <button
+            onClick={saveSong}
+            className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-bold shadow"
+          >
+            保存
+          </button>
+          <button
+            onClick={exportWav}
+            disabled={exporting}
+            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-bold shadow disabled:opacity-50"
+          >
+            {exporting ? "書き出し中..." : "🎵 WAV保存"}
+          </button>
+          <button
+            onClick={exportProjectJson}
+            className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs border border-slate-700"
+          >
+            JSON
+          </button>
+          <label className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs border border-slate-700 cursor-pointer">
+            インポート
+            <input type="file" accept=".json" onChange={importProjectJson} className="hidden" />
+          </label>
+        </div>
+      </header>
+
+      {/* ナビゲーションタブ */}
+      <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center gap-2 overflow-x-auto">
+        {[
+          { id: "DRUM", label: "🥁 ドラム" },
+          { id: "BASS", label: "🎸 ベース" },
+          { id: "SYNTH", label: "🎹 シンセ・メロディ" },
+          { id: "CHORDS", label: "🎼 コード・アンビエント" },
+          { id: "VOICE", label: "🎤 ラップ・ボーカル" },
+          { id: "MIXER", label: "🎚️ ミキサー・FX" },
+          { id: "AI", label: "🤖 AIコンポーザー" },
+          { id: "SAVED", label: "💾 保存リスト" },
+        ].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+              tab === t.id
+                ? "bg-gradient-to-r from-cyan-500 to-indigo-600 text-slate-950 shadow-md"
+                : "bg-slate-800/60 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ステータス表示バー */}
+      {status && (
+        <div className="bg-cyan-950/60 border-b border-cyan-800/60 px-4 py-1 text-xs text-cyan-300 flex items-center justify-between">
+          <span>{status}</span>
+          <button onClick={() => setStatus("")} className="text-cyan-400 hover:text-cyan-200 font-bold">×</button>
+        </div>
+      )}
+
+      {/* メインコンテンツエリア */}
+      <main className="p-4 max-w-7xl mx-auto">
+        {/* ================= DRUM TAB ================= */}
+        {tab === "DRUM" && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 border border-slate-800 p-3 rounded-xl">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-slate-400">ジャンル・プリセット:</span>
+                {Object.keys(DRUM_PRESETS).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => applyPreset(p)}
+                    className={`px-2 py-1 rounded text-xs border ${
+                      preset === p
+                        ? "bg-cyan-500 text-slate-950 font-bold border-cyan-400"
+                        : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={shuffleDrum}
+                  className="px-3 py-1 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded text-xs font-bold shadow"
+                >
+                  🎲 ドラムシャッフル
+                </button>
+                <button
+                  onClick={addDrumRandomAI}
+                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-bold shadow"
+                >
+                  ✨ ドラムAI追加
+                </button>
+                <button
+                  onClick={clearAllDrum}
+                  className="px-2.5 py-1 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded text-xs"
+                >
+                  小節クリア
+                </button>
+              </div>
+            </div>
+
+            {/* 小節切り替え */}
+            <div className="flex items-center gap-1 overflow-x-auto py-1">
+              <span className="text-xs text-slate-400 font-bold mr-2">小節 (BAR):</span>
+              {Array.from({ length: BARS }, (_, b) => (
+                <button
+                  key={b}
+                  onClick={() => setCurrentBar(b)}
+                  className={`w-8 h-8 rounded-lg text-xs font-mono font-bold flex items-center justify-center border ${
+                    currentBar === b
+                      ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow"
+                      : "bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800 hover:text-slate-200"
+                  }`}
+                >
+                  {b + 1}
+                </button>
+              ))}
+              <div className="ml-auto flex gap-2">
+                <button
+                  onClick={copyDrumForward}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-xs"
+                >
+                  次小節にコピー
+                </button>
+                <button
+                  onClick={loopDrumAll}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-xs"
+                >
+                  全小節にループ
+                </button>
+              </div>
+            </div>
+
+            {/* ドラムシーケンサー・グリッド */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 overflow-x-auto shadow-xl">
+              <div className="min-w-[700px] space-y-2">
+                {DRUM_ROWS.map(r => (
+                  <div key={r.key} className="flex items-center gap-2">
+                    <button
+                      onClick={() => manualHitDrum(r.key)}
+                      className="w-24 text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold text-slate-300 border border-slate-700 flex items-center justify-between"
+                    >
+                      <span>{r.label}</span>
+                      <span className="text-[10px] text-cyan-400">▶</span>
+                    </button>
+                    <div className="flex-1 grid grid-cols-16 gap-1">
+                      {Array.from({ length: BAR_STEPS }, (_, i) => {
+                        const globalStep = currentBar * BAR_STEPS + i;
+                        const active = drumSteps[r.key]?[globalStep];
+                        const isCurrent = currentStep === globalStep;
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => toggleDrumStep(r.key, i)}
+                            className={`h-9 rounded transition ${
+                              active
+                                ? "bg-cyan-500 hover:bg-cyan-400 shadow-md shadow-cyan-500/20"
+                                : "bg-slate-950 hover:bg-slate-800 border border-slate-800/80"
+                            } ${isCurrent ? "ring-2 ring-fuchsia-400" : ""}`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= BASS TAB ================= */}
+        {tab === "BASS" && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 border border-slate-800 p-3 rounded-xl">
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-xs font-bold text-slate-400">ノート選択:</span>
+                <div className="flex gap-1">
+                  {(bassHighOctave ? HIGH_BASS_NOTES : BASS_NOTES).map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setBassNote(n)}
+                      className={`px-2.5 py-1 rounded text-xs font-mono font-bold border ${
+                        bassNote === n
+                          ? "bg-indigo-500 text-white border-indigo-400 shadow"
+                          : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer bg-slate-800 px-2.5 py-1 rounded border border-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={bassHighOctave}
+                    onChange={e => setBassHighOctave(e.target.checked)}
+                    className="rounded bg-slate-950 border-slate-700 text-cyan-500"
+                  />
+                  ハイオクターブ
+                </label>
+                <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer bg-slate-800 px-2.5 py-1 rounded border border-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={bassBoost}
+                    onChange={e => setBassBoost(e.target.checked)}
+                    className="rounded bg-slate-950 border-slate-700 text-cyan-500"
+                  />
+                  サブベースブースト
+                </label>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 border border-slate-800 p-3 rounded-xl">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-400">音色:</span>
+                {Object.keys(BASS_TONES).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setBassTone(t)}
+                    className={`px-2.5 py-1 rounded text-xs border ${
+                      bassTone === t
+                        ? "bg-cyan-500 text-slate-950 font-bold border-cyan-400"
+                        : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={addBassMelodyRandom}
+                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-bold shadow"
+                >
+                  🎲 ベースランダム追加
+                </button>
+                <button
+                  onClick={composeFromBassAI}
+                  className="px-3 py-1 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded text-xs font-bold shadow"
+                >
+                  ✨ ベース起点AI作曲
+                </button>
+                <button
+                  onClick={clearBass}
+                  className="px-2.5 py-1 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded text-xs"
+                >
+                  小節クリア
+                </button>
+              </div>
+            </div>
+
+            {/* 小節切り替え */}
+            <div className="flex items-center gap-1 overflow-x-auto py-1">
+              <span className="text-xs text-slate-400 font-bold mr-2">小節 (BAR):</span>
+              {Array.from({ length: BARS }, (_, b) => (
+                <button
+                  key={b}
+                  onClick={() => setCurrentBar(b)}
+                  className={`w-8 h-8 rounded-lg text-xs font-mono font-bold flex items-center justify-center border ${
+                    currentBar === b
+                      ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow"
+                      : "bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800 hover:text-slate-200"
+                  }`}
+                >
+                  {b + 1}
+                </button>
+              ))}
+              <div className="ml-auto flex gap-2">
+                <button
+                  onClick={copyBassForward}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-xs"
+                >
+                  次小節にコピー
+                </button>
+                <button
+                  onClick={loopBassAll}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-xs"
+                >
+                  全小節にループ
+                </button>
+              </div>
+            </div>
+
+            {/* ベースシーケンサー・グリッド */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 overflow-x-auto shadow-xl">
+              <div className="min-w-[700px] flex items-center gap-2">
+                <div className="w-24 text-xs font-bold text-slate-400">BASS</div>
+                <div className="flex-1 grid grid-cols-16 gap-1">
+                  {Array.from({ length: BAR_STEPS }, (_, i) => {
+                    const globalStep = currentBar * BAR_STEPS + i;
+                    const val = bassSteps[globalStep];
+                    const isCurrent = currentStep === globalStep;
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => toggleBassStep(i)}
+                        onContextMenu={e => { e.preventDefault(); manualHitBass(bassNote); }}
+                        className={`h-11 rounded flex flex-col items-center justify-center transition ${
+                          val
+                            ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 font-bold text-[10px]"
+                            : "bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-slate-600 text-[9px]"
+                        } ${isCurrent ? "ring-2 ring-fuchsia-400" : ""}`}
+                      >
+                        {val ? <span>{val}</span> : <span>{i + 1}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= SYNTH TAB ================= */}
+        {tab === "SYNTH" && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 border border-slate-800 p-3 rounded-xl">
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-xs font-bold text-slate-400">音階:</span>
+                <div className="flex gap-1">
+                  {SYNTH_NOTES.map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setSynthNote(n)}
+                      className={`px-2 py-1 rounded text-xs font-mono font-bold border ${
+                        synthNote === n
+                          ? "bg-fuchsia-600 text-white border-fuchsia-400 shadow"
+                          : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                      }`}
+                      title={SOLFEGE[n]}
+                    >
+                      {n}({SOLFEGE[n]})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 border border-slate-800 p-3 rounded-xl">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-slate-400">音色:</span>
+                {Object.keys(INSTRUMENTS).map(inst => (
+                  <button
+                    key={inst}
+                    onClick={() => setInstrumentType(inst)}
+                    className={`px-2.5 py-1 rounded text-xs border ${
+                      instrumentType === inst
+                        ? "bg-cyan-500 text-slate-950 font-bold border-cyan-400"
+                        : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                    }`}
+                  >
+                    {inst}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={generateMelody}
+                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-bold shadow"
+                >
+                  🎵 メロディ作曲
+                </button>
+                <button
+                  onClick={generateSynthAI}
+                  className="px-3 py-1 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded text-xs font-bold shadow"
+                >
+                  ✨ シンセAI作曲
+                </button>
+                <button
+                  onClick={generateAfricanDrumAI}
+                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-bold shadow"
+                >
+                  🪘 アフリカ太鼓AI
+                </button>
+                <button
+                  onClick={clearSynth}
+                  className="px-2.5 py-1 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded text-xs"
+                >
+                  小節クリア
+                </button>
+              </div>
+            </div>
+
+            {/* 小節切り替え */}
+            <div className="flex items-center gap-1 overflow-x-auto py-1">
+              <span className="text-xs text-slate-400 font-bold mr-2">小節 (BAR):</span>
+              {Array.from({ length: BARS }, (_, b) => (
+                <button
+                  key={b}
+                  onClick={() => setCurrentBar(b)}
+                  className={`w-8 h-8 rounded-lg text-xs font-mono font-bold flex items-center justify-center border ${
+                    currentBar === b
+                      ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow"
+                      : "bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800 hover:text-slate-200"
+                  }`}
+                >
+                  {b + 1}
+                </button>
+              ))}
+              <div className="ml-auto flex gap-2">
+                <button
+                  onClick={copySynthForward}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-xs"
+                >
+                  次小節にコピー
+                </button>
+                <button
+                  onClick={loopSynthAll}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-xs"
+                >
+                  全小節にループ
+                </button>
+              </div>
+            </div>
+
+            {/* シンセシーケンサー・グリッド */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 overflow-x-auto shadow-xl">
+              <div className="min-w-[700px] flex items-center gap-2">
+                <div className="w-24 text-xs font-bold text-slate-400">SYNTH</div>
+                <div className="flex-1 grid grid-cols-16 gap-1">
+                  {Array.from({ length: BAR_STEPS }, (_, i) => {
+                    const globalStep = currentBar * BAR_STEPS + i;
+                    const val = synthSteps[globalStep];
+                    const isCurrent = currentStep === globalStep;
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => toggleSynthStep(i)}
+                        onContextMenu={e => { e.preventDefault(); manualHitSynth(synthNote); }}
+                        className={`h-11 rounded flex flex-col items-center justify-center transition ${
+                          val
+                            ? "bg-fuchsia-600 hover:bg-fuchsia-500 text-white shadow-md shadow-fuchsia-600/20 font-bold text-[10px]"
+                            : "bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-slate-600 text-[9px]"
+                        } ${isCurrent ? "ring-2 ring-cyan-400" : ""}`}
+                      >
+                        {val ? <span>{val}</span> : <span>{i + 1}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= CHORDS TAB ================= */}
+        {tab === "CHORDS" && (
+          <div className="space-y-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-cyan-400">🎹 コード進行・アンビエントパッド</h3>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={ambientOn}
+                      onChange={e => setAmbientOn(e.target.checked)}
+                      className="rounded bg-slate-950 border-slate-700 text-cyan-500"
+                    />
+                    アンビエント自動再生
+                  </label>
+                  <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={backChorus}
+                      onChange={e => setBackChorus(e.target.checked)}
+                      className="rounded bg-slate-950 border-slate-700 text-cyan-500"
+                    />
+                    バックコーラス重ねる
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-xs font-bold text-slate-400">コード進行プリセット:</span>
+                {Object.keys(PROGRESSIONS).map(name => (
+                  <button
+                    key={name}
+                    onClick={() => applyProgression(name)}
+                    className={`px-3 py-1 rounded text-xs border ${
+                      progressionName === name
+                        ? "bg-cyan-500 text-slate-950 font-bold border-cyan-400"
+                        : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                    }`}
+                  >
+                    {name}
+                  </button>
+                ))}
+                <button
+                  onClick={generateProgressionAI}
+                  className="px-3 py-1 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded text-xs font-bold shadow"
+                >
+                  ✨ AIコード生成
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {progression.map((chord, idx) => (
+                  <div key={idx} className="bg-slate-950 border border-slate-800 p-3 rounded-lg flex flex-col items-center justify-center gap-2">
+                    <span className="text-xs text-slate-400 font-bold">コード {idx + 1}</span>
+                    <span className="text-sm font-mono text-cyan-400 font-bold">{chord[0]} ベース</span>
+                    <button
+                      onClick={() => playChord(chord[0])}
+                      className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs border border-slate-700"
+                    >
+                      試聴
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= VOICE TAB ================= */}
+        {tab === "VOICE" && (
+          <div className="space-y-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+              <h3 className="text-sm font-bold text-cyan-400">🎤 ラップ・ボーカル録音＆変声</h3>
+
+              <div className="flex flex-wrap items-center gap-3">
+                {!recording ? (
+                  <button
+                    onClick={startRecording}
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-bold text-xs shadow flex items-center gap-2"
+                  >
+                    🔴 ラップ録音開始
+                  </button>
+                ) : (
+                  <button
+                    onClick={stopRecording}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-rose-400 border border-rose-600 rounded-lg font-bold text-xs shadow animate-pulse flex items-center gap-2"
+                  >
+                    ⏹ 録音停止 ({recSeconds}秒)
+                  </button>
+                )}
+
+                <button
+                  onClick={robotizeVoice}
+                  disabled={!rapUrl}
+                  className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold shadow disabled:opacity-50"
+                >
+                  🤖 ロボット化
+                </button>
+                <button
+                  onClick={pipeVoice}
+                  disabled={!rapUrl}
+                  className="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-bold shadow disabled:opacity-50"
+                >
+                  🎷 パイプ声変声
+                </button>
+              </div>
+
+              {/* 録音リスト */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-400">録音アーカイブ:</span>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {rapRecordings.map(r => (
+                    <div
+                      key={r.id}
+                      className={`flex items-center justify-between gap-3 p-2.5 rounded-lg border ${
+                        activeRapId === r.id
+                          ? "bg-cyan-950/40 border-cyan-500"
+                          : "bg-slate-950 border-slate-800"
+                      }`}
+                    >
+                      <span className="text-xs font-bold text-slate-200">{r.name}</span>
+                      <div className="flex items-center gap-2">
+                        <audio ref={activeRapId === r.id ? rapAudioRef : null} src={r.url} controls className="h-8 w-48" />
+                        <button
+                          onClick={() => setActiveRapId(r.id)}
+                          className={`px-2 py-1 rounded text-xs ${
+                            activeRapId === r.id ? "bg-cyan-500 text-slate-950 font-bold" : "bg-slate-800 text-slate-300"
+                          }`}
+                        >
+                          選択
+                        </button>
+                        <button
+                          onClick={() => deleteRapRecording(r.id)}
+                          className="px-2 py-1 bg-rose-950 text-rose-300 border border-rose-800 rounded text-xs"
+                        >
+                          削除
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {!rapRecordings.length && <p className="text-xs text-slate-500">録音された音声はありません</p>}
+                </div>
+              </div>
+
+              {/* AIラップ作詞 */}
+              <div className="border-t border-slate-800 pt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-cyan-400">✨ AIラップ作詞アシスタント</span>
+                  <button
+                    onClick={generateAiRap}
+                    disabled={aiLoading}
+                    className="px-3 py-1 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded text-xs font-bold shadow disabled:opacity-50"
+                  >
+                    {aiLoading ? "生成中..." : "歌詞を生成する"}
+                  </button>
+                </div>
+                {aiLyrics && (
+                  <div className="bg-slate-950 border border-slate-800 p-3 rounded-lg font-mono text-xs text-slate-200 whitespace-pre-wrap">
+                    {aiLyrics}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= MIXER TAB ================= */}
+        {tab === "MIXER" && (
+          <div className="space-y-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+              <h3 className="text-sm font-bold text-cyan-400">🎚️ ミキサー・エフェクトコントロール</h3>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {Object.keys(volumes).map(k => (
+                  <div key={k} className="bg-slate-950 border border-slate-800 p-3 rounded-lg flex flex-col gap-2">
+                    <span className="text-xs font-bold uppercase text-slate-400">{k} ボリューム</span>
+                    <input
+                      type="range"
+                      min="-30"
+                      max="6"
+                      step="1"
+                      value={volumes[k]}
+                      onChange={e => setVolumes(prev => ({ ...prev, [k]: Number(e.target.value) }))}
+                      className="accent-cyan-500"
+                    />
+                    <span className="text-xs font-mono text-cyan-400 text-right">{volumes[k]} dB</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-slate-800 pt-4 flex flex-wrap items-center gap-4">
+                <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer bg-slate-950 px-3 py-2 rounded-lg border border-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={reverbOn}
+                    onChange={e => setReverbOn(e.target.checked)}
+                    className="rounded bg-slate-950 border-slate-700 text-cyan-500"
+                  />
+                  リバーブエフェクト
+                </label>
+                <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer bg-slate-950 px-3 py-2 rounded-lg border border-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={delayOn}
+                    onChange={e => setDelayOn(e.target.checked)}
+                    className="rounded bg-slate-950 border-slate-700 text-cyan-500"
+                  />
+                  ディレイエフェクト
+                </label>
+                <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer bg-slate-950 px-3 py-2 rounded-lg border border-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={ampOn}
+                    onChange={e => setAmpOn(e.target.checked)}
+                    className="rounded bg-slate-950 border-slate-700 text-cyan-500"
+                  />
+                  アンプディストーション
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= AI TAB ================= */}
+        {tab === "AI" && (
+          <div className="space-y-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+              <h3 className="text-sm font-bold text-cyan-400">🤖 AIコンポーザー・自動作曲スタジオ</h3>
+              <p className="text-xs text-slate-400">ワンクリックでプロクオリティのビート・リズム・コード進行を自動生成します。</p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <button
+                  onClick={aiRandomCompose}
+                  className="p-4 bg-gradient-to-br from-cyan-600 to-indigo-700 hover:from-cyan-500 hover:to-indigo-600 rounded-xl text-white font-bold text-left shadow-lg space-y-1"
+                >
+                  <div className="text-sm">🎲 完全AIランダム作曲</div>
+                  <div className="text-[11px] text-cyan-200 font-normal">ジャンル・ベース・メロディをすべて自動構築</div>
+                </button>
+
+                <button
+                  onClick={generateDanceAI}
+                  className="p-4 bg-gradient-to-br from-indigo-600 to-fuchsia-700 hover:from-indigo-500 hover:to-fuchsia-600 rounded-xl text-white font-bold text-left shadow-lg space-y-1"
+                >
+                  <div className="text-sm">💃 ダンスグルーヴAI</div>
+                  <div className="text-[11px] text-indigo-200 font-normal">踊れるヒップホップ・トラップビートを生成</div>
+                </button>
+
+                <button
+                  onClick={generateBlackContemporaryAI}
+                  className="p-4 bg-gradient-to-br from-fuchsia-600 to-rose-700 hover:from-fuchsia-500 hover:to-rose-600 rounded-xl text-white font-bold text-left shadow-lg space-y-1"
+                >
+                  <div className="text-sm">🎷 ネオソウル・コンテンポラリー</div>
+                  <div className="text-[11px] text-fuchsia-200 font-normal">温かみのあるSOULコードとリズムを生み出す</div>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= SAVED TAB ================= */}
+        {tab === "SAVED" && (
+          <div className="space-y-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-cyan-400">💾 保存済みプロジェクト一覧</h3>
+                <button
+                  onClick={deleteAllSongs}
+                  className="px-3 py-1 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded text-xs"
+                >
+                  全削除
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {savedList.map(item => (
+                  <div key={item.name} className="flex items-center justify-between bg-slate-950 border border-slate-800 p-3 rounded-lg">
+                    <div>
+                      <div className="text-xs font-bold text-slate-200">{item.name}</div>
+                      <div className="text-[10px] text-slate-500">{item.savedAt}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => loadSong(item.name)}
+                        className="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-xs font-bold shadow"
+                      >
+                        読み込み
+                      </button>
+                      <button
+                        onClick={() => shareSong(item.name)}
+                        className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs border border-slate-700"
+                      >
+                        共有
+                      </button>
+                      <button
+                        onClick={() => deleteSong(item.name)}
+                        className="px-2.5 py-1 bg-rose-950 text-rose-300 border border-rose-800 rounded text-xs"
+                      >
+                        削除
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {!savedList.length && <p className="text-xs text-slate-500">保存されたプロジェクトはありません</p>}
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
