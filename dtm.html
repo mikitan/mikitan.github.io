@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>RHYTHM FORGE - MIC VICTORY</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/tone@14.7.77/build/Tone.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  html, body { margin:0; padding:0; background:#080b10; color: #fff; font-family: sans-serif; }
+  #root { min-height: 100vh; padding: 20px; }
+  button { cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="root">読み込み中...</div>
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect, useCallback } = React;
+
+// ---------- constants ----------
+const BAR_STEPS = 16;
+const BARS = 18;
+const TOTAL_STEPS = BAR_STEPS * BARS;
+
+const DRUM_ROWS = [
+  { key: "kick", label: "KICK" },
+  { key: "snare", label: "SNARE" },
+  { key: "hihat", label: "HI-HAT" },
+  { key: "snap", label: "SNAP" },
+  { key: "tom", label: "TOM" },
+  { key: "electro", label: "ELECTRO" },
+  { key: "shaker", label: "🪇SHAKER" },
+];
+
+const DRUM_PRESETS = {
+  ROCK:   { kick:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], snap:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0] },
+  HIPHOP: { kick:[1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1], snap:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  TRAP:   { kick:[1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], snap:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1] },
+  FUNK:   { kick:[1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,1], snap:[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  RAP:    { kick:[1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0], snap:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  SOUL:   { kick:[1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,1,0,1,1,0,1,0,1,1,0,1,1,0], snap:[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  "8ビート":  { kick:[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0], snap:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  "16ビート": { kick:[1,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], snap:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  "テクノ":    { kick:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0], snare:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], hihat:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0], snap:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], electro:[0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1] },
+};
+
+function emptyNoteRow() { return new Array(TOTAL_STEPS).fill(null); }
+function patRow(presetObj, key) { return presetObj[key] || new Array(BAR_STEPS).fill(0); }
+function buildFullDrum(presetName) {
+  const p = DRUM_PRESETS[presetName] || DRUM_PRESETS["HIPHOP"];
+  const o = {};
+  DRUM_ROWS.forEach(r => {
+    const row = new Array(TOTAL_STEPS).fill(0);
+    const src = patRow(p, r.key);
+    for (let i = 0; i < BAR_STEPS; i++) row[i] = src[i];
+    o[r.key] = row;
+  });
+  return o;
+}
+
+function RhythmForge() {
+  const [tab, setTab] = useState("DRUM");
+  const [bpm, setBpm] = useState(110);
+  const [playing, setPlaying] = useState(false);
+  const [currentStep, setCurrentStep] = useState(-1);
+  const [preset, setPreset] = useState("HIPHOP");
+  const [drumSteps, setDrumSteps] = useState(() => buildFullDrum("HIPHOP"));
+  const [bassSteps, setBassSteps] = useState(emptyNoteRow);
+  const [synthSteps, setSynthSteps] = useState(emptyNoteRow);
+
+  const synths = useRef(null);
+
+  useEffect(() => {
+    const master = new Tone.Gain(1).toDestination();
+    const kick = new Tone.MembraneSynth().connect(master);
+    const snareNoise = new Tone.NoiseSynth().connect(master);
+    const hihat = new Tone.NoiseSynth().connect(master);
+    const snap = new Tone.NoiseSynth().connect(master);
+    const tom = new Tone.MembraneSynth().connect(master);
+    const electro = new Tone.MembraneSynth().connect(master);
+    const shaker = new Tone.NoiseSynth().connect(master);
+    const bass = new Tone.MonoSynth().connect(master);
+    const synthLead = new Tone.MonoSynth().connect(master);
+
+    synths.current = { kick, snareNoise, hihat, snap, tom, electro, shaker, bass, synthLead };
+
+    return () => {
+      master.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    Tone.Transport.bpm.value = bpm;
+  }, [bpm]);
+
+  useEffect(() => {
+    if (playing) {
+      Tone.start();
+      Tone.Transport.scheduleRepeat((time) => {
+        setCurrentStep((prev) => {
+          const next = (prev + 1) % TOTAL_STEPS;
+          
+          // ドラム・音源の再生トリガー
+          if (synths.current) {
+            if (drumSteps.kick?.[next]) synths.current.kick.triggerAttackRelease("C1", "8n", time);
+            if (drumSteps.snare?.[next]) synths.current.snareNoise.triggerAttackRelease("8n", time);
+            if (drumSteps.hihat?.[next]) synths.current.hihat.triggerAttackRelease("16n", time);
+            if (drumSteps.snap?.[next]) synths.current.snap.triggerAttackRelease("16n", time);
+            if (drumSteps.tom?.[next]) synths.current.tom.triggerAttackRelease("G1", "8n", time);
+            if (drumSteps.electro?.[next]) synths.current.electro.triggerAttackRelease("C2", "8n", time);
+            if (drumSteps.shaker?.[next]) synths.current.shaker.triggerAttackRelease("32n", time);
+
+            if (bassSteps[next]) synths.current.bass.triggerAttackRelease(bassSteps[next], "8n", time);
+            if (synthSteps[next]) synths.current.synthLead.triggerAttackRelease(synthSteps[next], "8n", time);
+          }
+          return next;
+        });
+      }, "16n");
+      Tone.Transport.start();
+    } else {
+      Tone.Transport.stop();
+      Tone.Transport.cancel();
+      setCurrentStep(-1);
+    }
+    return () => {
+      Tone.Transport.stop();
+      Tone.Transport.cancel();
+    };
+  }, [playing, drumSteps, bassSteps, synthSteps]);
+
+  const togglePlay = () => {
+    setPlaying(!playing);
+  };
+
+  return (
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: 20 }}>
+      <h1>RHYTHM FORGE / DTM Studio</h1>
+      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+        <button onClick={togglePlay} style={{ padding: "10px 20px", fontSize: 16, background: playing ? "#ff4444" : "#44ff44", border: "none", fontWeight: "bold" }}>
+          {playing ? "STOP" : "PLAY"}
+        </button>
+        <div>
+          <label>BPM: {bpm} </label>
+          <input type="range" min="60" max="180" value={bpm} onChange={(e) => setBpm(Number(e.target.value))} />
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+        <button onClick={() => setTab("DRUM")} style={{ background: tab === "DRUM" ? "#555" : "#222", color: "#fff", padding: 8 }}>ドラム</button>
+        <button onClick={() => setTab("BASS")} style={{ background: tab === "BASS" ? "#555" : "#222", color: "#fff", padding: 8 }}>ベース</button>
+        <button onClick={() => setTab("SYNTH")} style={{ background: tab === "SYNTH" ? "#555" : "#222", color: "#fff", padding: 8 }}>シンセ</button>
+      </div>
+
+      {tab === "DRUM" && (
+        <div>
+          <h3>ドラムシーケンサー (プリセット: {preset})</h3>
+          <div style={{ display: "flex", gap: 5, marginBottom: 15 }}>
+            {Object.keys(DRUM_PRESETS).map(pKey => (
+              <button key={pKey} onClick={() => { setPreset(pKey); setDrumSteps(buildFullDrum(pKey)); }}>{pKey}</button>
+            ))}
+          </div>
+          {DRUM_ROWS.map(row => (
+            <div key={row.key} style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
+              <span style={{ width: 80, fontSize: 12 }}>{row.label}</span>
+              <div style={{ display: "flex", gap: 2, overflowX: "auto" }}>
+                {drumSteps[row.key]?.slice(0, 16).map((val, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      const updated = { ...drumSteps };
+                      updated[row.key][idx] = val ? 0 : 1;
+                      setDrumSteps(updated);
+                    }}
+                    style={{
+                      width: 24,
+                      height: 24,
+                      background: val ? "#00ffcc" : (currentStep % 16 === idx ? "#444" : "#222"),
+                      border: "1px solid #444",
+                      cursor: "pointer"
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "BASS" && (
+        <div>
+          <h3>ベースライン (16ステップ)</h3>
+          <div style={{ display: "flex", gap: 2, overflowX: "auto" }}>
+            {bassSteps.slice(0, 16).map((note, idx) => (
+              <div
+                key={idx}
+                onClick={() => {
+                  const updated = [...bassSteps];
+                  updated[idx] = note ? null : "C1";
+                  setBassSteps(updated);
+                }}
+                style={{
+                  width: 32,
+                  height: 40,
+                  background: note ? "#ff00ff" : (currentStep % 16 === idx ? "#444" : "#222"),
+                  border: "1px solid #444",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 10,
+                  cursor: "pointer"
+                }}
+              >
+                {note ? note : idx + 1}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "SYNTH" && (
+        <div>
+          <h3>シンセリード (16ステップ)</h3>
+          <div style={{ display: "flex", gap: 2, overflowX: "auto" }}>
+            {synthSteps.slice(0, 16).map((note, idx) => (
+              <div
+                key={idx}
+                onClick={() => {
+                  const updated = [...synthSteps];
+                  updated[idx] = note ? null : "C4";
+                  setSynthSteps(updated);
+                }}
+                style={{
+                  width: 32,
+                  height: 40,
+                  background: note ? "#ffff00" : (currentStep % 16 === idx ? "#444" : "#222"),
+                  color: "#000",
+                  border: "1px solid #444",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 10,
+                  cursor: "pointer",
+                  fontWeight: "bold"
+                }}
+              >
+                {note ? note : idx + 1}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.render(<RhythmForge />, document.getElementById("root"));
+</script>
+</body>
+</html>
