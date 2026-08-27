@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>RHYTHM FORGE - ハーモニカ＆ギター対応版</title>
+<title>RHYTHM FORGE - バイオリン＆管楽器対応版</title>
 <!-- React & Tone.js & Babel の読み込み -->
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -42,20 +42,18 @@ const DRUM_PRESETS = {
 };
 
 const INSTRUMENTS = {
+  "バイオリン":     { osc: { type: "sawtooth" }, env: { attack: 0.1, decay: 0.2, sustain: 0.8, release: 0.3 }, filt: 2400 },
+  "トランペット":   { osc: { type: "square" }, env: { attack: 0.08, decay: 0.1, sustain: 0.7, release: 0.2 }, filt: 4200 },
   "ハーモニカ":     { osc: { type: "sawtooth" }, env: { attack: 0.05, decay: 0.2, sustain: 0.6, release: 0.2 }, filt: 1800 },
-  "リード":       { osc: { type: "sawtooth" }, env: { attack: 0.01, decay: 0.15, sustain: 0.4, release: 0.2 }, filt: 2600 },
-  "エレキギター": { osc: { type: "fatsawtooth", count: 3, spread: 20 }, env: { attack: 0.005, decay: 0.25, sustain: 0.15, release: 0.15 }, filt: 3200 },
   "ナイロン弦ギター": { osc: { type: "sine" }, env: { attack: 0.01, decay: 0.4, sustain: 0.05, release: 0.3 }, filt: 2000 },
-  "アコギ":       { osc: { type: "triangle" }, env: { attack: 0.004, decay: 0.4, sustain: 0, release: 0.3 }, filt: 3000 },
+  "リード":       { osc: { type: "sawtooth" }, env: { attack: 0.01, decay: 0.15, sustain: 0.4, release: 0.2 }, filt: 2600 },
 };
 
 const GUITAR_PATTERNS = {
+  "バイオリン・アルペジオ": ["A4", "C5", "E5", "A5", "E5", "C5", "A4", "E4", "F4", "A4", "C5", "F5", "C5", "A4", "F4", null],
+  "バイオリン・スタッカート": ["A4", null, "A4", null, "C5", null, "C5", null, "E5", null, "E5", null, "A5", null, null, null],
+  "トランペット・ファンファーレ": ["C4", null, "E4", "G4", "C5", null, "G4", null, "C5", null, "E5", null, "C5", null, null, null],
   "ハーモニカ・メロディ": ["C4", "E4", "G4", "C5", "B4", "G4", "E4", "C4", "D4", "F4", "A4", "G4", "F4", "D4", "C4", null],
-  "ハーモニカ・カントリー": ["C4", null, "E4", "G4", "C5", null, "G4", "E4", "C4", null, "E4", "G4", "C5", null, "G4", null],
-  "アルペジオ基本": ["C4", null, "E4", null, "G4", null, "B4", null, "C5", null, "B4", null, "G4", null, "E4", null],
-  "ナイロンアルペジオ": ["A3", null, "C4", null, "E4", null, "A4", null, "E4", null, "C4", null, "A3", null, null, null],
-  "カッティングコード": ["C4", "C4", null, "C4", "C4", null, "C4", "C4", "C4", null, "C4", "C4", null, "C4", "C4", null],
-  "アルペジオカッティング": ["C4", "E4", "G4", "E4", "C4", "E4", "G4", "E4", "D4", "F4", "A4", "F4", "G4", "B4", "D5", "B4"],
 };
 
 function emptyNoteRow() { return new Array(TOTAL_STEPS).fill(null); }
@@ -78,13 +76,20 @@ function RhythmForgeApp() {
   const [currentStep, setCurrentStep] = useState(-1);
   const [currentBar, setCurrentBar] = useState(0);
   const [preset, setPreset] = useState("HIPHOP");
+  
   const [drumSteps, setDrumSteps] = useState(() => buildFullDrum("HIPHOP"));
   const [bassSteps, setBassSteps] = useState(emptyNoteRow);
   const [synthSteps, setSynthSteps] = useState(emptyNoteRow);
   
-  const [instrumentType, setInstrumentType] = useState("ハーモニカ");
-  const [synthNote, setSynthNote] = useState("C4");
-  const [bassNote, setBassNote] = useState("C1");
+  const [instrumentType, setInstrumentType] = useState("バイオリン");
+  const [synthNote, setSynthNote] = useState("A4");
+  const [bassNote, setBassNote] = useState("A1");
+
+  // オーディオ録音（ラップ・ボーカル用）
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
   const synths = useRef(null);
   const seqRef = useRef(null);
@@ -178,15 +183,59 @@ function RhythmForgeApp() {
     setSynthSteps(updated);
   };
 
+  const startRecording = async () => {
+    audioChunksRef.current = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        setAudioUrl(url);
+      };
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+    } catch (err) {
+      alert("マイクへのアクセスが許可されていないか、利用できません。");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const clearCurrentTrack = () => {
+    if (tab === "DRUM") setDrumSteps(buildFullDrum(preset));
+    if (tab === "BASS") setBassSteps(emptyNoteRow());
+    if (tab === "SYNTH") setSynthSteps(emptyNoteRow());
+    if (tab === "REC") setAudioUrl(null);
+  };
+
+  const shareProject = () => {
+    const projectData = JSON.stringify({ bpm, drumSteps, bassSteps, synthSteps });
+    const blob = new Blob([projectData], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "rhythm_forge_project.json";
+    a.click();
+    alert("プロジェクトデータをファイルとして書き出しました！");
+  };
+
   return (
     <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-      <h1>RHYTHM FORGE / ハーモニカ＆ギター対応版</h1>
+      <h1>RHYTHM FORGE / バイオリン・録音対応スタジオ</h1>
       
-      {/* プレイコントロール */}
-      <div style={{ display: "flex", gap: "15px", alignItems: "center", marginBottom: "20px", background: "#151a24", padding: "15px", borderRadius: "8px", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "20px", background: "#151a24", padding: "15px", borderRadius: "8px", flexWrap: "wrap" }}>
         <button 
           onClick={togglePlay} 
-          style={{ padding: "10px 25px", fontSize: "16px", background: playing ? "#ff4444" : "#00ffcc", color: "#000", border: "none", fontWeight: "bold", borderRadius: "4px" }}
+          style={{ padding: "10px 22px", fontSize: "15px", background: playing ? "#ff4444" : "#00ffcc", color: "#000", border: "none", fontWeight: "bold", borderRadius: "4px" }}
         >
           {playing ? "停止 (STOP)" : "再生 (PLAY)"}
         </button>
@@ -200,16 +249,23 @@ function RhythmForgeApp() {
         <div>
           <span>小節: {currentBar + 1} / {BARS}</span>
         </div>
+        <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
+          <button onClick={clearCurrentTrack} style={{ background: "#442222", color: "#ff8888", border: "1px solid #ff4444", padding: "6px 10px", borderRadius: "4px" }}>
+            🗑️ クリア
+          </button>
+          <button onClick={shareProject} style={{ background: "#224444", color: "#88ffcc", border: "1px solid #00ffcc", padding: "6px 10px", borderRadius: "4px" }}>
+            🔗 共有・保存
+          </button>
+        </div>
       </div>
 
-      {/* タブ切り替え */}
-      <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-        <button onClick={() => setTab("DRUM")} style={{ background: tab === "DRUM" ? "#00ffcc" : "#222", color: tab === "DRUM" ? "#000" : "#fff", padding: "8px 16px", border: "none", borderRadius: "4px" }}>ドラム</button>
-        <button onClick={() => setTab("BASS")} style={{ background: tab === "BASS" ? "#00ffcc" : "#222", color: tab === "BASS" ? "#000" : "#fff", padding: "8px 16px", border: "none", borderRadius: "4px" }}>ベース</button>
-        <button onClick={() => setTab("SYNTH")} style={{ background: tab === "SYNTH" ? "#00ffcc" : "#222", color: tab === "SYNTH" ? "#000" : "#fff", padding: "8px 16px", border: "none", borderRadius: "4px" }}>ハーモニカ・ギター</button>
+      <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
+        <button onClick={() => setTab("DRUM")} style={{ background: tab === "DRUM" ? "#00ffcc" : "#222", color: tab === "DRUM" ? "#000" : "#fff", padding: "8px 14px", border: "none", borderRadius: "4px" }}>ドラム</button>
+        <button onClick={() => setTab("BASS")} style={{ background: tab === "BASS" ? "#00ffcc" : "#222", color: tab === "BASS" ? "#000" : "#fff", padding: "8px 14px", border: "none", borderRadius: "4px" }}>ベース</button>
+        <button onClick={() => setTab("SYNTH")} style={{ background: tab === "SYNTH" ? "#00ffcc" : "#222", color: tab === "SYNTH" ? "#000" : "#fff", padding: "8px 14px", border: "none", borderRadius: "4px" }}>バイオリン・楽器</button>
+        <button onClick={() => setTab("REC")} style={{ background: tab === "REC" ? "#ff00ff" : "#222", color: tab === "REC" ? "#fff" : "#fff", padding: "8px 14px", border: "none", borderRadius: "4px" }}>🎤 録音 (ラップ/音声)</button>
       </div>
 
-      {/* ドラムタブ */}
       {tab === "DRUM" && (
         <div style={{ background: "#151a24", padding: "15px", borderRadius: "8px" }}>
           <h3>ドラムシーケンサー</h3>
@@ -250,7 +306,6 @@ function RhythmForgeApp() {
         </div>
       )}
 
-      {/* ベースタブ */}
       {tab === "BASS" && (
         <div style={{ background: "#151a24", padding: "15px", borderRadius: "8px" }}>
           <h3>ベースライン (ボタン打ち)</h3>
@@ -276,20 +331,19 @@ function RhythmForgeApp() {
         </div>
       )}
 
-      {/* ハーモニカ・ギタータブ */}
       {tab === "SYNTH" && (
         <div style={{ background: "#151a24", padding: "15px", borderRadius: "8px" }}>
-          <h3>ハーモニカ & ギター設定</h3>
+          <h3>バイオリン & 楽器設定</h3>
           
           <div style={{ marginBottom: "15px" }}>
-            <label style={{ marginRight: "10px" }}>音色:</label>
+            <label style={{ marginRight: "10px" }}>音色選択:</label>
             <select value={instrumentType} onChange={(e) => setInstrumentType(e.target.value)} style={{ padding: "5px", background: "#222", color: "#fff", border: "1px solid #444" }}>
               {Object.keys(INSTRUMENTS).map(name => <option key={name} value={name}>{name}</option>)}
             </select>
           </div>
 
           <div style={{ marginBottom: "15px" }}>
-            <span style={{ fontSize: "12px", display: "block", marginBottom: "5px" }}>🎶 ハーモニカ・ギターパターンを一発適用:</span>
+            <span style={{ fontSize: "12px", display: "block", marginBottom: "5px" }}>🎻 バイオリン・管楽器パターンを一発適用:</span>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
               {Object.keys(GUITAR_PATTERNS).map(pKey => (
                 <button
@@ -323,6 +377,38 @@ function RhythmForgeApp() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {tab === "REC" && (
+        <div style={{ background: "#151a24", padding: "20px", borderRadius: "8px", textAlign: "center" }}>
+          <h3>🎤 ラップ・ボーカル・生音録音</h3>
+          <p style={{ fontSize: "13px", color: "#aaa" }}>マイクを使って歌声やバイオリンの生演奏などを録音できます。</p>
+          
+          <div style={{ margin: "20px 0" }}>
+            {!isRecording ? (
+              <button 
+                onClick={startRecording}
+                style={{ background: "#ff0055", color: "#fff", border: "none", padding: "12px 30px", fontSize: "16px", fontWeight: "bold", borderRadius: "30px" }}
+              >
+                🔴 録音開始 (RECORD)
+              </button>
+            ) : (
+              <button 
+                onClick={stopRecording}
+                style={{ background: "#ffaa00", color: "#000", border: "none", padding: "12px 30px", fontSize: "16px", fontWeight: "bold", borderRadius: "30px" }}
+              >
+                ⏹️ 録音停止 (STOP)
+              </button>
+            )}
+          </div>
+
+          {audioUrl && (
+            <div style={{ marginTop: "20px", background: "#111", padding: "15px", borderRadius: "8px" }}>
+              <p style={{ fontSize: "14px", color: "#00ffcc" }}>✨ 録音された音声の再生:</p>
+              <audio controls src={audioUrl} style={{ width: "100%", marginTop: "10px" }}></audio>
+            </div>
+          )}
         </div>
       )}
     </div>
