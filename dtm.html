@@ -13,15 +13,15 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
         body { margin: 0; background: #121212; color: #fff; font-family: sans-serif; padding: 10px; }
-        button { cursor: pointer; }
-        .step-btn { width: 22px; height: 32px; margin: 1px; border: none; border-radius: 3px; background: #333; }
+        button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .step-btn { width: 18px; height: 32px; margin: 1px; border: none; border-radius: 3px; background: #333; flex-shrink: 0; }
         .step-btn.active { background: #4bb543; }
         .step-btn.bass-active { background: #3498db; }
         .step-btn.synth-active { background: #9b59b6; }
         .step-btn.current { border: 2px solid #ffeb3b !important; }
         .tab-btn { background: #222; color: #fff; padding: 8px 16px; border: none; border-radius: 4px; font-weight: bold; }
         .tab-btn.active { background: #e67e22; }
-        .panel { background: #1e1e1e; padding: 12px; borderRadius: 8px; margin-bottom: 15px; }
+        .panel { background: #1e1e1e; padding: 12px; border-radius: 8px; margin-bottom: 15px; overflow-x: auto; }
     </style>
 </head>
 <body>
@@ -71,7 +71,7 @@
         }
 
         function RhythmForge() {
-          const [tab, setTab] = useState("DRUM"); // "DRUM", "BASS", "SYNTH"
+          const [tab, setTab] = useState("DRUM");
           const [bpm, setBpm] = useState(110);
           const [playing, setPlaying] = useState(false);
           const [currentStep, setCurrentStep] = useState(-1);
@@ -172,7 +172,7 @@
             setBassSteps(prev => {
               const updated = [...prev];
               updated[index] = updated[index] ? null : bassNote;
-              return { ...prev, [index]: updated[index] };
+              return updated;
             });
           };
 
@@ -180,7 +180,7 @@
             setSynthSteps(prev => {
               const updated = [...prev];
               updated[index] = updated[index] ? null : synthNote;
-              return { ...prev, [index]: updated[index] };
+              return updated;
             });
           };
 
@@ -191,10 +191,9 @@
           };
 
           return (
-            <div style={{ maxWidth: "100%", overflowX: "auto" }}>
+            <div style={{ maxWidth: "100%" }}>
               <h2>RhythmForge DAW</h2>
               
-              {/* トランスポートコントロール */}
               <div className="panel" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 <button onClick={togglePlay} style={{ padding: "10px 20px", background: playing ? "#ff4b4b" : "#4bb543", color: "#fff", border: "none", borderRadius: 4, fontWeight: "bold" }}>
                   {playing ? "STOP" : "PLAY"}
@@ -212,79 +211,79 @@
                 <button onClick={clearAll} style={{ background: "#c0392b", color: "#fff", border: "none", padding: "6px 12px", borderRadius: 4 }}>クリア</button>
               </div>
 
-              {/* タブ切り替え */}
               <div style={{ display: "flex", gap: 10, marginBottom: 15 }}>
                 <button className={`tab-btn ${tab === "DRUM" ? "active" : ""}`} onClick={() => setTab("DRUM")}>DRUM</button>
                 <button className={`tab-btn ${tab === "BASS" ? "active" : ""}`} onClick={() => setTab("BASS")}>BASS</button>
                 <button className={`tab-btn ${tab === "SYNTH" ? "active" : ""}`} onClick={() => setTab("SYNTH")}>SYNTH</button>
               </div>
 
-              {/* DRUMタブ */}
               {tab === "DRUM" && (
-                <div className="panel" style={{ overflowX: "auto" }}>
+                <div className="panel">
                   <h3>ドラムマシン</h3>
-                  {DRUM_ROWS.map(row => (
-                    <div key={row.key} style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
-                      <span style={{ width: 65, fontSize: "12px", fontWeight: "bold" }}>{row.label}</span>
-                      <div style={{ display: "flex", gap: 2 }}>
-                        {drumSteps[row.key]?.map((isActive, idx) => (
+                  <div style={{ minWidth: "350px" }}>
+                    {DRUM_ROWS.map(row => (
+                      <div key={row.key} style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ width: 55, fontSize: "11px", fontWeight: "bold", flexShrink: 0 }}>{row.label}</span>
+                        <div style={{ display: "flex", gap: 1, overflowX: "auto" }}>
+                          {drumSteps[row.key]?.map((isActive, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => toggleDrumStep(row.key, idx)}
+                              className={`step-btn ${isActive ? "active" : ""} ${currentStep === idx ? "current" : ""}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {tab === "BASS" && (
+                <div className="panel">
+                  <h3>ベースライン (ノート: {bassNote})</h3>
+                  <div style={{ marginBottom: 10, display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {BASS_NOTES.map(n => (
+                      <button key={n} onClick={() => setBassNote(n)} style={{ padding: "4px 8px", background: bassNote === n ? "#3498db" : "#333", color: "#fff", border: "none", borderRadius: 3 }}>{n}</button>
+                    ))}
+                  </div>
+                  <div style={{ minWidth: "350px" }}>
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <span style={{ width: 55, fontSize: "11px", fontWeight: "bold", flexShrink: 0 }}>BASS</span>
+                      <div style={{ display: "flex", gap: 1, overflowX: "auto" }}>
+                        {bassSteps.map((note, idx) => (
                           <button
                             key={idx}
-                            onClick={() => toggleDrumStep(row.key, idx)}
-                            className={`step-btn ${isActive ? "active" : ""} ${currentStep === idx ? "current" : ""}`}
+                            onClick={() => toggleBassStep(idx)}
+                            className={`step-btn ${note ? "bass-active" : ""} ${currentStep === idx ? "current" : ""}`}
                           />
                         ))}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-
-              {/* BASSタブ */}
-              {tab === "BASS" && (
-                <div className="panel" style={{ overflowX: "auto" }}>
-                  <h3>ベースライン (ノート: {bassNote})</h3>
-                  <div style={{ marginBottom: 10 }}>
-                    {BASS_NOTES.map(n => (
-                      <button key={n} onClick={() => setBassNote(n)} style={{ margin: 2, padding: "4px 8px", background: bassNote === n ? "#3498db" : "#333", color: "#fff", border: "none", borderRadius: 3 }}>{n}</button>
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center" }}>
-                    <span style={{ width: 65, fontSize: "12px", fontWeight: "bold" }}>BASS</span>
-                    <div style={{ display: "flex", gap: 2 }}>
-                      {bassSteps.map((note, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => toggleBassStep(idx)}
-                          className={`step-btn ${note ? "bass-active" : ""} ${currentStep === idx ? "current" : ""}`}
-                          title={note || ""}
-                        />
-                      ))}
-                    </div>
                   </div>
                 </div>
               )}
 
-              {/* SYNTHタブ */}
               {tab === "SYNTH" && (
-                <div className="panel" style={{ overflowX: "auto" }}>
+                <div className="panel">
                   <h3>シンセリード (ノート: {synthNote})</h3>
-                  <div style={{ marginBottom: 10 }}>
+                  <div style={{ marginBottom: 10, display: "flex", flexWrap: "wrap", gap: 4 }}>
                     {SYNTH_NOTES.map(n => (
-                      <button key={n} onClick={() => setSynthNote(n)} style={{ margin: 2, padding: "4px 8px", background: synthNote === n ? "#9b59b6" : "#333", color: "#fff", border: "none", borderRadius: 3 }}>{n}</button>
+                      <button key={n} onClick={() => setSynthNote(n)} style={{ padding: "4px 8px", background: synthNote === n ? "#9b59b6" : "#333", color: "#fff", border: "none", borderRadius: 3 }}>{n}</button>
                     ))}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center" }}>
-                    <span style={{ width: 65, fontSize: "12px", fontWeight: "bold" }}>SYNTH</span>
-                    <div style={{ display: "flex", gap: 2 }}>
-                      {synthSteps.map((note, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => toggleSynthStep(idx)}
-                          className={`step-btn ${note ? "synth-active" : ""} ${currentStep === idx ? "current" : ""}`}
-                          title={note || ""}
-                        />
-                      ))}
+                  <div style={{ minWidth: "350px" }}>
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <span style={{ width: 55, fontSize: "11px", fontWeight: "bold", flexShrink: 0 }}>SYNTH</span>
+                      <div style={{ display: "flex", gap: 1, overflowX: "auto" }}>
+                        {synthSteps.map((note, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => toggleSynthStep(idx)}
+                            className={`step-btn ${note ? "synth-active" : ""} ${currentStep === idx ? "current" : ""}`}
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
