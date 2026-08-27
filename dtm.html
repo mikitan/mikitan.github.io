@@ -12,7 +12,11 @@
     <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        body { margin: 0; background: #121212; color: #fff; font-family: sans-serif; }
+        body { margin: 0; background: #121212; color: #fff; font-family: sans-serif; padding: 10px; }
+        button { cursor: pointer; }
+        .step-btn { width: 22px; height: 32px; margin: 1px; border: none; border-radius: 3px; background: #333; }
+        .step-btn.active { background: #4bb543; }
+        .step-btn.current { border: 2px solid #ffeb3b; }
     </style>
 </head>
 <body>
@@ -22,7 +26,7 @@
         const { useState, useRef, useEffect } = React;
 
         const BAR_STEPS = 16;
-        const BARS = 18;
+        const BARS = 4; // スマホで見やすいよう4小節(64ステップ)に最適化
         const TOTAL_STEPS = BAR_STEPS * BARS;
 
         const DRUM_ROWS = [
@@ -31,72 +35,48 @@
           { key: "hihat", label: "HI-HAT" },
           { key: "snap", label: "SNAP" },
           { key: "tom", label: "TOM" },
-          { key: "electro", label: "ELECTRO" },
-          { key: "shaker", label: "🪇SHAKER" },
         ];
 
         const DRUM_PRESETS = {
           ROCK:   { kick:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], snap:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0] },
           HIPHOP: { kick:[1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1], snap:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
           TRAP:   { kick:[1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], snap:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1] },
-          FUNK:   { kick:[1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,1], snap:[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
         };
 
-        const INSTRUMENTS = {
-          "リード":       { osc: { type: "sawtooth" }, env: { attack: 0.01, decay: 0.15, sustain: 0.4, release: 0.2 }, filt: 2600 },
-          "エレキギター": { osc: { type: "fatsawtooth", count: 3, spread: 20 }, env: { attack: 0.005, decay: 0.25, sustain: 0.15, release: 0.15 }, filt: 3200 },
-          "トランペット": { osc: { type: "square" }, env: { attack: 0.08, decay: 0.1, sustain: 0.7, release: 0.2 }, filt: 4200 },
-        };
-
-        function emptyNoteRow() { return new Array(TOTAL_STEPS).fill(null); }
-        function patRow(presetObj, key) { return presetObj[key] || new Array(BAR_STEPS).fill(0); }
         function buildFullDrum(presetName) {
           const p = DRUM_PRESETS[presetName] || DRUM_PRESETS.HIPHOP;
           const o = {};
           DRUM_ROWS.forEach(r => {
             const row = new Array(TOTAL_STEPS).fill(0);
-            const src = patRow(p, r.key);
-            for (let i = 0; i < BAR_STEPS; i++) row[i] = src[i];
+            const src = p[r.key] || new Array(BAR_STEPS).fill(0);
+            for (let i = 0; i < TOTAL_STEPS; i++) {
+              row[i] = src[i % BAR_STEPS];
+            }
             o[r.key] = row;
           });
           return o;
         }
 
         function RhythmForge() {
-          const [tab, setTab] = useState("DRUM");
           const [bpm, setBpm] = useState(110);
           const [playing, setPlaying] = useState(false);
           const [currentStep, setCurrentStep] = useState(-1);
           const [preset, setPreset] = useState("HIPHOP");
           const [drumSteps, setDrumSteps] = useState(() => buildFullDrum("HIPHOP"));
-          const [bassSteps, setBassSteps] = useState(emptyNoteRow);
-          const [synthSteps, setSynthSteps] = useState(emptyNoteRow);
-          const [instrumentType, setInstrumentType] = useState("リード");
 
           const synths = useRef(null);
           const drumRef = useRef(drumSteps);
-          const bassRef = useRef(bassSteps);
-          const synthRef = useRef(synthSteps);
-          const instrumentRef = useRef(instrumentType);
-
           drumRef.current = drumSteps;
-          bassRef.current = bassSteps;
-          synthRef.current = synthSteps;
-          instrumentRef.current = instrumentType;
 
           useEffect(() => {
             const master = new Tone.Gain(1).toDestination();
             const kick = new Tone.MembraneSynth().connect(master);
-            const snareNoise = new Tone.NoiseSynth().connect(master);
-            const hihat = new Tone.NoiseSynth().connect(master);
-            const snap = new Tone.NoiseSynth().connect(master);
-            const tom = new Tone.MembraneSynth().connect(master);
-            const electro = new Tone.MembraneSynth().connect(master);
-            const shaker = new Tone.NoiseSynth().connect(master);
-            const bass = new Tone.MonoSynth().connect(master);
-            const synthLead = new Tone.MonoSynth().connect(master);
+            const snareNoise = new Tone.NoiseSynth({ envelope: { attack: 0.001, decay: 0.2, sustain: 0 } }).connect(master);
+            const hihat = new Tone.NoiseSynth({ envelope: { attack: 0.001, decay: 0.05, sustain: 0 } }).connect(master);
+            const snap = new Tone.NoiseSynth({ envelope: { attack: 0.001, decay: 0.08, sustain: 0 } }).connect(master);
+            const tom = new Tone.MembraneSynth({ pitchDecay: 0.05 }).connect(master);
 
-            synths.current = { kick, snareNoise, hihat, snap, tom, electro, shaker, bass, synthLead };
+            synths.current = { kick, snareNoise, hihat, snap, tom };
 
             return () => { master.dispose(); };
           }, []);
@@ -124,18 +104,6 @@
                 if (currentDrum.hihat?.[s]) synths.current.hihat.triggerAttackRelease("16n", time);
                 if (currentDrum.snap?.[s]) synths.current.snap.triggerAttackRelease("16n", time);
                 if (currentDrum.tom?.[s]) synths.current.tom.triggerAttackRelease("G1", "8n", time);
-                if (currentDrum.electro?.[s]) synths.current.electro.triggerAttackRelease("C2", "8n", time);
-                if (currentDrum.shaker?.[s]) synths.current.shaker.triggerAttackRelease("32n", time);
-
-                const bNote = bassRef.current[s];
-                if (bNote) synths.current.bass.triggerAttackRelease(bNote, "8n", time);
-
-                const sNote = synthRef.current[s];
-                if (sNote) {
-                  const inst = INSTRUMENTS[instrumentRef.current];
-                  synths.current.synthLead.set(inst);
-                  synths.current.synthLead.triggerAttackRelease(sNote, "8n", time);
-                }
 
                 step++;
               }, "16n");
@@ -151,11 +119,19 @@
             setDrumSteps(buildFullDrum(val));
           };
 
+          const toggleStep = (rowKey, index) => {
+            setDrumSteps(prev => {
+              const updated = [...prev[rowKey]];
+              updated[index] = updated[index] ? 0 : 1;
+              return { ...prev, [rowKey]: updated };
+            });
+          };
+
           return (
-            <div style={{ padding: 20, maxWidth: 900, margin: "0 auto" }}>
+            <div style={{ maxWidth: "100%", overflowX: "auto" }}>
               <h2>RhythmForge DAW</h2>
-              <div style={{ marginBottom: 15, display: "flex", gap: 15, alignItems: "center", background: "#1e1e1e", padding: 15, borderRadius: 8 }}>
-                <button onClick={togglePlay} style={{ padding: "10px 20px", background: playing ? "#ff4b4b" : "#4bb543", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: "bold" }}>
+              <div style={{ marginBottom: 15, display: "flex", gap: 10, alignItems: "center", background: "#1e1e1e", padding: 10, borderRadius: 8, flexWrap: "wrap" }}>
+                <button onClick={togglePlay} style={{ padding: "10px 20px", background: playing ? "#ff4b4b" : "#4bb543", color: "#fff", border: "none", borderRadius: 4, fontWeight: "bold" }}>
                   {playing ? "STOP" : "PLAY"}
                 </button>
                 <div>
@@ -170,13 +146,22 @@
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 10, marginBottom: 15 }}>
-                <button onClick={() => setTab("DRUM")} style={{ background: tab === "DRUM" ? "#555" : "#222", color: "#fff", padding: "8, 16px", border: "none", cursor: "pointer", borderRadius: 4 }}>DRUM</button>
-              </div>
-
-              <div style={{ background: "#1e1e1e", padding: 15, borderRadius: 8 }}>
-                <p>Current Step: {currentStep}</p>
-                <p style={{ color: "#aaa", fontSize: "0.9rem" }}>ステータス: 準備完了 (GitHub Pages公開用HTML)</p>
+              {/* ドラムグリッド表示 */}
+              <div style={{ background: "#1e1e1e", padding: 10, borderRadius: 8, overflowX: "auto" }}>
+                {DRUM_ROWS.map(row => (
+                  <div key={row.key} style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ width: 65, fontSize: "12px", fontWeight: "bold" }}>{row.label}</span>
+                    <div style={{ display: "flex", gap: 2 }}>
+                      {drumSteps[row.key]?.map((isActive, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => toggleStep(row.key, idx)}
+                          className={`step-btn ${isActive ? "active" : ""} ${currentStep === idx ? "current" : ""}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           );
