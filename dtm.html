@@ -3,124 +3,169 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RHYTHM FORGE v4.8</title>
-  <!-- React & Tone.js CDN -->
+  <title>RhythmForge - Web DTM Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body style="margin:0; background-color:#0d1117; color:#fff;">
-  <div id="root">読み込み中...</div>
-
-  <script>
-    // 万が一スクリプトがクラッシュした際に画面にエラーを表示するセーフティネット
-    window.addEventListener('error', function(e) {
-      document.getElementById('root').innerHTML = '<div style="padding:20px; color:#ff6b6b;"><h3>エラーが発生しました:</h3><p>' + e.message + '</p></div>';
-    });
-  </script>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen">
+  <div id="root"></div>
 
   <script type="text/babel">
     const { useState, useRef, useEffect } = React;
 
     const BAR_STEPS = 16;
-    const BARS = 12;
+    const BARS = 8;
     const TOTAL_STEPS = BAR_STEPS * BARS;
 
     const DRUM_ROWS = [
       { key: "kick", label: "KICK" },
       { key: "snare", label: "SNARE" },
-      { key: "hihat", label: "H.H" },
-      { key: "cymb", label: "CYMB" },
+      { key: "hihat", label: "HI-HAT" },
+      { key: "snap", label: "SNAP" },
+      { key: "tom", label: "TOM" },
+      { key: "electro", label: "ELECTRO" },
+      { key: "shaker", label: "🪇SHAKER" },
     ];
 
-    const MELODY_ROWS = [
-      { key: "guitar", label: "GUITAR ROCK BAND" },
-      { key: "elecGuitar", label: "ELEC GUITAR STRINGS" },
-      { key: "arpeggio", label: "ARPEGGIO" },
-      { key: "cutting", label: "CUTTING" },
-      { key: "piano", label: "PIANO" },
-      { key: "soulFx", label: "SOUL DISCO FX" },
-      { key: "stringCord", label: "STRING CORD" },
-      { key: "harmonica", label: "HARMONICA" },
-      { key: "violin", label: "VIOLIN" },
-      { key: "synth", label: "SYNTH" },
-      { key: "africanDrums", label: "AFRICAN DRUMS" },
-      { key: "aiBass", label: "AI BASS MELODY" },
-      { key: "subBass", label: "SUB BASS" },
-    ];
+    const DRUM_PRESETS = {
+      HIPHOP: { kick:[1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1], snap:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], electro:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], shaker:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+      TRAP:   { kick:[1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], snap:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1], electro:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], shaker:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+      FUNK:   { kick:[1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hihat:[1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,1], snap:[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], tom:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], electro:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], shaker:[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1] }
+    };
 
-    function emptyRow() {
-      return new Array(TOTAL_STEPS).fill(0);
+    function emptyNoteRow() { return new Array(TOTAL_STEPS).fill(null); }
+    function buildFullDrum(presetName) {
+      const p = DRUM_PRESETS[presetName] || DRUM_PRESETS.HIPHOP;
+      const o = {};
+      DRUM_ROWS.forEach(r => {
+        const row = new Array(TOTAL_STEPS).fill(0);
+        const src = p[r.key] || new Array(BAR_STEPS).fill(0);
+        for (let i = 0; i < TOTAL_STEPS; i++) {
+          row[i] = src[i % BAR_STEPS];
+        }
+        o[r.key] = row;
+      });
+      return o;
     }
 
-    function RhythmForge() {
+    function RhythmForgeApp() {
+      const [tab, setTab] = useState("DRUM");
       const [bpm, setBpm] = useState(110);
       const [playing, setPlaying] = useState(false);
       const [currentStep, setCurrentStep] = useState(-1);
       const [currentBar, setCurrentBar] = useState(0);
-      const [songName, setSongName] = useState("My Groove 1");
+      const [preset, setPreset] = useState("HIPHOP");
+      const [drumSteps, setDrumSteps] = useState(() => buildFullDrum("HIPHOP"));
       const [status, setStatus] = useState("準備完了");
 
-      const [gridData, setGridData] = useState(() => {
-        const initial = {};
-        [...DRUM_ROWS, ...MELODY_ROWS].forEach(r => {
-          initial[r.key] = emptyRow();
-        });
-        return initial;
-      });
+      const drumRef = useRef(drumSteps);
+      drumRef.current = drumSteps;
+      const synths = useRef(null);
 
-      const handleCellClick = (key, index) => {
-        setGridData(prev => {
-          const copy = [...prev[key]];
-          copy[index] = copy[index] === 1 ? 0 : 1;
-          return { ...prev, [key]: copy };
-        });
-      };
+      useEffect(() => {
+        const master = new Tone.Gain(1).toDestination();
+        const kick = new Tone.MembraneSynth({ octaves: 6, pitchDecay: 0.05 }).connect(master);
+        const snareNoise = new Tone.NoiseSynth({ envelope: { attack: 0.001, decay: 0.15, sustain: 0 } });
+        const snareFilt = new Tone.Filter(1800, "bandpass").connect(master);
+        snareNoise.connect(snareFilt);
+        const hihat = new Tone.NoiseSynth({ envelope: { attack: 0.001, decay: 0.05, sustain: 0 } });
+        const hihatFilt = new Tone.Filter(9000, "highpass").connect(master);
+        hihat.connect(hihatFilt);
+
+        synths.current = { kick, snareNoise, hihat };
+
+        return () => {
+          [master, kick, snareNoise, snareFilt, hihat, hihatFilt].forEach(n => { try { n.dispose(); } catch(e){} });
+        };
+      }, []);
+
+      useEffect(() => {
+        const seq = new Tone.Sequence((time, step) => {
+          const s = synths.current;
+          const d = drumRef.current;
+          if (d.kick && d.kick[step]) s.kick.triggerAttackRelease("C1", "8n", time);
+          if (d.snare && d.snare[step]) s.snareNoise.triggerAttackRelease("8n", time);
+          if (d.hihat && d.hihat[step]) s.hihat.triggerAttackRelease("16n", time);
+
+          Tone.Draw.schedule(() => {
+            setCurrentStep(step);
+            setCurrentBar(Math.floor(step / BAR_STEPS));
+          }, time);
+        }, Array.from({ length: TOTAL_STEPS }, (_, i) => i), "16n");
+
+        seq.start(0);
+        return () => seq.dispose();
+      }, []);
 
       const togglePlay = async () => {
-        try {
-          await Tone.start();
-          if (playing) {
-            Tone.Transport.stop();
-            setPlaying(false);
-          } else {
-            Tone.Transport.start();
-            setPlaying(true);
-          }
-        } catch(err) {
-          setStatus("オーディオ再生エラー: " + err.message);
+        await Tone.start();
+        if (!playing) {
+          Tone.Transport.start();
+          setPlaying(true);
+          setStatus("再生中...");
+        } else {
+          Tone.Transport.stop();
+          setPlaying(false);
+          setCurrentStep(-1);
+          setStatus("停止");
         }
       };
 
+      const handleBpmChange = (e) => {
+        const val = Number(e.target.value);
+        setBpm(val);
+        Tone.Transport.bpm.value = val;
+      };
+
+      const toggleDrumStep = (row, i) => {
+        const idx = currentBar * BAR_STEPS + i;
+        setDrumSteps(prev => {
+          const next = { ...prev, [row]: [...prev[row]] };
+          next[row][idx] = next[row][idx] ? 0 : 1;
+          return next;
+        });
+      };
+
       return (
-        <div style={{ padding: "10px", fontFamily: "sans-serif", maxWidth: "100%", boxSizing: "border-box" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#161b22", padding: "10px", borderRadius: "6px" }}>
-            <span style={{ fontSize: "16px", fontWeight: "bold", color: "#58a6ff" }}>RHYTHM FORGE v4.8</span>
-            <button style={{ padding: "8px 16px", background: playing ? "#f39c12" : "#e74c3c", color: "#fff", border: "none", borderRadius: "4px", fontWeight: "bold" }} onClick={togglePlay}>
-              {playing ? "停止" : "再生"}
-            </button>
+        <div className="max-w-4xl mx-auto p-6">
+          <header className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
+            <h1 className="text-xl font-black text-cyan-400 tracking-wider">RHYTHM FORGE STUDIO</h1>
+            <div className="flex gap-4 items-center">
+              <span className="text-xs text-slate-400">BPM: {bpm}</span>
+              <input type="range" min="60" max="180" value={bpm} onChange={handleBpmChange} className="accent-cyan-500" />
+            </div>
+          </header>
+
+          <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button onClick={togglePlay} className={`px-6 py-2 rounded-lg font-bold transition ${playing ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-cyan-600 hover:bg-cyan-500 text-white'}`}>
+                {playing ? "⏹ 停止" : "▶ 再生"}
+              </button>
+              <span className="text-sm text-slate-400">ステータス: {status}</span>
+            </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px", backgroundColor: "#161b22", padding: "8px", marginTop: "10px", borderRadius: "6px", overflowX: "auto" }}>
-            {DRUM_ROWS.concat(MELODY_ROWS).map(row => (
-              <div key={row.key} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <div style={{ width: "130px", fontSize: "10px", color: "#8b949e", textAlign: "right" }}>{row.label}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(16, 1fr)", gap: "3px", flex: 1 }}>
+          <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 overflow-x-auto">
+            <div className="text-sm text-slate-400 mb-3 flex justify-between">
+              <span>小節: バー {currentBar + 1} / {BARS}</span>
+              <span className="text-xs text-cyan-400">セルをクリックしてビートを編集</span>
+            </div>
+            {DRUM_ROWS.slice(0, 3).map(r => (
+              <div key={r.key} className="flex items-center gap-2 mb-3">
+                <span className="w-20 text-xs font-bold text-slate-300">{r.label}</span>
+                <div className="flex gap-1">
                   {Array.from({ length: BAR_STEPS }).map((_, i) => {
-                    const globalIdx = currentBar * BAR_STEPS + i;
-                    const isSelected = gridData[row.key]?.[globalIdx] === 1;
+                    const stepIdx = currentBar * BAR_STEPS + i;
+                    const active = drumSteps[r.key] && drumSteps[r.key][stepIdx];
+                    const isCurrent = currentStep === stepIdx;
                     return (
-                      <div
+                      <button
                         key={i}
-                        onClick={() => handleCellClick(row.key, globalIdx)}
-                        style={{
-                          aspectRatio: "1.2",
-                          backgroundColor: isSelected ? "#3498db" : "#1e272e",
-                          border: "1px solid #30363d",
-                          borderRadius: "3px",
-                          cursor: "pointer"
-                        }}
+                        onClick={() => toggleDrumStep(r.key, i)}
+                        className={`w-8 h-8 rounded border transition ${active ? 'bg-cyan-500 border-cyan-300 shadow-md shadow-cyan-900/50' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'} ${isCurrent ? 'ring-2 ring-white scale-105' : ''}`}
                       />
                     );
                   })}
@@ -128,15 +173,11 @@
               </div>
             ))}
           </div>
-
-          <div style={{ marginTop: "10px", padding: "8px", background: "#1f6feb", borderRadius: "4px", fontSize: "12px", textAlign: "center" }}>
-            ステータス: {status}
-          </div>
         </div>
       );
     }
 
-    ReactDOM.render(<RhythmForge />, document.getElementById("root"));
+    ReactDOM.createRoot(document.getElementById("root")).render(<RhythmForgeApp />);
   </script>
 </body>
 </html>
