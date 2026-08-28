@@ -24,6 +24,7 @@
             const [swing, setSwing] = React.useState(24);
             const [activeTab, setActiveTab] = React.useState('DRUM');
             const [selectedBar, setSelectedBar] = React.useState(1);
+            const [currentStep, setCurrentStep] = React.useState(-1);
             
             // ドラムシーケンサーの状態 (16ステップ)
             const [pattern, setPattern] = React.useState({
@@ -36,16 +37,77 @@
                 SHAKER: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             });
 
+            // 参照用（クロージャー対策）
+            const patternRef = React.useRef(pattern);
+            patternRef.current = pattern;
+
+            // Tone.js 音源の準備
+            React.useEffect(() => {
+                // キック用音源
+                const kickSynth = new Tone.MembraneSynth().toDestination();
+                // スネア・その他用ノイズ音源
+                const snareSynth = new Tone.NoiseSynth({
+                    envelope: { attack: 0.005, decay: 0.1, sustain: 0 }
+                }).toDestination();
+                // ハイハット用金属音
+                const metalSynth = new Tone.MetalSynth({
+                    frequency: 200,
+                    envelope: { attack: 0.001, decay: 0.05, release: 0.05 },
+                    harmonicity: 5.1,
+                    modulationIndex: 32,
+                    resonance: 4000,
+                    octaves: 1.5
+                }).toDestination();
+
+                // 16ステップのループを設定
+                let stepIndex = 0;
+                const loop = new Tone.Loop((time) => {
+                    setCurrentStep(stepIndex);
+                    const currentPattern = patternRef.current;
+
+                    // 各トラックの再生判定
+                    if (currentPattern.KICK && currentPattern.KICK[stepIndex]) {
+                        kickSynth.triggerAttackRelease("C1", "8n", time);
+                    }
+                    if (currentPattern.SNARE && currentPattern.SNARE[stepIndex]) {
+                        snareSynth.triggerAttackRelease("16n", time);
+                    }
+                    if (currentPattern["HI-HAT"] && currentPattern["HI-HAT"][stepIndex]) {
+                        metalSynth.triggerAttackRelease("32n", time, 0.3);
+                    }
+                    if (currentPattern.SNAP && currentPattern.SNAP[stepIndex]) {
+                        snareSynth.triggerAttackRelease("32n", time);
+                    }
+                    if (currentPattern.TOM && currentPattern.TOM[stepIndex]) {
+                        kickSynth.triggerAttackRelease("G1", "8n", time);
+                    }
+                    if (currentPattern.ELECTRO && currentPattern.ELECTRO[stepIndex]) {
+                        kickSynth.triggerAttackRelease("C2", "16n", time);
+                    }
+                    if (currentPattern.SHAKER && currentPattern.SHAKER[stepIndex]) {
+                        metalSynth.triggerAttackRelease("64n", time, 0.1);
+                    }
+
+                    stepIndex = (stepIndex + 1) % 16;
+                }, "16n").start(0);
+
+                Tone.Transport.bpm.value = bpm;
+
+                return () => {
+                    loop.dispose();
+                };
+            }, []);
+
             // 再生・停止トグル
             const togglePlay = async () => {
                 await Tone.start();
                 if (!isPlaying) {
-                    Tone.Transport.bpm.value = bpm;
                     Tone.Transport.start();
                     setIsPlaying(true);
                 } else {
                     Tone.Transport.stop();
                     setIsPlaying(false);
+                    setCurrentStep(-1);
                 }
             };
 
@@ -100,8 +162,9 @@
                             max="180" 
                             value={bpm} 
                             onChange={(e) => {
-                                setBpm(Number(e.target.value));
-                                Tone.Transport.bpm.value = Number(e.target.value);
+                                const val = Number(e.target.value);
+                                setBpm(val);
+                                Tone.Transport.bpm.value = val;
                             }}
                             className="w-full accent-cyan-400 bg-slate-800 h-2 rounded-lg cursor-pointer mb-2.5"
                         />
@@ -143,14 +206,6 @@
                         />
                     </div>
 
-                    {/* オプションボタン群 */}
-                    <div className="grid grid-cols-2 gap-1.5 mb-3">
-                        <button className="bg-slate-900 border border-slate-800 text-[11px] py-1.5 rounded-lg text-slate-300">手動打ち込み OFF</button>
-                        <button className="bg-slate-900 border border-slate-800 text-[11px] py-1.5 rounded-lg text-slate-300">フラッシュ OFF</button>
-                        <button className="bg-slate-900 border border-slate-800 text-[11px] py-1.5 rounded-lg text-slate-300">ロボット化(全体) OFF</button>
-                        <button className="bg-cyan-500/10 border border-cyan-500/40 text-cyan-400 font-bold text-[11px] py-1.5 rounded-lg">ヒットランダム</button>
-                    </div>
-
                     {/* 小節選択 (1〜18小節) */}
                     <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 mb-3 shadow-lg">
                         <div className="flex justify-between items-center mb-1.5">
@@ -176,35 +231,6 @@
                         </div>
                     </div>
 
-                    {/* タブ切り替え */}
-                    <div className="grid grid-cols-4 gap-1 mb-1.5">
-                        {['DRUM', 'BASS', 'AMBIENT', 'RAP'].map((tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`py-1.5 text-xs font-bold rounded-lg border transition ${
-                                    activeTab === tab 
-                                        ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md' 
-                                        : 'bg-slate-900 border-slate-800 text-slate-300'
-                                }`}
-                            >
-                                {tab}
-                            </button>
-                        ))}
-                    </div>
-                    <div className="mb-3">
-                        <button 
-                            onClick={() => setActiveTab('MIXER')}
-                            className={`w-full py-1.5 text-xs font-bold rounded-lg border transition ${
-                                activeTab === 'MIXER' 
-                                    ? 'bg-cyan-500 text-slate-950 border-cyan-400' 
-                                    : 'bg-slate-900 border-slate-800 text-slate-300'
-                            }`}
-                        >
-                            MIXER
-                        </button>
-                    </div>
-
                     {/* ステップシーケンサー (DRUM パターン) */}
                     <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 mb-3 shadow-lg space-y-3">
                         {Object.entries(pattern).map(([trackName, steps]) => (
@@ -219,6 +245,8 @@
                                             key={idx}
                                             onClick={() => toggleStep(trackName, idx)}
                                             className={`h-7 rounded transition ${
+                                                currentStep === idx ? 'ring-2 ring-white' : ''
+                                            } ${
                                                 isHit ? 'bg-cyan-400 shadow-sm shadow-cyan-400/50' : 'bg-slate-800 border border-slate-700/50'
                                             }`}
                                         />
@@ -226,15 +254,6 @@
                                 </div>
                             </div>
                         ))}
-
-                        {/* 音声録音セクション */}
-                        <div className="pt-2 border-t border-slate-800 mt-2">
-                            <p className="text-[10px] text-slate-400 mb-1.5">普通のドラム音を録音してつけ足し(合成)</p>
-                            <button className="bg-red-500/20 border border-red-500/50 text-red-400 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                                ● 録音
-                            </button>
-                        </div>
                     </div>
 
                     {/* エフェクト & ジャンルプリセットボタン */}
@@ -244,26 +263,6 @@
                             <button className="bg-slate-800 border border-cyan-500/40 text-cyan-300 text-xs py-1.5 rounded-lg">電子音(低)</button>
                             <button className="bg-slate-800 border border-pink-500/40 text-pink-300 text-xs py-1.5 rounded-lg">グリッチFX</button>
                             <button className="bg-slate-800 border border-amber-500/40 text-amber-300 text-xs py-1.5 rounded-lg">ビルドアップFX</button>
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-1 pt-1">
-                            {['ROCK', 'HIPHOP', 'TRAP', 'FUNK', 'RAP', 'SOUL', '8ビート', '16ビート', 'アフリカン', 'テクノ', 'ファンクポップ'].map((genre) => (
-                                <button 
-                                    key={genre}
-                                    className={`py-1 text-[10px] rounded border ${
-                                        genre === 'HIPHOP' 
-                                            ? 'bg-pink-500/20 border-pink-500 text-pink-300 font-bold' 
-                                            : 'bg-slate-800 border-slate-700 text-slate-300'
-                                    }`}
-                                >
-                                    {genre}
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-1.5 pt-1">
-                            <button className="bg-slate-800 border border-slate-700 text-xs py-1.5 rounded-lg text-slate-300">🎲 シャッフル</button>
-                            <button className="bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-black text-xs py-1.5 rounded-lg shadow-md shadow-cyan-500/20">ドラムつけ足しAI</button>
                         </div>
                     </div>
                 </div>
