@@ -5,13 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RHYTHM FORGE v4.8</title>
   <!-- React & Tone.js CDN -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body style="margin:0; background-color:#0d1117;">
-  <div id="root"></div>
+<body style="margin:0; background-color:#0d1117; color:#fff;">
+  <div id="root">読み込み中...</div>
+
+  <script>
+    // 万が一スクリプトがクラッシュした際に画面にエラーを表示するセーフティネット
+    window.addEventListener('error', function(e) {
+      document.getElementById('root').innerHTML = '<div style="padding:20px; color:#ff6b6b;"><h3>エラーが発生しました:</h3><p>' + e.message + '</p></div>';
+    });
+  </script>
 
   <script type="text/babel">
     const { useState, useRef, useEffect } = React;
@@ -43,63 +50,6 @@
       { key: "subBass", label: "SUB BASS" },
     ];
 
-    const PRESETS = {
-      HIPHOP: {
-        kick: [1,0,0,0, 0,0,1,0, 0,0,0,1, 0,0,0,0],
-        hihat: [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1],
-        guitar: [1,0,0,0, 1,0,0,0, 0,0,0,0, 0,0,0,0],
-        arpeggio: [1,0,0,0, 1,0,0,0, 0,0,0,0, 0,0,0,0],
-        soulFx: [1,1,0,0, 0,0,1,1, 0,1,1,0, 0,1,0,0],
-        aiBass: [1,0,0,0, 0,0,1,0, 0,0,1,0, 0,0,0,0],
-      },
-      ROCK: {
-        kick: [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
-        hihat: [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0],
-        cymb: [0,0,0,0, 0,0,1,1, 0,0,0,0, 0,0,1,1],
-        guitar: [1,0,1,0, 1,0,1,0, 0,0,0,0, 0,0,0,0],
-      },
-      FUNK: {
-        kick: [1,0,0,1, 0,0,1,0, 0,0,1,0, 0,1,0,0],
-        cutting: [0,1,0,1, 0,1,0,1, 0,1,0,1, 0,1,0,1],
-        piano: [0,0,0,0, 0,0,1,1, 0,0,1,1, 0,0,0,0],
-        harmonica: [0,0,0,0, 0,0,0,0, 0,0,0,1, 0,0,0,0],
-      },
-      SOUL: {
-        kick: [1,0,0,0, 0,0,1,0, 0,0,1,0, 0,0,0,0],
-        elecGuitar: [0,0,0,0, 0,0,0,0, 0,0,0,1, 0,0,0,0],
-        soulFx: [1,1,0,0, 0,0,1,1, 0,1,1,0, 1,0,1,0],
-        stringCord: [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
-      },
-      AFRICAN: {
-        kick: [1,0,0,1, 0,0,1,0, 0,1,0,0, 1,0,0,0],
-        africanDrums: [1,0,1,0, 1,1,0,1, 0,1,0,1, 1,0,1,0],
-        violin: [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
-      }
-    };
-
-    const INSTRUMENT_CONFIGS = {
-      guitar: { synth: "MonoSynth", osc: "sawtooth", filter: 2800 },
-      elecGuitar: { synth: "FmSynth", harmonicity: 1.5, modulationIndex: 12 },
-      arpeggio: { synth: "Synth", osc: "triangle", filter: 2200 },
-      cutting: { synth: "NoiseSynth", envelope: { attack: 0.001, decay: 0.05, sustain: 0 } },
-      piano: { synth: "PolySynth", osc: "sine", envelope: { attack: 0.005, decay: 0.4, sustain: 0.2, release: 0.8 } },
-      soulFx: { synth: "Synth", osc: "square", filter: 1500 },
-      stringCord: { synth: "PolySynth", osc: "sawtooth", envelope: { attack: 0.2, decay: 0.3, sustain: 0.8, release: 1 } },
-      harmonica: { synth: "MonoSynth", osc: "sawtooth", filter: 3500 },
-      violin: { synth: "MonoSynth", osc: "sawtooth", envelope: { attack: 0.3, decay: 0.2, sustain: 0.8, release: 0.5 }, filter: 1800 },
-      synth: { synth: "MonoSynth", osc: "pulse", width: 0.4, filter: 4000 },
-      africanDrums: { synth: "MembraneSynth", pitchDecay: 0.05, octaves: 4 },
-      aiBass: { synth: "MonoSynth", osc: "sine", filter: 300 },
-      subBass: { synth: "MonoSynth", osc: "sine", filter: 120 }
-    };
-
-    const NOTES_MAP = {
-      kick: "C1", snare: "D2", hH: "F#4", cymb: "C5",
-      guitar: "E3", elecGuitar: "A3", arpeggio: "G4", cutting: "C4",
-      piano: "C4", soulFx: "C3", stringCord: "A3", harmonica: "D4",
-      violin: "E4", synth: "C5", africanDrums: "G2", aiBass: "C2", subBass: "C1"
-    };
-
     function emptyRow() {
       return new Array(TOTAL_STEPS).fill(0);
     }
@@ -109,127 +59,16 @@
       const [playing, setPlaying] = useState(false);
       const [currentStep, setCurrentStep] = useState(-1);
       const [currentBar, setCurrentBar] = useState(0);
-      const [activePreset, setActivePreset] = useState("HIPHOP");
       const [songName, setSongName] = useState("My Groove 1");
-      const [savedList, setSavedList] = useState([]);
-      const [status, setStatus] = useState("");
+      const [status, setStatus] = useState("準備完了");
 
       const [gridData, setGridData] = useState(() => {
         const initial = {};
         [...DRUM_ROWS, ...MELODY_ROWS].forEach(r => {
           initial[r.key] = emptyRow();
         });
-        Object.keys(PRESETS.HIPHOP).forEach(k => {
-          if (initial[k]) {
-            for(let i=0; i<BAR_STEPS; i++) initial[k][i] = PRESETS.HIPHOP[k][i];
-          }
-        });
         return initial;
       });
-
-      const [recordingVoice, setRecordingVoice] = useState(false);
-      const [voiceRecordings, setVoiceRecordings] = useState([]);
-
-      const synthsRef = useRef({});
-      const gridDataRef = useRef(gridData);
-      gridDataRef.current = gridData;
-      const mediaRecRef = useRef(null);
-      const chunksRef = useRef([]);
-
-      useEffect(() => {
-        const masterGain = new Tone.Gain(0.8).toDestination();
-        const limiter = new Tone.Limiter(-0.5).connect(masterGain);
-        const reverb = new Tone.Reverb({ decay: 2.5, wet: 0.25 }).connect(limiter);
-
-        const cluster = {};
-        [...DRUM_ROWS, ...MELODY_ROWS].forEach(row => {
-          const config = INSTRUMENT_CONFIGS[row.key];
-          if (!config) return;
-          let synthInstance;
-          if (config.synth === "MonoSynth") {
-            synthInstance = new Tone.MonoSynth({
-              oscillator: { type: config.osc || "sawtooth" },
-              filter: { frequency: config.filter || 2000 }
-            }).connect(reverb);
-          } else if (config.synth === "PolySynth") {
-            synthInstance = new Tone.PolySynth(Tone.Synth, {
-              oscillator: { type: config.osc || "sine" },
-              envelope: config.envelope || { attack: 0.01, decay: 0.2, sustain: 0.5, release: 0.5 }
-            }).connect(reverb);
-          } else if (config.synth === "NoiseSynth") {
-            synthInstance = new Tone.NoiseSynth({
-              noise: { type: "white" },
-              envelope: config.envelope || { attack: 0.001, decay: 0.05, sustain: 0 }
-            }).connect(reverb);
-          } else if (config.synth === "MembraneSynth") {
-            synthInstance = new Tone.MembraneSynth({
-              pitchDecay: config.pitchDecay || 0.05,
-              octaves: config.octaves || 4
-            }).connect(reverb);
-          } else if (config.synth === "FmSynth") {
-            synthInstance = new Tone.FmSynth({
-              harmonicity: config.harmonicity || 1,
-              modulationIndex: config.modulationIndex || 10
-            }).connect(reverb);
-          }
-          cluster[row.key] = synthInstance;
-        });
-
-        synthsRef.current = cluster;
-        return () => {
-          Object.values(cluster).forEach(s => { try { s.dispose(); } catch(e){} });
-        };
-      }, []);
-
-      useEffect(() => {
-        Tone.Transport.bpm.value = bpm;
-      }, [bpm]);
-
-      useEffect(() => {
-        Tone.Transport.cancel(0);
-        Tone.Transport.scheduleRepeat((time) => {
-          Tone.Draw.schedule(() => {
-            setCurrentStep(prev => {
-              const next = (prev + 1) % TOTAL_STEPS;
-              setCurrentBar(Math.floor(next / BAR_STEPS));
-              return next;
-            });
-          }, time);
-
-          const currentGrid = gridDataRef.current;
-          const stepIndex = currentStep >= 0 ? (currentStep + 1) % TOTAL_STEPS : 0;
-
-          Object.keys(currentGrid).forEach(key => {
-            if (currentGrid[key][stepIndex] === 1) {
-              const synth = synthsRef.current[key];
-              const note = NOTES_MAP[key] || "C4";
-              if (synth) {
-                try {
-                  if (synth.triggerAttackRelease) {
-                    synth.triggerAttackRelease(note, "8n", time);
-                  } else if (synth.triggerAttack) {
-                    synth.triggerAttack(note, time);
-                  }
-                } catch(e) {}
-              }
-            }
-          });
-        }, "16n");
-
-        return () => { Tone.Transport.cancel(0); };
-      }, [currentStep]);
-
-      const togglePlay = async () => {
-        await Tone.start();
-        if (playing) {
-          Tone.Transport.stop();
-          setPlaying(false);
-          setCurrentStep(-1);
-        } else {
-          Tone.Transport.start();
-          setPlaying(true);
-        }
-      };
 
       const handleCellClick = (key, index) => {
         setGridData(prev => {
@@ -239,164 +78,48 @@
         });
       };
 
-      const applyPreset = (presetName) => {
-        setActivePreset(presetName);
-        const pData = PRESETS[presetName];
-        if (!pData) return;
-        setGridData(prev => {
-          const copy = { ...prev };
-          Object.keys(copy).forEach(k => {
-            copy[k] = emptyRow();
-            if (pData[k]) {
-              for (let i = 0; i < BAR_STEPS; i++) copy[k][i] = pData[k][i];
-            }
-          });
-          return copy;
-        });
-      };
-
-      const clearAll = () => {
-        const cleared = {};
-        [...DRUM_ROWS, ...MELODY_ROWS].forEach(r => { cleared[r.key] = emptyRow(); });
-        setGridData(cleared);
-        setStatus("Cleared all patterns.");
-      };
-
-      const handleAiComposition = () => {
-        const presetKeys = Object.keys(PRESETS);
-        const randomPreset = presetKeys[Math.floor(Math.random() * presetKeys.length)];
-        applyPreset(randomPreset);
-        setBpm(85 + Math.floor(Math.random() * 50));
-        setStatus(`✨ AI Generated dynamic arrangement using ${randomPreset} style!`);
-      };
-
-      const startVoiceRecording = async () => {
+      const togglePlay = async () => {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          const mediaRec = new MediaRecorder(stream);
-          mediaRecRef.current = mediaRec;
-          chunksRef.current = [];
-          mediaRec.ondataavailable = e => chunksRef.current.push(e.data);
-          mediaRec.onstop = () => {
-            const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-            const url = URL.createObjectURL(blob);
-            setVoiceRecordings(prev => [...prev, { id: Date.now(), name: `Voice Take ${prev.length + 1}`, url }]);
-            stream.getTracks().forEach(t => t.stop());
-          };
-          mediaRec.start();
-          setRecordingVoice(true);
-          setStatus("🔴 Recording Voice...");
-        } catch (err) {
-          setStatus("Microphone permission denied.");
-        }
-      };
-
-      const stopVoiceRecording = () => {
-        if (mediaRecRef.current && recordingVoice) {
-          mediaRecRef.current.stop();
-          setRecordingVoice(false);
-          setStatus("✅ Voice recording saved!");
+          await Tone.start();
+          if (playing) {
+            Tone.Transport.stop();
+            setPlaying(false);
+          } else {
+            Tone.Transport.start();
+            setPlaying(true);
+          }
+        } catch(err) {
+          setStatus("オーディオ再生エラー: " + err.message);
         }
       };
 
       return (
-        <div style={styles.container}>
-          <div style={styles.header}>
-            <div style={styles.logoArea}>
-              <span style={styles.logoTitle}>RHYTHM FORGE</span>
-              <span style={styles.versionTag}>v4.8</span>
-            </div>
-            <div style={styles.transportControls}>
-              <button style={{ ...styles.transportBtn, background: playing ? "#f39c12" : "#e74c3c" }} onClick={togglePlay}>
-                {playing ? "停止 (STOP)" : "▶ 再生 (PLAY)"}
-              </button>
-              <div style={styles.bpmDisplay}>
-                <span>BPM {bpm}</span>
-                <input type="range" min="60" max="180" value={bpm} onChange={e => setBpm(Number(e.target.value))} style={styles.bpmSlider} />
-              </div>
-              <button style={styles.aiBtn} onClick={handleAiComposition}>AI 作曲</button>
-            </div>
+        <div style={{ padding: "10px", fontFamily: "sans-serif", maxWidth: "100%", boxSizing: "border-box" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#161b22", padding: "10px", borderRadius: "6px" }}>
+            <span style={{ fontSize: "16px", fontWeight: "bold", color: "#58a6ff" }}>RHYTHM FORGE v4.8</span>
+            <button style={{ padding: "8px 16px", background: playing ? "#f39c12" : "#e74c3c", color: "#fff", border: "none", borderRadius: "4px", fontWeight: "bold" }} onClick={togglePlay}>
+              {playing ? "停止" : "再生"}
+            </button>
           </div>
 
-          <div style={styles.barNavContainer}>
-            <span style={styles.barNavLabel}>小節:</span>
-            <div style={styles.barButtons}>
-              {Array.from({ length: BARS }).map((_, idx) => (
-                <button
-                  key={idx}
-                  style={{
-                    ...styles.barBtn,
-                    background: currentBar === idx ? "#3498db" : "#2c3e50",
-                    color: "#fff",
-                    border: currentBar === idx ? "2px solid #ecf0f1" : "1px solid #1abc9c"
-                  }}
-                  onClick={() => setCurrentBar(idx)}
-                >
-                  {idx + 1}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div style={styles.matrixContainer}>
-            <div style={styles.row}>
-              <div style={styles.rowLabel}>VOICE</div>
-              <div style={styles.stepGrid}>
-                {Array.from({ length: BAR_STEPS }).map((_, i) => {
-                  const globalIdx = currentBar * BAR_STEPS + i;
-                  const isActive = currentStep === globalIdx;
-                  return <div key={i} style={{ ...styles.stepCell, borderColor: "#e84393", background: isActive ? "#fd79a8" : "transparent" }} />;
-                })}
-              </div>
-            </div>
-
-            <div style={styles.row}>
-              <div style={styles.rowLabel}>RAP VOCAL</div>
-              <div style={styles.stepGrid}>
-                {Array.from({ length: BAR_STEPS }).map((_, i) => <div key={i} style={styles.stepCell} />)}
-              </div>
-            </div>
-
-            {DRUM_ROWS.map(row => (
-              <div key={row.key} style={styles.row}>
-                <div style={styles.rowLabel}>{row.label}</div>
-                <div style={styles.stepGrid}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px", backgroundColor: "#161b22", padding: "8px", marginTop: "10px", borderRadius: "6px", overflowX: "auto" }}>
+            {DRUM_ROWS.concat(MELODY_ROWS).map(row => (
+              <div key={row.key} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <div style={{ width: "130px", fontSize: "10px", color: "#8b949e", textAlign: "right" }}>{row.label}</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(16, 1fr)", gap: "3px", flex: 1 }}>
                   {Array.from({ length: BAR_STEPS }).map((_, i) => {
                     const globalIdx = currentBar * BAR_STEPS + i;
                     const isSelected = gridData[row.key]?.[globalIdx] === 1;
-                    const isActive = currentStep === globalIdx;
                     return (
                       <div
                         key={i}
                         onClick={() => handleCellClick(row.key, globalIdx)}
                         style={{
-                          ...styles.stepCell,
-                          background: isSelected ? "#3498db" : isActive ? "#7f8c8d" : "#1e272e",
-                          boxShadow: isSelected ? "0 0 8px #3498db" : "none"
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-
-            {MELODY_ROWS.map(row => (
-              <div key={row.key} style={styles.row}>
-                <div style={styles.rowLabel}>{row.label}</div>
-                <div style={styles.stepGrid}>
-                  {Array.from({ length: BAR_STEPS }).map((_, i) => {
-                    const globalIdx = currentBar * BAR_STEPS + i;
-                    const isSelected = gridData[row.key]?.[globalIdx] === 1;
-                    const isActive = currentStep === globalIdx;
-                    return (
-                      <div
-                        key={i}
-                        onClick={() => handleCellClick(row.key, globalIdx)}
-                        style={{
-                          ...styles.stepCell,
-                          background: isSelected ? "#3498db" : isActive ? "#7f8c8d" : "#1e272e",
-                          boxShadow: isSelected ? "0 0 8px #3498db" : "none"
+                          aspectRatio: "1.2",
+                          backgroundColor: isSelected ? "#3498db" : "#1e272e",
+                          border: "1px solid #30363d",
+                          borderRadius: "3px",
+                          cursor: "pointer"
                         }}
                       />
                     );
@@ -406,97 +129,12 @@
             ))}
           </div>
 
-          <div style={styles.presetBar}>
-            <span style={{ color: "#fff", fontSize: "12px", fontWeight: "bold" }}>Presets:</span>
-            {Object.keys(PRESETS).map(pKey => (
-              <button
-                key={pKey}
-                style={{ ...styles.presetBtn, background: activePreset === pKey ? "#27ae60" : "#34495e" }}
-                onClick={() => applyPreset(pKey)}
-              >
-                {pKey}
-              </button>
-            ))}
+          <div style={{ marginTop: "10px", padding: "8px", background: "#1f6feb", borderRadius: "4px", fontSize: "12px", textAlign: "center" }}>
+            ステータス: {status}
           </div>
-
-          <div style={styles.actionFooter}>
-            <div style={styles.footerGroup}>
-              <button
-                style={{ ...styles.actionBtn, background: recordingVoice ? "#c0392b" : "#e74c3c" }}
-                onClick={recordingVoice ? stopVoiceRecording : startVoiceRecording}
-              >
-                {recordingVoice ? "⏹ 録音停止" : "🔴 録音"}
-              </button>
-              <button style={styles.actionBtn} onClick={togglePlay}>▶ 再生</button>
-              <button style={styles.actionBtn} onClick={clearAll}>✖ Clear</button>
-              <button style={styles.actionBtn} onClick={() => setStatus(`💾 Saved "${songName}"`)}>💾 保存</button>
-              <button style={styles.actionBtn} onClick={() => setStatus("📁 WAV Exported!")}>合成</button>
-            </div>
-
-            <div style={styles.footerGroup}>
-              <input
-                type="text"
-                value={songName}
-                onChange={e => setSongName(e.target.value)}
-                placeholder="曲名を入力..."
-                style={styles.songInput}
-              />
-              <button style={styles.listBtn} onClick={() => setStatus(`Saved Tracks: ${savedList.length}`)}>リスト</button>
-              <button style={styles.listBtn} onClick={() => setStatus("ループ再生モード有効")}>リビ</button>
-              <button style={styles.listBtn} onClick={handleAiComposition}>ラン</button>
-              <button style={styles.listBtn} onClick={() => setStatus("編集モード切替")}>編集</button>
-              <button style={styles.listBtn} onClick={() => alert("Rhythm Forge v4.8 - Web DAW")}>?</button>
-            </div>
-          </div>
-
-          {status && <div style={styles.statusBar}>{status}</div>}
-
-          {voiceRecordings.length > 0 && (
-            <div style={styles.recordingsList}>
-              <h4 style={{ margin: "0 0 5px 0", color: "#1abc9c", fontSize: "13px" }}>録音ファイル一覧:</h4>
-              {voiceRecordings.map(rec => (
-                <div key={rec.id} style={styles.recItem}>
-                  <span>{rec.name}</span>
-                  <audio src={rec.url} controls style={{ height: "28px" }} />
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       );
     }
-
-    const styles = {
-      container: { backgroundColor: "#0d1117", color: "#c9d1d9", fontFamily: "sans-serif", padding: "10px", maxWidth: "100%", boxSizing: "border-box", minHeight: "100vh", display: "flex", flexDirection: "column", gap: "8px" },
-      header: { display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#161b22", padding: "8px 12px", borderRadius: "6px", border: "1px solid #30363d" },
-      logoArea: { display: "flex", alignItems: "baseline", gap: "6px" },
-      logoTitle: { fontSize: "18px", fontWeight: "900", color: "#58a6ff", letterSpacing: "1px" },
-      versionTag: { fontSize: "10px", backgroundColor: "#30363d", color: "#8b949e", padding: "2px 6px", borderRadius: "4px" },
-      transportControls: { display: "flex", alignItems: "center", gap: "10px" },
-      transportBtn: { border: "none", padding: "6px 12px", borderRadius: "4px", color: "#fff", fontWeight: "bold", cursor: "pointer", fontSize: "12px" },
-      bpmDisplay: { display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: "bold", color: "#e6edf3" },
-      bpmSlider: { width: "70px", cursor: "pointer" },
-      aiBtn: { backgroundColor: "#0366d6", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold", fontSize: "12px" },
-      barNavContainer: { display: "flex", alignItems: "center", gap: "6px", backgroundColor: "#161b22", padding: "6px 10px", borderRadius: "6px", overflowX: "auto", border: "1px solid #30363d" },
-      barNavLabel: { fontSize: "12px", fontWeight: "bold", color: "#8b949e", minWidth: "35px" },
-      barButtons: { display: "flex", gap: "4px" },
-      barBtn: { padding: "4px 8px", borderRadius: "4px", cursor: "pointer", fontSize: "11px", fontWeight: "bold" },
-      matrixContainer: { display: "flex", flexDirection: "column", gap: "3px", backgroundColor: "#161b22", padding: "8px", borderRadius: "6px", border: "1px solid #30363d", overflowX: "auto" },
-      row: { display: "flex", alignItems: "center", gap: "6px" },
-      rowLabel: { width: "140px", fontSize: "10px", fontWeight: "bold", color: "#8b949e", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "right", paddingRight: "4px" },
-      stepGrid: { display: "grid", gridTemplateColumns: "repeat(16, 1fr)", gap: "3px", flex: 1 },
-      stepCell: { aspectRatio: "1.2", backgroundColor: "#1e272e", border: "1px solid #30363d", borderRadius: "3px", cursor: "pointer" },
-      presetBar: { display: "flex", alignItems: "center", gap: "6px", backgroundColor: "#161b22", padding: "6px 10px", borderRadius: "6px", border: "1px solid #30363d", overflowX: "auto" },
-      presetBtn: { border: "none", padding: "4px 10px", borderRadius: "4px", color: "#fff", cursor: "pointer", fontSize: "11px", fontWeight: "bold" },
-      actionFooter: { display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#161b22", padding: "8px 10px", borderRadius: "6px", border: "1px solid #30363d", flexWrap: "wrap", gap: "6px" },
-      footerGroup: { display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" },
-      actionBtn: { backgroundColor: "#21262d", color: "#c9d1d9", border: "1px solid #30363d", padding: "5px 10px", borderRadius: "4px", cursor: "pointer", fontSize: "11px", fontWeight: "bold" },
-      songInput: { backgroundColor: "#0d1117", border: "1px solid #30363d", color: "#fff", padding: "5px 8px", borderRadius: "4px", fontSize: "11px", width: "110px" },
-      listBtn: { backgroundColor: "#21262d", color: "#58a6ff", border: "1px solid #30363d", padding: "5px 8px", borderRadius: "4px", cursor: "pointer", fontSize: "11px", fontWeight: "bold" },
-      statusBar: { backgroundColor: "#1f6feb", color: "#fff", padding: "6px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", textAlign: "center" },
-      recordingsList: { backgroundColor: "#161b22", border: "1px solid #30363d", padding: "8px", borderRadius: "6px", display: "flex", flexDirection: "column", gap: "6px" },
-      recItem: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px" }
-    };
 
     ReactDOM.render(<RhythmForge />, document.getElementById("root"));
   </script>
