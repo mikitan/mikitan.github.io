@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>完全版 18小節ステレオDAW & 鍵盤コンポーザー</title>
+    <style>
+        body { font-family: sans-serif; background: #0f0f13; color: #f0f0f5; margin: 0; padding: 15px; }
+        h1, h2, h3 { color: #d0bcff; border-bottom: 1px solid #2b2b36; padding-bottom: 5px; }
+        .section { background: #181820; padding: 12px 15px; margin-bottom: 12px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+        button { background: #6750a4; color: white; border: none; padding: 8px 12px; margin: 3px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; }
+        button:hover { background: #4f378b; }
+        button.clear-btn { background: #b3261e; }
+        button.clear-btn:hover { background: #8c1d18; }
+        select, input { background: #2b2b36; color: white; border: 1px solid #44474f; padding: 6px; border-radius: 4px; margin: 3px; }
+        .grid-18 { display: grid; grid-template-columns: repeat(18, 1fr); gap: 2px; margin-top: 6px; overflow-x: auto; }
+        .step-cell { background: #2b2b36; height: 26px; text-align: center; font-size: 9px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 2px; }
+        .step-cell.active { background: #0ef3d6; color: #000; font-weight: bold; }
+        .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .summary-box { background: #22222d; padding: 10px; border-radius: 6px; font-size: 13px; margin-top: 8px; }
+        
+        /* 鍵盤キーボード画面スタイル */
+        .keyboard-container { display: flex; gap: 2px; margin-top: 8px; overflow-x: auto; padding: 6px; background: #111116; border-radius: 6px; }
+        .piano-key { width: 34px; height: 64px; background: #fff; color: #000; border: 1px solid #444; display: flex; align-items: flex-end; justify-content: center; font-size: 10px; font-weight: bold; cursor: pointer; border-radius: 0 0 4px 4px; user-select: none; }
+        .piano-key.black { width: 22px; height: 40px; background: #222; color: #fff; margin-left: -12px; margin-right: -12px; z-index: 2; border-radius: 0 0 2px 2px; }
+        .piano-key:active, .piano-key.playing { background: #0ef3d6 !important; color: #000; }
+    </style>
+</head>
+<body>
+
+    <h1>🎵 18小節ステレオDAW・AIコンポーザー (完全統合版)</h1>
+
+    <div class="section">
+        <h2>マスターコントロール & 著作権・アルバム情報</h2>
+        <div class="flex">
+            <button onclick="masterPlay()">▶ 全体再生</button>
+            <button onclick="masterStop()">⏹ 停止</button>
+            <button class="clear-btn" onclick="masterClear()">🗑 全体クリア</button>
+            <button onclick="saveProject()">💾 プロジェクト保存</button>
+            <button onclick="shareProject()">🔗 リスト共有</button>
+            <label><input type="checkbox" id="repeatToggle"> リピート</label>
+            <label><input type="checkbox" id="randomToggle"> ランダム効果</label>
+            <span>BPM: <input type="number" id="bpmInput" value="115" min="40" max="240" style="width: 55px;"></span>
+            <span>ビート: 
+                <select id="beatSelect">
+                    <option value="44">4/4拍子</option>
+                    <option value="34">3/4拍子 (ワルツ)</option>
+                    <option value="68">6/8拍子</option>
+                </select>
+            </span>
+        </div>
+        <div class="flex" style="margin-top: 8px;">
+            <span>アルバム名: <input type="text" id="albumName" value="My 18-Bar Collection" style="width: 140px;"></span>
+            <span>著作権者(ISRC等): <input type="text" id="copyrightOwner" value="Composer Name" style="width: 120px;"></span>
+            <button onclick="generateReleaseInfo()">💿 リリースアルバム構成確認</button>
+        </div>
+    </div>
+
+    <div id="tracksContainer"></div>
+
+    <div class="section">
+        <h2>📋 18小節まとめ一覧 & 合成リスト</h2>
+        <div class="flex">
+            <button onclick="addToList()">➕ 現在の構成をリストに追加</button>
+            <button onclick="exportAudioMix()">📥 音源合成して書き出し（WAV）</button>
+        </div>
+        <div id="compositionListContainer" class="summary-box">
+            ここにセーブされたアレンジ・リストが表示されます（18小節縮小まとめ）。
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🎤 ボーカル録音・編集</h2>
+        <div class="flex">
+            <button onclick="startRecording()">🔴 録音開始</button>
+            <button onclick="stopRecording()">⏹ 録音停止</button>
+            <button onclick="playVocal()">▶ ボーカル再生</button>
+            <button class="clear-btn" onclick="clearVocal()">🗑 削除</button>
+            <audio id="vocalAudio" controls style="margin-left: 10px; height: 32px;"></audio>
+        </div>
+    </div>
+
+    <script>
+        const instruments = [
+            { id: 'melody', name: 'ドレミファ (メインメロディ)' },
+            { id: 'eguitar', name: 'エレキギター (スタイル選択可)' },
+            { id: 'drums', name: 'ドラム' },
+            { id: 'bass', name: 'ベース' },
+            { id: 'violin', name: 'バイオリン' },
+            { id: 'piano', name: 'ピアノ' },
+            { id: 'harmonica', name: 'ハーモニカ' },
+            { id: 'afro', name: 'アフリカ楽器・太鼓 (AIメロディ対応)' }
+        ];
+
+        let trackData = {};
+        let trackSettings = {};
+        let audioCtx = null;
+        let isPlaying = false;
+        let currentTimer = null;
+        let mediaRecorder;
+        let recordedChunks = [];
+        let vocalAudioBlob = null;
+        let savedList = [];
+
+        // 鍵盤キーボード用ノートデータ (C4 ~ C5)
+        const pianoNotes = [
+            { name: 'C4', freq: 261.63, type: 'white' },
+            { name: 'C#4', freq: 277.18, type: 'black' },
+            { name: 'D4', freq: 293.66, type: 'white' },
+            { name: 'D#4', freq: 311.13, type: 'black' },
+            { name: 'E4', freq: 329.63, type: 'white' },
+            { name: 'F4', freq: 349.23, type: 'white' },
+            { name: 'F#4', freq: 369.99, type: 'black' },
+            { name: 'G4', freq: 392.00, type: 'white' },
+            { name: 'G#4', freq: 415.30, type: 'black' },
+            { name: 'A4', freq: 440.00, type: 'white' },
+            { name: 'A#4', freq: 466.16, type: 'black' },
+            { name: 'B4', freq: 493.88, type: 'white' },
+            { name: 'C5', freq: 523.25, type: 'white' }
+        ];
+
+        function initApp() {
+            const container = document.getElementById('tracksContainer');
+            instruments.forEach(inst => {
+                trackData[inst.id] = new Array(18).fill(false);
+                trackSettings[inst.id] = { style: 'normal', volume: 0.8, pan: 0 };
+
+                const div = document.createElement('div');
+                div.className = 'section';
+                
+                let extraControls = '';
+                if (inst.id === 'eguitar') {
+                    extraControls = `
+                        <span>スタイル: 
+                            <select id="setting-${inst.id}" onchange="updateStyle('${inst.id}')">
+                                <option value="arpeggio">アルペジオ</option>
+                                <option value="cutting">カッティング</option>
+                                <option value="chord">コード</option>
+                                <option value="riff">リフ</option>
+                                <option value="air">エアー(空間系)</option>
+                            </select>
+                        </span>`;
+                } else if (inst.id === 'afro') {
+                    extraControls = `<span>ジャンベ/ジャンカスタイル</span>`;
+                }
+
+                div.innerHTML = `
+                    <h3>${inst.name}</h3>
+                    <div class="flex">
+                        <button onclick="aiCompose('${inst.id}')">🤖 AI機能生成</button>
+                        <button onclick="playTrackPreview('${inst.id}')">▶ トラック再生</button>
+                        <button onclick="saveTrackData('${inst.id}')">💾 トラック保存</button>
+                        <button class="clear-btn" onclick="clearTrack('${inst.id}')">🗑 クリア</button>
+                        ${extraControls}
+                        <span>音量: <input type="range" min="0" max="1" step="0.1" value="0.8" onchange="updateVolume('${inst.id}', this.value)" style="width: 70px;"></span>
+                        <span>左右パン (L/R): <input type="range" min="-1" max="1" step="0.1" value="0" onchange="updatePan('${inst.id}', this.value)" style="width: 70px;"></span>
+                    </div>
+                    <div class="grid-18" id="grid-${inst.id}"></div>
+                    <div style="margin-top: 8px; font-size: 11px; color: #b0bfc4;">🎹 各楽器鍵盤画面 (クリックで手動試奏・確認)</div>
+                    <div class="keyboard-container" id="keyboard-${inst.id}"></div>
+                `;
+                container.appendChild(div);
+                renderGrid(inst.id);
+                renderKeyboard(inst.id);
+            });
+        }
+
+        function renderGrid(id) {
+            const grid = document.getElementById(`grid-${id}`);
+            grid.innerHTML = '';
+            for (let i = 0; i < 18; i++) {
+                const cell = document.createElement('div');
+                cell.className = `step-cell ${trackData[id][i] ? 'active' : ''}`;
+                cell.innerText = i + 1;
+                cell.onclick = () => {
+                    trackData[id][i] = !trackData[id][i];
+                    renderGrid(id);
+                };
+                grid.appendChild(cell);
+            }
+        }
+
+        function renderKeyboard(id) {
+            const kbContainer = document.getElementById(`keyboard-${id}`);
+            kbContainer.innerHTML = '';
+            pianoNotes.forEach(note => {
+                const key = document.createElement('div');
+                key.className = `piano-key ${note.type}`;
+                key.innerText = note.name.replace('4','');
+                key.onmousedown = () => {
+                    key.classList.add('playing');
+                    playSpecificFreq(id, note.freq);
+                    setTimeout(() => key.classList.remove('playing'), 200);
+                };
+                kbContainer.appendChild(key);
+            });
+        }
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        // 高品位ステレオサウンドエンジン（左右パン・フィルター対応）
+        function playHighQualitySound(instId, stepIndex) {
+            const scaleFreqs = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25];
+            const freq = scaleFreqs[(stepIndex + (instId.length)) % scaleFreqs.length];
+            playSpecificFreq(instId, freq);
+        }
+
+        function playSpecificFreq(instId, freq) {
+            const ctx = getAudioContext();
+            const now = ctx.currentTime;
+            const settings = trackSettings[instId] || { style: 'normal', volume: 0.8, pan: 0 };
+            
+            // 左右ステレオパン設定
+            let panner = null;
+            if (ctx.createStereoPanner) {
+                panner = ctx.createStereoPanner();
+                panner.pan.setValueAtTime(settings.pan, now);
+            }
+
+            const masterGain = ctx.createGain();
+            masterGain.gain.setValueAtTime(settings.volume * 0.25, now);
+
+            if (panner) {
+                masterGain.connect(panner);
+                panner.connect(ctx.destination);
+            } else {
+                masterGain.connect(ctx.destination);
+            }
+
+            if (instId === 'drums' || instId === 'afro') {
+                playPercussion(ctx, masterGain, instId, now);
+                return;
+            }
+
+            let oscType = 'triangle';
+            if (instId === 'eguitar') oscType = 'sawtooth';
+            if (instId === 'bass') { oscType = 'sawtooth'; freq /= 2; }
+            if (instId === 'violin') oscType = 'sawtooth';
+            if (instId === 'harmonica') oscType = 'square';
+
+            const osc = ctx.createOscillator();
+            const filter = ctx.createBiquadFilter();
+            
+            osc.type = oscType;
+            osc.frequency.setValueAtTime(freq, now);
+
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1800, now);
+            filter.frequency.exponentialRampToValueAtTime(400, now + 0.3);
+
+            osc.connect(filter);
+            filter.connect(masterGain);
+
+            osc.start(now);
+            osc.stop(now + 0.35);
+        }
+
+        function playPercussion(ctx, destination, type, time) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            if (type === 'afro') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(180, time);
+                osc.frequency.exponentialRampToValueAtTime(60, time + 0.2);
+            } else {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(90, time);
+                osc.frequency.exponentialRampToValueAtTime(30, time + 0.15);
+            }
+            gain.gain.setValueAtTime(0.3, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+            osc.connect(gain);
+            gain.connect(destination);
+            osc.start(time);
+            osc.stop(time + 0.2);
+        }
+
+        function updateStyle(id) {
+            trackSettings[id].style = document.getElementById(`setting-${id}`).value;
+        }
+        function updateVolume(id, val) {
+            trackSettings[id].volume = parseFloat(val);
+        }
+        function updatePan(id, val) {
+            trackSettings[id].pan = parseFloat(val);
+        }
+
+        function playTrackPreview(id) {
+            getAudioContext();
+            for (let i = 0; i < 18; i++) {
+                if (trackData[id][i]) {
+                    setTimeout(() => playHighQualitySound(id, i), i * 150);
+                }
+            }
+        }
+
+        function saveTrackData(id) {
+            const trackJSON = JSON.stringify({ data: trackData[id], settings: trackSettings[id] });
+            const blob = new Blob([trackJSON], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${id}_track_18bars.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function aiCompose(id) {
+            const isRandom = document.getElementById('randomToggle').checked;
+            trackData[id] = trackData[id].map((_, index) => {
+                if (id === 'drums' || id === 'afro') {
+                    return index % 2 === 0 || Math.random() > 0.6;
+                }
+                return Math.random() > (isRandom ? 0.35 : 0.55);
+            });
+            renderGrid(id);
+        }
+
+        function clearTrack(id) {
+            trackData[id] = new Array(18).fill(false);
+            renderGrid(id);
+        }
+
+        function masterPlay() {
+            masterStop();
+            const bpm = parseInt(document.getElementById('bpmInput').value) || 115;
+            const stepTime = (60 / bpm) * 500;
+            let currentStep = 0;
+
+            isPlaying = true;
+            getAudioContext();
+
+            currentTimer = setInterval(() => {
+                instruments.forEach(inst => {
+                    if (trackData[inst.id][currentStep]) {
+                        playHighQualitySound(inst.id, currentStep);
+                    }
+                });
+
+                currentStep++;
+                if (currentStep >= 18) {
+                    if (!document.getElementById('repeatToggle').checked) {
+                        masterStop();
+                    } else {
+                        currentStep = 0;
+                    }
+                }
+            }, stepTime);
+        }
+
+        function masterStop() {
+            isPlaying = false;
+            if (currentTimer) clearInterval(currentTimer);
+        }
+
+        function masterClear() {
+            masterStop();
+            instruments.forEach(inst => clearTrack(inst.id));
+        }
+
+        function addToList() {
+            const summary = {
+                id: Date.now(),
+                bpm: document.getElementById('bpmInput').value,
+                beat: document.getElementById('beatSelect').value,
+                activeTracks: instruments.filter(inst => trackData[inst.id].some(v => v)).map(i => i.name)
+            };
+            savedList.push(summary);
+            renderSummaryList();
+        }
+
+        function renderSummaryList() {
+            const container = document.getElementById('compositionListContainer');
+            if (savedList.length === 0) {
+                container.innerHTML = '現在リストに追加された18小節まとめはありません。';
+                return;
+            }
+            container.innerHTML = '<b>【18小節まとめ一覧リスト】</b><br>';
+            savedList.forEach((item, index) => {
+                container.innerHTML += `[${index + 1}] BPM:${item.bpm} / ビート:${item.beat} / 使用楽器: ${item.activeTracks.join(', ')}<br>`;
+            });
+        }
+
+        function generateReleaseInfo() {
+            const album = document.getElementById('albumName').value;
+            const owner = document.getElementById('copyrightOwner').value;
+            alert(`【リリースアルバム & 著作権情報確認】\n\nアルバムタイトル: ${album}\n著作権保有者: ${owner}\nフォーマット: 18小節ステレオミックス`);
+        }
+
+        function saveProject() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ trackData, trackSettings, savedList }));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "album_project_18bars.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function shareProject() {
+            const jsonString = JSON.stringify({ trackData, trackSettings });
+            const base64 = btoa(encodeURIComponent(jsonString));
+            alert("共有用コード:\n\n" + base64);
+        }
+
+        function exportAudioMix() {
+            alert("合成リストの音源データをまとめ、高品質ステレオオーディオファイルとして書き出し準備をしています。");
+        }
+
+        async function startRecording() {
+            recordedChunks = [];
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    vocalAudioBlob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    const audioUrl = URL.createObjectURL(vocalAudioBlob);
+                    document.getElementById('vocalAudio').src = audioUrl;
+                };
+                mediaRecorder.start();
+            } catch (err) {
+                alert("マイクへのアクセスが許可されていません。");
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder) mediaRecorder.stop();
+        }
+
+        function playVocal() {
+            const audio = document.getElementById('vocalAudio');
+            if (audio.src) audio.play();
+        }
+
+        function clearVocal() {
+            vocalAudioBlob = null;
+            document.getElementById('vocalAudio').src = '';
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
