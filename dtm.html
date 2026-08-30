@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>RHYTHM FORGE - AI ACCOMPANIMENT STUDIO</title>
+    <title>RHYTHM FORGE - HIGH SPEED STUDIO</title>
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -14,6 +14,7 @@
     <style>
         html, body { margin: 0; padding: 0; background: #06080d; color: #f0f0f5; font-family: sans-serif; }
         #root { min-height: 100vh; padding: 12px; box-sizing: border-box; }
+        button, select, input { touch-action: manipulation; }
     </style>
 </head>
 <body>
@@ -26,7 +27,6 @@
         const BARS = 18;
         const TOTAL_STEPS = BAR_STEPS * BARS;
 
-        // ドラム＆アフリカ太鼓・パーカッション
         const DRUM_ROWS = [
             { key: "kick", label: "🥁 KICK" },
             { key: "snare", label: "🎯 SNARE" },
@@ -35,7 +35,6 @@
             { key: "shaker", label: "🪇 SHAKER" },
         ];
 
-        // 伴奏レイヤー（ベース、コード、ストリングスなど、AI演奏に合わせて足せる楽器）
         const BASS_ROWS = [
             { key: "subbass", label: "🎸 SUB BASS" },
             { key: "synthchord", label: "🎹 SYNTH CHORD" },
@@ -61,13 +60,12 @@
 
         function App() {
             const [playing, setPlaying] = useState(false);
-            const [bpm, setBpm] = useState(100);
+            const [bpm, setBpm] = useState(120); // 初期スピードを少しアップ
             const [currentStep, setCurrentStep] = useState(-1);
             const [currentBar, setCurrentBar] = useState(0);
-            const [status, setStatus] = useState("準備完了");
+            const [status, setStatus] = useState("高速モード準備完了");
             const [tab, setTab] = useState("DRUM");
 
-            // パターンデータ
             const [drumSteps, setDrumSteps] = useState(buildDefaultPattern);
             const [bassSteps, setBassSteps] = useState(() => {
                 const b = {};
@@ -75,14 +73,10 @@
                 return b;
             });
 
-            // 鍵盤入力用
             const [selectedBassInst, setSelectedBassInst] = useState("subbass");
             const [selectedNote, setSelectedNote] = useState("C3");
+            const [lyrics, setLyrics] = useState("【1-2小節】スピード全開ハイテンポ！\n【3-4小節】AI伴奏と高速ラップ");
 
-            // ラップ歌詞
-            const [lyrics, setLyrics] = useState("【1-2小節】Yo! ビートに乗せて文字を紡ぐ\n【3-4小節】AIの伴奏に合わせてリリック解放");
-
-            // 記録・リスト
             const [recording, setRecording] = useState(false);
             const [recordList, setRecordList] = useState([]);
 
@@ -92,17 +86,17 @@
             bassRef.current = bassSteps;
             const loopRef = useRef(null);
 
-            // Audio Synths
+            // 超軽量・低遅延のシンセ設定
             const synths = useRef({
-                kick: new Tone.MembraneSynth({ octaves: 5 }).toDestination(),
-                snare: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.15 } }).toDestination(),
-                djembe: new Tone.MembraneSynth({ pitchDecay: 0.01, octaves: 3 }).toDestination(),
-                conga: new Tone.MembraneSynth({ pitchDecay: 0.02, octaves: 2 }).toDestination(),
-                shaker: new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.001, decay: 0.05 } }).toDestination(),
+                kick: new Tone.MembraneSynth({ octaves: 4, envelope: { attack: 0.001, decay: 0.1 } }).toDestination(),
+                snare: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.1 } }).toDestination(),
+                djembe: new Tone.MembraneSynth({ pitchDecay: 0.01, octaves: 2 }).toDestination(),
+                conga: new Tone.MembraneSynth({ pitchDecay: 0.01, octaves: 2 }).toDestination(),
+                shaker: new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.001, decay: 0.03 } }).toDestination(),
                 
-                subbass: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.05, release: 0.2 } }).toDestination(),
-                synthchord: new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.02, release: 0.3 } }).toDestination(),
-                strings: new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.2, release: 0.5 } }).toDestination(),
+                subbass: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.01, release: 0.1 } }).toDestination(),
+                synthchord: new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.01, release: 0.1 } }).toDestination(),
+                strings: new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.05, release: 0.2 } }).toDestination(),
             });
 
             useEffect(() => {
@@ -120,20 +114,18 @@
                     setCurrentStep(step);
                     setCurrentBar(bar);
 
-                    // ドラム・太鼓再生
                     const d = drumRef.current;
-                    if (d.kick && d.kick[step]) synths.current.kick.triggerAttackRelease("C1", "8n", time);
-                    if (d.snare && d.snare[step]) synths.current.snare.triggerAttackRelease("8n", time);
-                    if (d.djembe && d.djembe[step]) synths.current.djembe.triggerAttackRelease("G2", "8n", time);
-                    if (d.conga && d.conga[step]) synths.current.conga.triggerAttackRelease("C3", "8n", time);
+                    if (d.kick && d.kick[step]) synths.current.kick.triggerAttackRelease("C1", "16n", time);
+                    if (d.snare && d.snare[step]) synths.current.snare.triggerAttackRelease("16n", time);
+                    if (d.djembe && d.djembe[step]) synths.current.djembe.triggerAttackRelease("G2", "16n", time);
+                    if (d.conga && d.conga[step]) synths.current.conga.triggerAttackRelease("C3", "16n", time);
                     if (d.shaker && d.shaker[step]) synths.current.shaker.triggerAttackRelease("16n", time);
 
-                    // 伴奏レイヤー再生
                     const b = bassRef.current;
                     BASS_ROWS.forEach(r => {
                         const note = b[r.key][step];
                         if (note) {
-                            synths.current[r.key].triggerAttackRelease(note, "8n", time);
+                            synths.current[r.key].triggerAttackRelease(note, "16n", time);
                         }
                     });
 
@@ -153,7 +145,7 @@
                 } else {
                     Tone.Transport.start();
                     setPlaying(true);
-                    setStatus("▶ 再生・リピート中 (18小節)");
+                    setStatus("▶ 高速再生・リピート中");
                 }
             };
 
@@ -175,14 +167,13 @@
                 });
             };
 
-            // AI演奏に合わせて伴奏を自動で継ぎ足す（レイヤー追加）
             const aiAddAccompaniment = () => {
                 setBassSteps(prev => {
                     const copy = { ...prev };
                     const notes = ["C3", "Eb3", "F3", "G3", "Bb3"];
                     BASS_ROWS.forEach(r => {
                         const arr = [...copy[r.key]];
-                        for (let i = 0; i < TOTAL_STEPS; i += 4) {
+                        for (let i = 0; i < TOTAL_STEPS; i += 2) {
                             if (Math.random() > 0.4) {
                                 arr[i] = notes[Math.floor(Math.random() * notes.length)];
                             }
@@ -191,14 +182,7 @@
                     });
                     return copy;
                 });
-                setStatus("🤖 AIが自動伴奏レイヤーを継ぎ足しました！");
-            };
-
-            // ランダム自動生成
-            const randomGenerate = () => {
-                buildDefaultPattern();
-                aiAddAccompaniment();
-                setStatus("🎲 ランダムパターンを生成しました");
+                setStatus("🤖 高速AI伴奏レイヤー追加！");
             };
 
             const clearAll = () => {
@@ -206,35 +190,36 @@
                 const b = {};
                 BASS_ROWS.forEach(r => b[r.key] = emptyNoteRow());
                 setBassSteps(b);
-                setStatus("🧹 すべてクリアしました");
+                setStatus("🧹 クリア完了");
             };
 
             const triggerScratch = () => {
-                synths.current.synthchord.triggerAttackRelease("C2", "16n");
-                setStatus("🎛 スクラッチ音！");
+                synths.current.synthchord.triggerAttackRelease("C2", "32n");
+                setStatus("🎛 高速スクラッチ！");
             };
 
             const toggleRecord = () => {
                 if (!recording) {
                     setRecording(true);
-                    setStatus("🔴 録音中...");
+                    setStatus("🔴 高速録音中...");
                 } else {
                     setRecording(false);
-                    const title = `セッション記録_${Date.now().toString().slice(-4)}`;
+                    const title = `高速セッション_${Date.now().toString().slice(-4)}`;
                     setRecordList(prev => [...prev, title]);
-                    setStatus("💾 記録を保存しました");
+                    setStatus("💾 記録保存完了");
                 }
             };
 
-            const previewGenre = (name) => {
-                setStatus(`🎧 試聴中: ${name}スタイル`);
-                togglePlay();
+            const previewGenre = (name, targetBpm) => {
+                setBpm(targetBpm);
+                setStatus(`🎧 ${name}高速試聴中 (BPM: ${targetBpm})`);
+                if (!playing) togglePlay();
             };
 
             return (
                 <div style={{ maxWidth: "880px", margin: "0 auto" }}>
-                    <h1 style={{ fontSize: "1.1rem", color: "#00ffcc", marginBottom: "4px" }}>🎛 RHYTHM FORGE - AI伴奏スタジオ</h1>
-                    <p style={{ fontSize: "0.75rem", color: "#aaa", marginBottom: "8px" }}>1〜18小節 画面編集・鍵盤入力・AI伴奏継ぎ足し・ラップ対応</p>
+                    <h1 style={{ fontSize: "1.1rem", color: "#00ffcc", marginBottom: "4px" }}>⚡ RHYTHM FORGE - HIGH SPEED</h1>
+                    <p style={{ fontSize: "0.75rem", color: "#aaa", marginBottom: "8px" }}>超高速切り替え・低遅延再生・スピード調整機能対応</p>
 
                     {/* コントロールパネル */}
                     <div style={{ background: "#121620", padding: "10px", borderRadius: "8px", display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", marginBottom: "8px" }}>
@@ -242,10 +227,7 @@
                             {playing ? "⏹ STOP" : "▶ PLAY / リピート"}
                         </button>
                         <button onClick={aiAddAccompaniment} style={{ background: "#7928ca", color: "#fff", border: "none", padding: "8px 10px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}>
-                            🤖 AI伴奏継ぎ足し
-                        </button>
-                        <button onClick={randomGenerate} style={{ background: "#0070f3", color: "#fff", border: "none", padding: "8px 10px", borderRadius: "4px", cursor: "pointer" }}>
-                            🎲 ランダム
+                            🤖 AI伴奏追加
                         </button>
                         <button onClick={triggerScratch} style={{ background: "#f5a623", color: "#121216", border: "none", padding: "8px 10px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}>
                             🎛 スクラッチ
@@ -258,19 +240,17 @@
                         </button>
 
                         <div>
-                            <span style={{ fontSize: "0.75rem", marginRight: "4px" }}>テンポ:{bpm}</span>
-                            <input type="range" min="70" max="140" value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ width: "70px" }} />
+                            <span style={{ fontSize: "0.75rem", marginRight: "4px" }}>速度(BPM):{bpm}</span>
+                            <input type="range" min="60" max="200" value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ width: "80px" }} />
                         </div>
                     </div>
 
-                    {/* 試聴・ジャンルボタン */}
+                    {/* 高速試聴・ジャンルボタン */}
                     <div style={{ display: "flex", gap: "6px", marginBottom: "8px", alignItems: "center", flexWrap: "wrap" }}>
-                        <span style={{ fontSize: "0.75rem", color: "#aaa" }}>試聴:</span>
-                        {["アロエビート", "ヒップホップ", "ディスコソウル"].map(g => (
-                            <button key={g} onClick={() => previewGenre(g)} style={{ background: "#222a3a", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "0.75rem", cursor: "pointer" }}>
-                                🎧 {g}試聴
-                            </button>
-                        ))}
+                        <span style={{ fontSize: "0.75rem", color: "#aaa" }}>スピード試聴:</span>
+                        <button onClick={() => previewGenre("スロー", 80)} style={{ background: "#222a3a", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "0.75rem", cursor: "pointer" }}>🐢 スロー (80)</button>
+                        <button onClick={() => previewGenre("ミドル", 120)} style={{ background: "#222a3a", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "0.75rem", cursor: "pointer" }}>🚶 ミドル (120)</button>
+                        <button onClick={() => previewGenre("ファスト", 160)} style={{ background: "#222a3a", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "0.75rem", cursor: "pointer" }}>⚡ ファスト (160)</button>
                         <span style={{ fontSize: "0.75rem", color: "#00ffcc", marginLeft: "auto" }}>{status}</span>
                     </div>
 
@@ -283,10 +263,10 @@
                         ))}
                     </div>
 
-                    {/* ドラム・太鼓タブ */}
+                    {/* 各タブのコンテンツ */}
                     {tab === "DRUM" && (
                         <div style={{ background: "#121620", padding: "10px", borderRadius: "8px", overflowX: "auto" }}>
-                            <div style={{ fontSize: "0.75rem", marginBottom: "6px", color: "#00ffcc" }}>1〜18小節エディタ（現在: 第 {currentBar + 1} 小節）</div>
+                            <div style={{ fontSize: "0.75rem", marginBottom: "6px", color: "#00ffcc" }}>1〜18小節高速エディタ（現在: 第 {currentBar + 1} 小節）</div>
                             {DRUM_ROWS.map(row => (
                                 <div key={row.key} style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
                                     <span style={{ width: "95px", fontSize: "0.7rem", fontWeight: "bold" }}>{row.label}</span>
@@ -315,10 +295,9 @@
                         </div>
                     )}
 
-                    {/* 伴奏レイヤー追加タブ */}
                     {tab === "BASS_ACC" && (
                         <div style={{ background: "#121620", padding: "10px", borderRadius: "8px", overflowX: "auto" }}>
-                            <div style={{ fontSize: "0.75rem", marginBottom: "6px", color: "#7928ca" }}>AI演奏やビートに重ねる「伴奏レイヤー」</div>
+                            <div style={{ fontSize: "0.75rem", marginBottom: "6px", color: "#7928ca" }}>伴奏レイヤー追加エディタ</div>
                             {BASS_ROWS.map(row => (
                                 <div key={row.key} style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
                                     <span style={{ width: "105px", fontSize: "0.7rem", fontWeight: "bold" }}>{row.label}</span>
@@ -330,7 +309,6 @@
                                                 <div
                                                     key={idx}
                                                     onClick={() => handleBassClick(row.key, idx)}
-                                                    title={val ? `Note: ${val}` : "Empty"}
                                                     style={{
                                                         width: "12px",
                                                         height: "22px",
@@ -348,7 +326,6 @@
                         </div>
                     )}
 
-                    {/* 鍵盤入力タブ */}
                     {tab === "KEYBOARD" && (
                         <div style={{ background: "#121620", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
                             <div style={{ marginBottom: "10px" }}>
@@ -359,16 +336,13 @@
                                     </button>
                                 ))}
                             </div>
-                            <div style={{ marginBottom: "10px" }}>
-                                <span style={{ fontSize: "0.75rem", marginRight: "6px" }}>選択音程: <b>{selectedNote}</b></span>
-                            </div>
                             <div style={{ display: "flex", justifyContent: "center", gap: "4px", flexWrap: "wrap" }}>
                                 {KEYBOARD_NOTES.map(note => (
                                     <button
                                         key={note}
                                         onClick={() => {
                                             setSelectedNote(note);
-                                            synths.current[selectedBassInst].triggerAttackRelease(note, "8n");
+                                            synths.current[selectedBassInst].triggerAttackRelease(note, "16n");
                                         }}
                                         style={{
                                             background: selectedNote === note ? "#00ffcc" : "#fff",
@@ -386,11 +360,9 @@
                                     </button>
                                 ))}
                             </div>
-                            <p style={{ fontSize: "0.70rem", color: "#aaa", marginTop: "8px" }}>鍵盤をクリックして音程を確認し、各グリッドに配置できます。</p>
                         </div>
                     )}
 
-                    {/* ラップ歌詞タブ */}
                     {tab === "LYRICS" && (
                         <div style={{ background: "#121620", padding: "10px", borderRadius: "8px" }}>
                             <h3 style={{ fontSize: "0.85rem", marginBottom: "6px" }}>🎤 ラップリリック エディタ</h3>
@@ -402,7 +374,6 @@
                         </div>
                     )}
 
-                    {/* 記録リストタブ */}
                     {tab === "LIST" && (
                         <div style={{ background: "#121620", padding: "10px", borderRadius: "8px" }}>
                             <h3 style={{ fontSize: "0.85rem", marginBottom: "6px" }}>💾 記録・保存リスト</h3>
