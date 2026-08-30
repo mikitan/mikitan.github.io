@@ -1,3 +1,377 @@
+    ambient, ambientGain, chorus, chorusGain, scratchNoise, scratchFilt
+    ].forEach(node => {
+      try { node.dispose(); } catch(e){}
+    });
+  }, []);
+
+  // Transport loop
+  useEffect(() => {
+    Tone.Transport.bpm.value = bpm;
+    Tone.Transport.swingSubdivision = "16n";
+    Tone.Transport.swing = groove;
+
+    if (loopRef.current) {
+      loopRef.current.dispose();
+      loopRef.current = null;
+    }
+
+    let stepCounter = 0;
+    loopRef.current = new Tone.Loop((time) => {
+      const step = stepCounter % TOTAL_STEPS;
+      const bar = Math.floor(step / BAR_STEPS);
+      const beatInBar = step % BAR_STEPS;
+
+      setCurrentStep(step);
+      setCurrentBar(bar);
+
+      // Flashing visual effect
+      if (flashOnRef.current && beatInBar === 0) {
+        setFlashOpacity(0.35);
+        setTimeout(() => setFlashOpacity(0), 120);
+      }
+
+      const d = drumRef.current;
+      const v = volRef.current;
+
+      // Trigger Drums
+      if (d.kick[step]) synths.current.kick.triggerAttackRelease("C1", "8n", time, Tone.dbToGain(v.kick));
+      if (d.snare[step]) synths.current.snareNoise.triggerAttackRelease("8n", time, Tone.dbToGain(v.snare));
+      if (d.hihat[step]) synths.current.hihat.triggerAttackRelease("16n", time, Tone.dbToGain(v.hihat));
+      if (d.snap[step]) synths.current.snap.triggerAttackRelease("16n", time, Tone.dbToGain(v.snap));
+      if (d.tom[step]) synths.current.tom.triggerAttackRelease("G1", "8n", time, Tone.dbToGain(v.tom));
+      if (d.electro[step]) synths.current.electro.triggerAttackRelease("A2", "16n", time, Tone.dbToGain(v.electro));
+      if (d.shaker[step]) synths.current.shaker.triggerAttackRelease("32n", time, Tone.dbToGain(v.shaker));
+
+      // Trigger Bass
+      const bn = bassRef.current[step];
+      if (bn) {
+        const freq = Tone.Frequency(bn);
+        synths.current.bass.triggerAttackRelease(freq, "8n", time, Tone.dbToGain(v.bass));
+        synths.current.bassSub.triggerAttackRelease(freq.transpose(-12), "8n", time, Tone.dbToGain(v.bass - 2));
+      }
+
+      // Trigger Synth / Guitar Lead
+      const sn = synthRef.current[step];
+      if (sn) {
+        synths.current.synthLead.triggerAttackRelease(sn, "8n", time, Tone.dbToGain(v.synth));
+      }
+
+      stepCounter++;
+    }, "16n").start(0);
+
+    return () => {
+      if (loopRef.current) loopRef.current.dispose();
+    };
+  }, [bpm, groove]);
+
+  const togglePlay = async () => {
+    await Tone.start();
+    if (playing) {
+      Tone.Transport.stop();
+      setPlaying(false);
+      setCurrentStep(-1);
+    } else {
+      Tone.Transport.start();
+      setPlaying(true);
+    }
+  };
+
+  const handleDrumClick = (key, stepIdx) => {
+    setDrumSteps(prev => {
+      const copy = { ...prev };
+      copy[key] = [...copy[key]];
+      copy[key][stepIdx] = copy[key][stepIdx] ? 0 : 1;
+      return copy;
+    });
+  };
+
+  const applyPreset = (name) => {
+    setPreset(name);
+    setDrumSteps(buildFullDrum(name));
+    if (BPM_PRESETS.includes(GENRE_TEMPO[name])) {
+      setBpm(GENRE_TEMPO[name]);
+    }
+    if (BASS_PRESETS[name]) {
+      const newBass = emptyNoteRow();
+      const src = BASS_PRESETS[name];
+      for (let i = 0; i < BAR_STEPS; i++) newBass[i] = src[i];
+      setBassSteps(newBass);
+    }
+    setStatus(`プリセット「${name}」をロードしました`);
+  };
+
+  const exportWav = async () => {
+    setExporting(true);
+    setStatus("WAVエクスポート中...");
+    try {
+      const buffer = await Tone.Offline(async () => {
+        const master = new Tone.Gain(1).toDestination();
+        const transport = Tone.Transport;
+        const secPerStep = 60 / bpm / 4;
+
+        const kick = new Tone.MembraneSynth({ octaves: 6, pitchDecay: 0.05 }).connect(master);
+        const snareNoise = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.15, sustain: 0 } });
+        const snareFilt = new Tone.Filter(1800, "bandpass").connect(master);
+        snareNoise.connect(snareFilt);
+        const hihat = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.05, sustain: 0 } });
+        const hihatFilt = new Tone.Filter(9000, "highpass").connect(master);
+        hihat.connect(hihatFilt);
+        const snap = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.045, sustain: 0 } });
+        const snapFilt = new Tone.Filter(3000, "bandpass").connect(master);
+        snap.connect(snapFilt);
+        const tom = new Tone.MembraneSynth({ pitchDecay: 0.08, octaves: 4 }).connect(master);
+        const electroFilt = new Tone.Filter(1400, "bandpass").connect(master);
+        const electro = new Tone.MembraneSynth({ pitchDecay: 0.02, octaves: 8 }).connect(electroFilt);
+        const shakerFilt = new Tone.Filter(7000, "highpass").connect(master);
+        const shaker = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.08, sustain: 0 } }).connect(shakerFilt);
+
+        const synthFilt = new Tone.Filter(INSTRUMENTS[instrumentRef.current].filt, "lowpass").connect(master);
+        const ampDist = new Tone.Distortion({ distortion: ampRef.current ? 0.4 : 0, wet: ampRef.current ? 0.55 : 0 }).connect(synthFilt);
+        const synthLead = new Tone.MonoSynth({
+          oscillator: INSTRUMENTS[instrumentRef.current].osc,
+          envelope: INSTRUMENTS[instrumentRef.current].env,
+        }).connect(ampDist);
+        const bassFilt = new Tone.Filter(bassBoostRef.current ? 320 : 500, "lowpass").connect(master);
+        const bass = new Tone.MonoSynth({
+          oscillator: BASS_TONES[bassToneRef.current],
+          envelope: { attack: 0.01, decay: 0.2, sustain: 0.6, release: 0.3 },
+        }).connect(bassFilt);
+        const bassSub = new Tone.MonoSynth({
+          oscillator: BASS_TONES[bassToneRef.current],
+          envelope: { attack: 0.01, decay: 0.3, sustain: 0.7, release: 0.4 },
+        }).connect(bassFilt);
+
+        transport.bpm.value = bpm;
+        transport.swingSubdivision = "16n";
+        transport.swing = grooveAmt;
+
+        const d = drumRef.current;
+        const bSteps = bassRef.current;
+        const sSteps = synthRef.current;
+
+        for (let step = 0; step < TOTAL_STEPS; step++) {
+          const time = step * secPerStep;
+          if (d.kick[step]) kick.triggerAttackRelease("C1", "8n", time);
+          if (d.snare[step]) snareNoise.triggerAttackRelease("8n", time);
+          if (d.hihat[step]) hihat.triggerAttackRelease("16n", time);
+          if (d.snap[step]) snap.triggerAttackRelease("16n", time);
+          if (d.tom[step]) tom.triggerAttackRelease("G1", "8n", time);
+          if (d.electro[step]) electro.triggerAttackRelease("A2", "16n", time);
+          if (d.shaker[step]) shaker.triggerAttackRelease("32n", time);
+
+          const bn = bSteps[step];
+          if (bn) {
+            bass.triggerAttackRelease(bn, "8n", time);
+            bassSub.triggerAttackRelease(Tone.Frequency(bn).transpose(-12), "8n", time);
+          }
+          const sn = sSteps[step];
+          if (sn) synthLead.triggerAttackRelease(sn, "8n", time);
+        }
+      }, { duration: TOTAL_STEPS * (60 / bpm / 4) + 1, sampleRate: 44100 });
+
+      const wavBlob = bufferToWav(buffer);
+      const url = URL.createObjectURL(wavBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${songName || "rhythm-forge-mix"}.wav`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setStatus("WAVエクスポートが完了しました🎵");
+    } catch (e) {
+      setStatus("WAVエクスポートに失敗しました");
+    }
+    setExporting(false);
+  };
+
+  return (
+    <div style={{ background: "#121216", color: "#f0f0f5", minHeight: "100vh", fontFamily: "sans-serif", padding: "16px", position: "relative" }}>
+      {/* Background flash effect */}
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "#ff0077", opacity: flashOpacity, pointerEvents: "none", transition: "opacity 0.1s ease", zIndex: 999 }} />
+
+      <h1 style={{ fontSize: "1.5rem", fontWeight: "bold", marginBottom: "8px", color: "#00ffcc" }}>🪇 Rhythm Forge Pro</h1>
+      <p style={{ fontSize: "0.85rem", color: "#aaa", marginBottom: "16px" }}>Browser DAW & Rhythm Generator with React & Tone.js</p>
+
+      {/* Main Transport Bar */}
+      <div style={{ background: "#1c1c24", padding: "12px", borderRadius: "8px", display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center", marginBottom: "16px" }}>
+        <button onClick={togglePlay} style={{ background: playing ? "#ff4444" : "#00ffcc", color: "#121216", border: "none", padding: "8px 16px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}>
+          {playing ? "⏹ STOP" : "▶ PLAY"}
+        </button>
+        <div>
+          <label style={{ fontSize: "0.8rem", marginRight: "8px" }}>BPM: {bpm}</label>
+          <input type="range" min="60" max="180" value={bpm} onChange={e => setBpm(Number(e.target.value))} />
+        </div>
+        <div>
+          <label style={{ fontSize: "0.8rem", marginRight: "8px" }}>Genre Preset:</label>
+          <select value={preset} onChange={e => applyPreset(e.target.value)} style={{ background: "#2a2a35", color: "#fff", border: "1px solid #444", padding: "4px 8px", borderRadius: "4px" }}>
+            {Object.keys(DRUM_PRESETS).map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+        <button onClick={exportWav} disabled={exporting} style={{ background: "#7928ca", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", cursor: "pointer" }}>
+          {exporting ? "Exporting..." : "💾 Export WAV"}
+        </button>
+        {status && <span style={{ fontSize: "0.85rem", color: "#00ffcc" }}>{status}</span>}
+      </div>
+
+      {/* Navigation Tabs */}
+      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", borderBottom: "1px solid #2a2a35", paddingBottom: "8px" }}>
+        {["DRUM", "BASS", "SYNTH", "AMBIENT", "RAP", "MIXER"].map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{ background: tab === t ? "#00ffcc" : "#2a2a35", color: tab === t ? "#121216" : "#aaa", border: "none", padding: "6px 12px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Contents */}
+      {tab === "DRUM" && (
+        <div style={{ background: "#1c1c24", padding: "16px", borderRadius: "8px", overflowX: "auto" }}>
+          <h3>Drum Sequencer (Bar {currentBar + 1} / {BARS})</h3>
+          {DRUM_ROWS.map(row => (
+            <div key={row.key} style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
+              <span style={{ width: "90px", fontSize: "0.8rem", fontWeight: "bold" }}>{row.label}</span>
+              <div style={{ display: "flex", gap: "4px" }}>
+                {drumSteps[row.key].map((val, idx) => {
+                  const isCurrent = currentStep === idx;
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => handleDrumClick(row.key, idx)}
+                      style={{
+                        width: "24px",
+                        height: "28px",
+                        background: val ? "#00ffcc" : "#2a2a35",
+                        border: isCurrent ? "2px solid #ff0077" : "1px solid #444",
+                        borderRadius: "3px",
+                        cursor: "pointer",
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "BASS" && (
+        <div style={{ background: "#1c1c24", padding: "16px", borderRadius: "8px" }}>
+          <h3>Bass Step Sequencer</h3>
+          <p style={{ fontSize: "0.8rem", color: "#aaa" }}>Click steps to toggle notes across the 18-bar timeline.</p>
+          <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "12px" }}>
+            {bassSteps.map((note, idx) => {
+              const isCurrent = currentStep === idx;
+              return (
+                <div
+                  key={idx}
+                  onClick={() => {
+                    const copy = [...bassSteps];
+                    copy[idx] = copy[idx] ? null : bassNote;
+                    setBassSteps(copy);
+                  }}
+                  style={{
+                    width: "32px",
+                    height: "36px",
+                    background: note ? "#ff0077" : "#2a2a35",
+                    border: isCurrent ? "2px solid #00ffcc" : "1px solid #444",
+                    borderRadius: "4px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.7rem",
+                    color: "#fff",
+                    cursor: "pointer"
+                  }}
+                >
+                  {note ? note.replace(/[0-9]/g, "") : ""}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {tab === "SYNTH" && (
+        <div style={{ background: "#1c1c24", padding: "16px", borderRadius: "8px" }}>
+          <h3>Synth & Melody Studio</h3>
+          <p style={{ fontSize: "0.8rem", color: "#aaa" }}>Compose melodies using step input and selectable instrument timbres.</p>
+          <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "12px" }}>
+            {synthSteps.map((note, idx) => {
+              const isCurrent = currentStep === idx;
+              return (
+                <div
+                  key={idx}
+                  onClick={() => {
+                    const copy = [...synthSteps];
+                    copy[idx] = copy[idx] ? null : synthNote;
+                    setSynthSteps(copy);
+                  }}
+                  style={{
+                    width: "32px",
+                    height: "36px",
+                    background: note ? "#7928ca" : "#2a2a35",
+                    border: isCurrent ? "2px solid #00ffcc" : "1px solid #444",
+                    borderRadius: "4px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.7rem",
+                    color: "#fff",
+                    cursor: "pointer"
+                  }}
+                >
+                  {note ? SOLFEGE[note] || note : ""}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {tab === "AMBIENT" && (
+        <div style={{ background: "#1c1c24", padding: "16px", borderRadius: "8px" }}>
+          <h3>Ambient & Neo-Soul Progressions</h3>
+          <p style={{ fontSize: "0.8rem", color: "#aaa" }}>Select chord progressions for atmospheric backing pads.</p>
+          <select value={progressionName} onChange={e => { setProgressionName(e.target.value); setProgression(PROGRESSIONS[e.target.value]); }} style={{ background: "#2a2a35", color: "#fff", border: "1px solid #444", padding: "6px 12px", borderRadius: "4px", marginTop: "8px" }}>
+            {Object.keys(PROGRESSIONS).map(k => <option key={k} value={k}>{k}</option>)}
+          </select>
+        </div>
+      )}
+
+      {tab === "RAP" && (
+        <div style={{ background: "#1c1c24", padding: "16px", borderRadius: "8px" }}>
+          <h3>Vocal & Rap Studio</h3>
+          <p style={{ fontSize: "0.8rem", color: "#aaa" }}>Record live vocals over your active beat framework.</p>
+          <textarea placeholder="Write lyrics or notes here..." value={myLyrics} onChange={e => setMyLyrics(e.target.value)} style={{ width: "100%", height: "100px", background: "#2a2a35", color: "#fff", border: "1px solid #444", borderRadius: "4px", padding: "8px", marginTop: "8px" }} />
+        </div>
+      )}
+
+      {tab === "MIXER" && (
+        <div style={{ background: "#1c1c24", padding: "16px", borderRadius: "8px" }}>
+          <h3>Master Mixing Console</h3>
+          <p style={{ fontSize: "0.8rem", color: "#aaa" }}>Adjust relative track volumes and master effects.</p>
+          <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginTop: "12px" }}>
+            {Object.keys(volumes).map(track => (
+              <div key={track} style={{ background: "#121216", padding: "8px", borderRadius: "4px", textAlign: "center" }}>
+                <span style={{ fontSize: "0.75rem", textTransform: "uppercase" }}>{track}</span>
+                <input
+                  type="range"
+                  min="-30"
+                  max="6"
+                  value={volumes[track]}
+                  onChange={e => setVolumes({ ...volumes, [track]: Number(e.target.value) })}
+                  style={{ writingMode: "vertical-lr", direction: "rtl", height: "80px", marginTop: "6px" }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
 const comp = ctx.createDynamicsCompressor();
 comp.threshold.value = -24;
 comp.knee.value = 30;
