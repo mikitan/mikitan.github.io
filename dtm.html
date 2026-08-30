@@ -1,53 +1,52 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rhythm Forge Pro - 18小節 & アフリカ楽器AI対応版</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>RHYTHM FORGE - MIC VICTORY</title>
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Tone.js -->
+    <script src="https://unpkg.com/tone@14.7.77/build/Tone.js"></script>
     <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Tone.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        html, body { margin: 0; padding: 0; background: #080b10; color: #f0f0f5; font-family: sans-serif; }
+        #root { min-height: 100vh; padding: 16px; box-sizing: border-box; }
+    </style>
 </head>
-<body style="margin: 0; background: #121216;">
+<body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useRef, useEffect } = React;
 
         const BAR_STEPS = 16;
-        const BARS = 18; // 18小節に対応
-        const TOTAL_STEPS = BAR_STEPS * BARS; // 288ステップ
+        const BARS = 18;
+        const TOTAL_STEPS = BAR_STEPS * BARS;
 
         const DRUM_ROWS = [
-            { key: "djemb", label: "ジャンベ (Djembé)" },
-            { key: "talking", label: "トーキングドラム" },
-            { key: "shekere", label: "シェケレ" },
-            { key: "kick", label: "Kick" },
-            { key: "snare", label: "Snare" },
-            { key: "hihat", label: "Hi-Hat" },
+            { key: "kick", label: "KICK" },
+            { key: "snare", label: "SNARE" },
+            { key: "hihat", label: "HI-HAT" },
+            { key: "shaker", label: "🪇SHAKER" },
         ];
 
         function emptyNoteRow() {
             return new Array(TOTAL_STEPS).fill(null);
         }
 
-        function buildAfricanAiPattern() {
+        function buildDefaultPattern() {
             const steps = {};
             DRUM_ROWS.forEach(r => {
                 steps[r.key] = new Array(TOTAL_STEPS).fill(0);
             });
-            // アフリカ風ポリリズムAI自動生成パターン
             for (let i = 0; i < TOTAL_STEPS; i++) {
-                if (i % 6 === 0) steps.djemb[i] = 1;
-                if (i % 12 === 3 || i % 12 === 9) steps.talking[i] = 1;
-                if (i % 4 === 2) steps.shekere[i] = 1;
                 if (i % 16 === 0) steps.kick[i] = 1;
                 if (i % 16 === 8) steps.snare[i] = 1;
                 if (i % 2 === 0) steps.hihat[i] = 1;
+                if (i % 4 === 2) steps.shaker[i] = 1;
             }
             return steps;
         }
@@ -60,8 +59,10 @@
             const [status, setStatus] = useState("準備完了");
             const [tab, setTab] = useState("DRUM");
 
-            const [drumSteps, setDrumSteps] = useState(buildAfricanAiPattern);
+            const [drumSteps, setDrumSteps] = useState(buildDefaultPattern);
             const [melodySteps, setMelodySteps] = useState(emptyNoteRow);
+            const [lyrics, setLyrics] = useState("【1小節〜2小節】\nYo! 刻むビート止まらない\n\n【3小節〜4小節】\nAIと奏でる 新しいスタイル");
+            
             const [recording, setRecording] = useState(false);
             const [recordList, setRecordList] = useState([]);
 
@@ -71,14 +72,11 @@
             melodyRef.current = melodySteps;
             const loopRef = useRef(null);
 
-            // サウンドシンセの定義（アフリカ風パーカッション＋メロディ）
             const synths = useRef({
-                djemb: new Tone.MembraneSynth({ pitchDecay: 0.03, octaves: 4 }).toDestination(),
-                talking: new Tone.MembraneSynth({ pitchDecay: 0.08, octaves: 6 }).toDestination(),
-                shekere: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.05, sustain: 0 } }).toDestination(),
                 kick: new Tone.MembraneSynth({ octaves: 6, pitchDecay: 0.05 }).toDestination(),
                 snare: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.15, sustain: 0 } }).toDestination(),
                 hihat: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.04, sustain: 0 } }).toDestination(),
+                shaker: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.08, sustain: 0 } }).toDestination(),
                 melody: new Tone.Synth().toDestination(),
             });
 
@@ -88,7 +86,6 @@
                 };
             }, []);
 
-            // 再生ループ (18小節対応)
             useEffect(() => {
                 Tone.Transport.bpm.value = bpm;
                 if (loopRef.current) {
@@ -105,12 +102,10 @@
                     setCurrentBar(bar);
 
                     const d = drumRef.current;
-                    if (d.djemb[step]) synths.current.djemb.triggerAttackRelease("G1", "8n", time);
-                    if (d.talking[step]) synths.current.talking.triggerAttackRelease("C2", "8n", time);
-                    if (d.shekere[step]) synths.current.shekere.triggerAttackRelease("16n", time);
-                    if (d.kick[step]) synths.current.kick.triggerAttackRelease("C1", "8n", time);
-                    if (d.snare[step]) synths.current.snare.triggerAttackRelease("8n", time);
-                    if (d.hihat[step]) synths.current.hihat.triggerAttackRelease("16n", time);
+                    if (d.kick && d.kick[step]) synths.current.kick.triggerAttackRelease("C1", "8n", time);
+                    if (d.snare && d.snare[step]) synths.current.snare.triggerAttackRelease("8n", time);
+                    if (d.hihat && d.hihat[step]) synths.current.hihat.triggerAttackRelease("16n", time);
+                    if (d.shaker && d.shaker[step]) synths.current.shaker.triggerAttackRelease("16n", time);
 
                     const m = melodyRef.current[step];
                     if (m) {
@@ -129,9 +124,11 @@
                     Tone.Transport.stop();
                     setPlaying(false);
                     setCurrentStep(-1);
+                    setStatus("停止しました");
                 } else {
                     Tone.Transport.start();
                     setPlaying(true);
+                    setStatus("▶ 再生中...");
                 }
             };
 
@@ -145,23 +142,33 @@
             };
 
             const generateAiPattern = () => {
-                setDrumSteps(buildAfricanAiPattern());
-                // メロディのAI自動生成
+                const newDrum = {};
+                DRUM_ROWS.forEach(r => {
+                    newDrum[r.key] = new Array(TOTAL_STEPS).fill(0);
+                    for (let i = 0; i < TOTAL_STEPS; i++) {
+                        if (r.key === "kick" && i % 8 === 0) newDrum.kick[i] = 1;
+                        if (r.key === "snare" && i % 16 === 8) newDrum.snare[i] = 1;
+                        if (r.key === "hihat" && i % 2 === 0) newDrum.hihat[i] = 1;
+                        if (r.key === "shaker" && Math.random() > 0.5) newDrum.shaker[i] = 1;
+                    }
+                });
+                setDrumSteps(newDrum);
+
                 const newMelody = emptyNoteRow();
-                const scale = ["C4", "D4", "F4", "G4", "A4", "C5"];
+                const scale = ["C4", "Eb4", "F4", "G4", "Bb4", "C5"];
                 for (let i = 0; i < TOTAL_STEPS; i += 4) {
-                    if (Math.random() > 0.4) {
+                    if (Math.random() > 0.3) {
                         newMelody[i] = scale[Math.floor(Math.random() * scale.length)];
                     }
                 }
                 setMelodySteps(newMelody);
-                setStatus("🤖 アフリカ楽器・メロディAI生成完了！");
+                setStatus("✨ AI自動生成完了！");
             };
 
             const clearAll = () => {
-                setDrumSteps(buildAfricanAiPattern()); // 初期化
+                setDrumSteps(buildDefaultPattern());
                 setMelodySteps(emptyNoteRow());
-                setStatus("データをクリアしました");
+                setStatus("🧹 すべてクリアしました");
             };
 
             const toggleRecord = () => {
@@ -170,24 +177,24 @@
                     setStatus("🔴 録音中...");
                 } else {
                     setRecording(false);
-                    const newItem = `録音セッション_${Date.now().toString().slice(-4)}`;
+                    const newItem = `セッション_${Date.now().toString().slice(-4)}`;
                     setRecordList(prev => [...prev, newItem]);
-                    setStatus("💾 録音リストに追加しました");
+                    setStatus("💾 録音をリストに保存しました");
                 }
             };
 
             return (
-                <div style={{ background: "#121216", color: "#f0f0f5", minHeight: "100vh", fontFamily: "sans-serif", padding: "16px" }}>
-                    <h1 style={{ fontSize: "1.4rem", color: "#00ffcc", marginBottom: "4px" }}>🌍 アフリカ太鼓 & メロディ AI DAW (1-18小節)</h1>
-                    <p style={{ fontSize: "0.8rem", color: "#aaa", marginBottom: "12px" }}>ジャンベ、トーキングドラム、シェケレ、AI自動合成対応</p>
+                <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+                    <h1 style={{ fontSize: "1.3rem", color: "#00ffcc", marginBottom: "4px" }}>🎤 RHYTHM FORGE - ラップ＆AIビート制作</h1>
+                    <p style={{ fontSize: "0.8rem", color: "#aaa", marginBottom: "12px" }}>18小節対応シーケンサー・録音・歌詞埋め込み機能付き</p>
 
-                    {/* コントロール・トランスポートバー */}
-                    <div style={{ background: "#1c1c24", padding: "10px", borderRadius: "8px", display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center", marginBottom: "12px" }}>
+                    {/* コントロールパネル */}
+                    <div style={{ background: "#1c1c24", padding: "10px", borderRadius: "8px", display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", marginBottom: "12px" }}>
                         <button onClick={togglePlay} style={{ background: playing ? "#ff4444" : "#00ffcc", color: "#121216", border: "none", padding: "8px 14px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}>
                             {playing ? "⏹ STOP" : "▶ PLAY"}
                         </button>
                         <button onClick={generateAiPattern} style={{ background: "#7928ca", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}>
-                            ✨ AI全体生成
+                            ✨ AI自動生成
                         </button>
                         <button onClick={clearAll} style={{ background: "#444", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", cursor: "pointer" }}>
                             🧹 CLEAR
@@ -202,24 +209,24 @@
                         <span style={{ fontSize: "0.8rem", color: "#00ffcc" }}>{status}</span>
                     </div>
 
-                    {/* タブナビゲーション */}
+                    {/* タブ */}
                     <div style={{ display: "flex", gap: "6px", marginBottom: "12px", borderBottom: "1px solid #2a2a35", paddingBottom: "6px" }}>
-                        {["DRUM", "MELODY", "LIST"].map(t => (
+                        {["DRUM", "LYRICS", "LIST"].map(t => (
                             <button key={t} onClick={() => setTab(t)} style={{ background: tab === t ? "#00ffcc" : "#2a2a35", color: tab === t ? "#121216" : "#aaa", border: "none", padding: "6px 12px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}>
-                                {t === "DRUM" ? "アフリカ太鼓・リズム" : t === "MELODY" ? "メロディAI編集" : "録音リスト"}
+                                {t === "DRUM" ? "リズムシーケンサー" : t === "LYRICS" ? "ラップ歌詞" : "録音リスト"}
                             </button>
                         ))}
                     </div>
 
-                    {/* ドラム/パーカッションタブ (18小節・全288ステップ) */}
+                    {/* ドラムタブ */}
                     {tab === "DRUM" && (
                         <div style={{ background: "#1c1c24", padding: "12px", borderRadius: "8px", overflowX: "auto" }}>
-                            <h3 style={{ fontSize: "0.95rem", marginBottom: "8px" }}>現在位置: 第 {currentBar + 1} 小節 / 全 {BARS} 小節</h3>
+                            <h3 style={{ fontSize: "0.9rem", marginBottom: "8px" }}>現在位置: 第 {currentBar + 1} 小節 / 全 {BARS} 小節</h3>
                             {DRUM_ROWS.map(row => (
                                 <div key={row.key} style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
-                                    <span style={{ width: "130px", fontSize: "0.75rem", fontWeight: "bold" }}>{row.label}</span>
+                                    <span style={{ width: "110px", fontSize: "0.75rem", fontWeight: "bold" }}>{row.label}</span>
                                     <div style={{ display: "flex", gap: "2px" }}>
-                                        {drumSteps[row.key].map((val, idx) => {
+                                        {drumSteps[row.key] && drumSteps[row.key].map((val, idx) => {
                                             const isCurrent = currentStep === idx;
                                             const isBarStart = idx % BAR_STEPS === 0;
                                             return (
@@ -227,7 +234,7 @@
                                                     key={idx}
                                                     onClick={() => handleDrumClick(row.key, idx)}
                                                     style={{
-                                                        width: "16px",
+                                                        width: "14px",
                                                         height: "24px",
                                                         background: val ? "#00ffcc" : "#2a2a35",
                                                         border: isCurrent ? "2px solid #ff0077" : isBarStart ? "1px solid #777" : "1px solid #333",
@@ -243,49 +250,25 @@
                         </div>
                     )}
 
-                    {/* メロディAI編集タブ */}
-                    {tab === "MELODY" && (
-                        <div style={{ background: "#1c1c24", padding: "12px", borderRadius: "8px", overflowX: "auto" }}>
-                            <h3 style={{ fontSize: "0.95rem", marginBottom: "8px" }}>メロディ シーケンサー (1〜18小節)</h3>
-                            <div style={{ display: "flex", gap: "2px", flexWrap: "wrap" }}>
-                                {melodySteps.map((note, idx) => {
-                                    const isCurrent = currentStep === idx;
-                                    return (
-                                        <div
-                                            key={idx}
-                                            onClick={() => {
-                                                const copy = [...melodySteps];
-                                                copy[idx] = copy[idx] ? null : "C4";
-                                                setMelodySteps(copy);
-                                            }}
-                                            style={{
-                                                width: "20px",
-                                                height: "32px",
-                                                background: note ? "#7928ca" : "#2a2a35",
-                                                border: isCurrent ? "2px solid #00ffcc" : "1px solid #444",
-                                                borderRadius: "3px",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                fontSize: "0.6rem",
-                                                color: "#fff",
-                                                cursor: "pointer"
-                                            }}
-                                        >
-                                            {note ? "♪" : ""}
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                    {/* ラップ歌詞タブ */}
+                    {tab === "LYRICS" && (
+                        <div style={{ background: "#1c1c24", padding: "12px", borderRadius: "8px" }}>
+                            <h3 style={{ fontSize: "0.9rem", marginBottom: "8px" }}>ラップ演奏用 歌詞エディタ</h3>
+                            <p style={{ fontSize: "0.75rem", color: "#aaa", marginBottom: "8px" }}>ビートの進行に合わせて歌う歌詞を自由に書き込んでください。</p>
+                            <textarea
+                                value={lyrics}
+                                onChange={e => setLyrics(e.target.value)}
+                                style={{ width: "100%", height: "150px", background: "#121216", color: "#fff", border: "1px solid #333", borderRadius: "4px", padding: "8px", boxSizing: "border-box", fontSize: "0.9rem" }}
+                            />
                         </div>
                     )}
 
                     {/* 録音リストタブ */}
                     {tab === "LIST" && (
                         <div style={{ background: "#1c1c24", padding: "12px", borderRadius: "8px" }}>
-                            <h3 style={{ fontSize: "0.95rem", marginBottom: "8px" }}>録音・編集リスト</h3>
+                            <h3 style={{ fontSize: "0.9rem", marginBottom: "8px" }}>録音・セッションリスト</h3>
                             {recordList.length === 0 ? (
-                                <p style={{ fontSize: "0.8rem", color: "#aaa" }}>録音されたデータはありません。</p>
+                                <p style={{ fontSize: "0.8rem", color: "#aaa" }}>保存された録音データはありません。</p>
                             ) : (
                                 recordList.map((item, index) => (
                                     <div key={index} style={{ background: "#2a2a35", padding: "8px", marginBottom: "6px", borderRadius: "4px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
