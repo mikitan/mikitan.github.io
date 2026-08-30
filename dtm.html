@@ -3,18 +3,15 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>RHYTHM FORGE - HIGH SPEED STUDIO</title>
-    <!-- React & ReactDOM -->
+    <title>RHYTHM FORGE - ULTRA FAST</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- Tone.js -->
     <script src="https://unpkg.com/tone@14.7.77/build/Tone.js"></script>
-    <!-- Babel for JSX -->
     <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        html, body { margin: 0; padding: 0; background: #06080d; color: #f0f0f5; font-family: sans-serif; }
-        #root { min-height: 100vh; padding: 12px; box-sizing: border-box; }
-        button, select, input { touch-action: manipulation; }
+        html, body { margin: 0; padding: 0; background: #030406; color: #fff; font-family: sans-serif; }
+        #root { padding: 10px; box-sizing: border-box; }
+        button, select, input { touch-action: manipulation; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -28,108 +25,90 @@
         const TOTAL_STEPS = BAR_STEPS * BARS;
 
         const DRUM_ROWS = [
-            { key: "kick", label: "🥁 KICK" },
-            { key: "snare", label: "🎯 SNARE" },
-            { key: "djembe", label: "🪵 DJEMBE" },
-            { key: "conga", label: "🪘 CONGA" },
-            { key: "shaker", label: "🪇 SHAKER" },
+            { key: "kick", label: "KICK" },
+            { key: "snare", label: "SNARE" },
+            { key: "djembe", label: "DJEMBE" },
+            { key: "conga", label: "CONGA" },
+            { key: "shaker", label: "SHAKER" },
         ];
 
         const BASS_ROWS = [
-            { key: "subbass", label: "🎸 SUB BASS" },
-            { key: "synthchord", label: "🎹 SYNTH CHORD" },
-            { key: "strings", label: "🎻 STRINGS" },
+            { key: "subbass", label: "SUB BASS" },
+            { key: "synthchord", label: "CHORD" },
+            { key: "strings", label: "STRINGS" },
         ];
 
-        const KEYBOARD_NOTES = ["C3", "D3", "Eb3", "F3", "G3", "Ab3", "Bb3", "C4", "D4", "Eb4", "F4", "G4", "Ab4", "Bb4", "C5"];
-
-        function emptyDrumRow() { return new Array(TOTAL_STEPS).fill(0); }
-        function emptyNoteRow() { return new Array(TOTAL_STEPS).fill(null); }
-
-        function buildDefaultPattern() {
-            const steps = {};
-            DRUM_ROWS.forEach(r => { steps[r.key] = emptyDrumRow(); });
-            for (let i = 0; i < TOTAL_STEPS; i++) {
-                if (i % 16 === 0 || i % 16 === 10) steps.kick[i] = 1;
-                if (i % 8 === 4) steps.snare[i] = 1;
-                if (i % 4 === 2) steps.djembe[i] = 1;
-                if (i % 2 === 0) steps.shaker[i] = 1;
-            }
-            return steps;
-        }
+        const NOTES = ["C3", "Eb3", "F3", "G3", "Bb3", "C4", "Eb4", "G4", "C5"];
 
         function App() {
             const [playing, setPlaying] = useState(false);
-            const [bpm, setBpm] = useState(120); // 初期スピードを少しアップ
-            const [currentStep, setCurrentStep] = useState(-1);
-            const [currentBar, setCurrentBar] = useState(0);
-            const [status, setStatus] = useState("高速モード準備完了");
+            const [bpm, setBpm] = useState(130);
             const [tab, setTab] = useState("DRUM");
+            const [status, setStatus] = useState("⚡ 超高速モード");
 
-            const [drumSteps, setDrumSteps] = useState(buildDefaultPattern);
+            const [drumSteps, setDrumSteps] = useState(() => {
+                const d = {};
+                DRUM_ROWS.forEach(r => {
+                    d[r.key] = new Array(TOTAL_STEPS).fill(0);
+                    for (let i = 0; i < TOTAL_STEPS; i++) {
+                        if (i % 16 === 0) d[r.key][i] = 1;
+                    }
+                });
+                return d;
+            });
+
             const [bassSteps, setBassSteps] = useState(() => {
                 const b = {};
-                BASS_ROWS.forEach(r => b[r.key] = emptyNoteRow());
+                BASS_ROWS.forEach(r => { b[r.key] = new Array(TOTAL_STEPS).fill(null); });
                 return b;
             });
 
-            const [selectedBassInst, setSelectedBassInst] = useState("subbass");
+            const [selectedInst, setSelectedInst] = useState("subbass");
             const [selectedNote, setSelectedNote] = useState("C3");
-            const [lyrics, setLyrics] = useState("【1-2小節】スピード全開ハイテンポ！\n【3-4小節】AI伴奏と高速ラップ");
+            const [lyrics, setLyrics] = useState("超高速レスポンスで連続再生！\nAI伴奏とラップを刻む");
+            const [records, setRecords] = useState([]);
 
-            const [recording, setRecording] = useState(false);
-            const [recordList, setRecordList] = useState([]);
-
+            // 高速再生用のRef管理
             const drumRef = useRef(drumSteps);
             drumRef.current = drumSteps;
             const bassRef = useRef(bassSteps);
             bassRef.current = bassSteps;
             const loopRef = useRef(null);
 
-            // 超軽量・低遅延のシンセ設定
+            // シンセ定義
             const synths = useRef({
-                kick: new Tone.MembraneSynth({ octaves: 4, envelope: { attack: 0.001, decay: 0.1 } }).toDestination(),
-                snare: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.1 } }).toDestination(),
-                djembe: new Tone.MembraneSynth({ pitchDecay: 0.01, octaves: 2 }).toDestination(),
-                conga: new Tone.MembraneSynth({ pitchDecay: 0.01, octaves: 2 }).toDestination(),
-                shaker: new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.001, decay: 0.03 } }).toDestination(),
-                
-                subbass: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.01, release: 0.1 } }).toDestination(),
-                synthchord: new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.01, release: 0.1 } }).toDestination(),
-                strings: new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.05, release: 0.2 } }).toDestination(),
+                kick: new Tone.MembraneSynth({ volume: -2 }).toDestination(),
+                snare: new Tone.NoiseSynth({ volume: -4, envelope: { attack: 0.001, decay: 0.1 } }).toDestination(),
+                djembe: new Tone.MembraneSynth({ volume: -3 }).toDestination(),
+                conga: new Tone.MembraneSynth({ volume: -3 }).toDestination(),
+                shaker: new Tone.NoiseSynth({ volume: -10, envelope: { attack: 0.001, decay: 0.03 } }).toDestination(),
+                subbass: new Tone.Synth({ volume: -3, oscillator: { type: "sine" } }).toDestination(),
+                synthchord: new Tone.Synth({ volume: -5, oscillator: { type: "sawtooth" } }).toDestination(),
+                strings: new Tone.Synth({ volume: -5, oscillator: { type: "triangle" } }).toDestination(),
             });
 
             useEffect(() => {
                 Tone.Transport.bpm.value = bpm;
-                if (loopRef.current) {
-                    loopRef.current.dispose();
-                    loopRef.current = null;
-                }
+                if (loopRef.current) loopRef.current.dispose();
 
-                let stepCounter = 0;
+                let stepCount = 0;
                 loopRef.current = new Tone.Loop((time) => {
-                    const step = stepCounter % TOTAL_STEPS;
-                    const bar = Math.floor(step / BAR_STEPS);
-
-                    setCurrentStep(step);
-                    setCurrentBar(bar);
-
+                    const step = stepCount % TOTAL_STEPS;
+                    
                     const d = drumRef.current;
-                    if (d.kick && d.kick[step]) synths.current.kick.triggerAttackRelease("C1", "16n", time);
-                    if (d.snare && d.snare[step]) synths.current.snare.triggerAttackRelease("16n", time);
-                    if (d.djembe && d.djembe[step]) synths.current.djembe.triggerAttackRelease("G2", "16n", time);
-                    if (d.conga && d.conga[step]) synths.current.conga.triggerAttackRelease("C3", "16n", time);
-                    if (d.shaker && d.shaker[step]) synths.current.shaker.triggerAttackRelease("16n", time);
+                    if (d.kick[step]) synths.current.kick.triggerAttackRelease("C1", "16n", time);
+                    if (d.snare[step]) synths.current.snare.triggerAttackRelease("16n", time);
+                    if (d.djembe[step]) synths.current.djembe.triggerAttackRelease("G2", "16n", time);
+                    if (d.conga[step]) synths.current.conga.triggerAttackRelease("C3", "16n", time);
+                    if (d.shaker[step]) synths.current.shaker.triggerAttackRelease("16n", time);
 
                     const b = bassRef.current;
                     BASS_ROWS.forEach(r => {
                         const note = b[r.key][step];
-                        if (note) {
-                            synths.current[r.key].triggerAttackRelease(note, "16n", time);
-                        }
+                        if (note) synths.current[r.key].triggerAttackRelease(note, "16n", time);
                     });
 
-                    stepCounter++;
+                    stepCount++;
                 }, "16n").start(0);
 
                 return () => { if (loopRef.current) loopRef.current.dispose(); };
@@ -140,16 +119,15 @@
                 if (playing) {
                     Tone.Transport.stop();
                     setPlaying(false);
-                    setCurrentStep(-1);
-                    setStatus("停止しました");
+                    setStatus("⏸ 停止");
                 } else {
                     Tone.Transport.start();
                     setPlaying(true);
-                    setStatus("▶ 高速再生・リピート中");
+                    setStatus("▶ 連続再生中");
                 }
             };
 
-            const handleDrumClick = (key, idx) => {
+            const toggleDrum = (key, idx) => {
                 setDrumSteps(prev => {
                     const copy = { ...prev };
                     copy[key] = [...copy[key]];
@@ -158,7 +136,7 @@
                 });
             };
 
-            const handleBassClick = (key, idx) => {
+            const toggleBass = (key, idx) => {
                 setBassSteps(prev => {
                     const copy = { ...prev };
                     copy[key] = [...copy[key]];
@@ -167,196 +145,101 @@
                 });
             };
 
-            const aiAddAccompaniment = () => {
+            const aiFill = () => {
                 setBassSteps(prev => {
                     const copy = { ...prev };
-                    const notes = ["C3", "Eb3", "F3", "G3", "Bb3"];
                     BASS_ROWS.forEach(r => {
-                        const arr = [...copy[r.key]];
+                        const arr = new Array(TOTAL_STEPS).fill(null);
                         for (let i = 0; i < TOTAL_STEPS; i += 2) {
-                            if (Math.random() > 0.4) {
-                                arr[i] = notes[Math.floor(Math.random() * notes.length)];
-                            }
+                            if (Math.random() > 0.5) arr[i] = NOTES[Math.floor(Math.random() * NOTES.length)];
                         }
                         copy[r.key] = arr;
                     });
                     return copy;
                 });
-                setStatus("🤖 高速AI伴奏レイヤー追加！");
+                setStatus("✨ AI自動埋め完了");
             };
 
             const clearAll = () => {
-                setDrumSteps(buildDefaultPattern());
-                const b = {};
-                BASS_ROWS.forEach(r => b[r.key] = emptyNoteRow());
-                setBassSteps(b);
-                setStatus("🧹 クリア完了");
-            };
-
-            const triggerScratch = () => {
-                synths.current.synthchord.triggerAttackRelease("C2", "32n");
-                setStatus("🎛 高速スクラッチ！");
-            };
-
-            const toggleRecord = () => {
-                if (!recording) {
-                    setRecording(true);
-                    setStatus("🔴 高速録音中...");
-                } else {
-                    setRecording(false);
-                    const title = `高速セッション_${Date.now().toString().slice(-4)}`;
-                    setRecordList(prev => [...prev, title]);
-                    setStatus("💾 記録保存完了");
-                }
-            };
-
-            const previewGenre = (name, targetBpm) => {
-                setBpm(targetBpm);
-                setStatus(`🎧 ${name}高速試聴中 (BPM: ${targetBpm})`);
-                if (!playing) togglePlay();
+                setBassSteps(prev => {
+                    const copy = {};
+                    BASS_ROWS.forEach(r => { copy[r.key] = new Array(TOTAL_STEPS).fill(null); });
+                    return copy;
+                });
+                setStatus("🧹 クリア");
             };
 
             return (
-                <div style={{ maxWidth: "880px", margin: "0 auto" }}>
-                    <h1 style={{ fontSize: "1.1rem", color: "#00ffcc", marginBottom: "4px" }}>⚡ RHYTHM FORGE - HIGH SPEED</h1>
-                    <p style={{ fontSize: "0.75rem", color: "#aaa", marginBottom: "8px" }}>超高速切り替え・低遅延再生・スピード調整機能対応</p>
-
-                    {/* コントロールパネル */}
-                    <div style={{ background: "#121620", padding: "10px", borderRadius: "8px", display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", marginBottom: "8px" }}>
-                        <button onClick={togglePlay} style={{ background: playing ? "#ff4444" : "#00ffcc", color: "#121216", border: "none", padding: "8px 14px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}>
-                            {playing ? "⏹ STOP" : "▶ PLAY / リピート"}
+                <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+                    <h2 style={{ fontSize: "1rem", color: "#00ffcc", margin: "0 0 6px 0" }}>⚡ RHYTHM FORGE - ULTRA FAST</h2>
+                    
+                    {/* コントロール */}
+                    <div style={{ background: "#111622", padding: "8px", borderRadius: "6px", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center", marginBottom: "8px" }}>
+                        <button onClick={togglePlay} style={{ background: playing ? "#ff4444" : "#00ffcc", color: "#000", fontWeight: "bold", border: "none", padding: "6px 12px", borderRadius: "4px" }}>
+                            {playing ? "STOP" : "PLAY"}
                         </button>
-                        <button onClick={aiAddAccompaniment} style={{ background: "#7928ca", color: "#fff", border: "none", padding: "8px 10px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}>
-                            🤖 AI伴奏追加
-                        </button>
-                        <button onClick={triggerScratch} style={{ background: "#f5a623", color: "#121216", border: "none", padding: "8px 10px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}>
-                            🎛 スクラッチ
-                        </button>
-                        <button onClick={clearAll} style={{ background: "#444", color: "#fff", border: "none", padding: "8px 10px", borderRadius: "4px", cursor: "pointer" }}>
-                            🧹 CLEAR
-                        </button>
-                        <button onClick={toggleRecord} style={{ background: recording ? "#ff0077" : "#333", color: "#fff", border: "none", padding: "8px 10px", borderRadius: "4px", cursor: "pointer" }}>
-                            {recording ? "⏹ 録音停止" : "🎙 記録"}
-                        </button>
+                        <button onClick={aiFill} style={{ background: "#7928ca", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px" }}>AI伴奏</button>
+                        <button onClick={clearAll} style={{ background: "#444", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px" }}>CLEAR</button>
+                        <button onClick={() => synths.current.synthchord.triggerAttackRelease("C2", "32n")} style={{ background: "#f5a623", color: "#000", border: "none", padding: "6px 10px", borderRadius: "4px", fontWeight: "bold" }}>スクラッチ</button>
 
                         <div>
-                            <span style={{ fontSize: "0.75rem", marginRight: "4px" }}>速度(BPM):{bpm}</span>
-                            <input type="range" min="60" max="200" value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ width: "80px" }} />
+                            <span style={{ fontSize: "0.75rem" }}>BPM:{bpm}</span>
+                            <input type="range" min="80" max="180" value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ width: "70px", verticalAlign: "middle" }} />
                         </div>
-                    </div>
-
-                    {/* 高速試聴・ジャンルボタン */}
-                    <div style={{ display: "flex", gap: "6px", marginBottom: "8px", alignItems: "center", flexWrap: "wrap" }}>
-                        <span style={{ fontSize: "0.75rem", color: "#aaa" }}>スピード試聴:</span>
-                        <button onClick={() => previewGenre("スロー", 80)} style={{ background: "#222a3a", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "0.75rem", cursor: "pointer" }}>🐢 スロー (80)</button>
-                        <button onClick={() => previewGenre("ミドル", 120)} style={{ background: "#222a3a", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "0.75rem", cursor: "pointer" }}>🚶 ミドル (120)</button>
-                        <button onClick={() => previewGenre("ファスト", 160)} style={{ background: "#222a3a", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "0.75rem", cursor: "pointer" }}>⚡ ファスト (160)</button>
                         <span style={{ fontSize: "0.75rem", color: "#00ffcc", marginLeft: "auto" }}>{status}</span>
                     </div>
 
-                    {/* タブ */}
-                    <div style={{ display: "flex", gap: "6px", marginBottom: "8px", borderBottom: "1px solid #222a3a", paddingBottom: "6px" }}>
-                        {["DRUM", "BASS_ACC", "KEYBOARD", "LYRICS", "LIST"].map(t => (
-                            <button key={t} onClick={() => setTab(t)} style={{ background: tab === t ? "#00ffcc" : "#222a3a", color: tab === t ? "#121216" : "#aaa", border: "none", padding: "6px 10px", borderRadius: "4px", fontWeight: "bold", fontSize: "0.75rem", cursor: "pointer" }}>
-                                {t === "DRUM" ? "ドラム・太鼓" : t === "BASS_ACC" ? "伴奏レイヤー" : t === "KEYBOARD" ? "鍵盤入力" : t === "LYRICS" ? "ラップ歌詞" : "記録リスト"}
+                    {/* 高速タブ切り替え */}
+                    <div style={{ display: "flex", gap: "4px", marginBottom: "8px" }}>
+                        {["DRUM", "BASS", "KEYS", "LYRICS"].map(t => (
+                            <button key={t} onClick={() => setTab(t)} style={{ background: tab === t ? "#00ffcc" : "#1a2130", color: tab === t ? "#000" : "#aaa", border: "none", padding: "5px 10px", borderRadius: "4px", fontWeight: "bold", fontSize: "0.75rem" }}>
+                                {t}
                             </button>
                         ))}
                     </div>
 
-                    {/* 各タブのコンテンツ */}
+                    {/* タブコンテンツ */}
                     {tab === "DRUM" && (
-                        <div style={{ background: "#121620", padding: "10px", borderRadius: "8px", overflowX: "auto" }}>
-                            <div style={{ fontSize: "0.75rem", marginBottom: "6px", color: "#00ffcc" }}>1〜18小節高速エディタ（現在: 第 {currentBar + 1} 小節）</div>
-                            {DRUM_ROWS.map(row => (
-                                <div key={row.key} style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
-                                    <span style={{ width: "95px", fontSize: "0.7rem", fontWeight: "bold" }}>{row.label}</span>
+                        <div style={{ background: "#111622", padding: "8px", borderRadius: "6px", overflowX: "auto" }}>
+                            {DRUM_ROWS.map(r => (
+                                <div key={r.key} style={{ display: "flex", alignItems: "center", marginBottom: "3px" }}>
+                                    <span style={{ width: "75px", fontSize: "0.65rem", fontWeight: "bold" }}>{r.label}</span>
                                     <div style={{ display: "flex", gap: "2px" }}>
-                                        {drumSteps[row.key] && drumSteps[row.key].map((val, idx) => {
-                                            const isCurrent = currentStep === idx;
-                                            const isBarStart = idx % BAR_STEPS === 0;
-                                            return (
-                                                <div
-                                                    key={idx}
-                                                    onClick={() => handleDrumClick(row.key, idx)}
-                                                    style={{
-                                                        width: "12px",
-                                                        height: "22px",
-                                                        background: val ? "#00ffcc" : "#222a3a",
-                                                        border: isCurrent ? "2px solid #ff0077" : isBarStart ? "1px solid #777" : "1px solid #333",
-                                                        borderRadius: "2px",
-                                                        cursor: "pointer",
-                                                    }}
-                                                />
-                                            );
-                                        })}
+                                        {drumSteps[r.key].map((v, i) => (
+                                            <div key={i} onClick={() => toggleDrum(r.key, i)} style={{ width: "11px", height: "20px", background: v ? "#00ffcc" : "#1a2130", border: i % 16 === 0 ? "1px solid #777" : "1px solid #222", borderRadius: "2px" }} />
+                                        ))}
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
 
-                    {tab === "BASS_ACC" && (
-                        <div style={{ background: "#121620", padding: "10px", borderRadius: "8px", overflowX: "auto" }}>
-                            <div style={{ fontSize: "0.75rem", marginBottom: "6px", color: "#7928ca" }}>伴奏レイヤー追加エディタ</div>
-                            {BASS_ROWS.map(row => (
-                                <div key={row.key} style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
-                                    <span style={{ width: "105px", fontSize: "0.7rem", fontWeight: "bold" }}>{row.label}</span>
+                    {tab === "BASS" && (
+                        <div style={{ background: "#111622", padding: "8px", borderRadius: "6px", overflowX: "auto" }}>
+                            {BASS_ROWS.map(r => (
+                                <div key={r.key} style={{ display: "flex", alignItems: "center", marginBottom: "3px" }}>
+                                    <span style={{ width: "75px", fontSize: "0.65rem", fontWeight: "bold" }}>{r.label}</span>
                                     <div style={{ display: "flex", gap: "2px" }}>
-                                        {bassSteps[row.key] && bassSteps[row.key].map((val, idx) => {
-                                            const isCurrent = currentStep === idx;
-                                            const isBarStart = idx % BAR_STEPS === 0;
-                                            return (
-                                                <div
-                                                    key={idx}
-                                                    onClick={() => handleBassClick(row.key, idx)}
-                                                    style={{
-                                                        width: "12px",
-                                                        height: "22px",
-                                                        background: val ? "#7928ca" : "#222a3a",
-                                                        border: isCurrent ? "2px solid #00ffcc" : isBarStart ? "1px solid #777" : "1px solid #333",
-                                                        borderRadius: "2px",
-                                                        cursor: "pointer",
-                                                    }}
-                                                />
-                                            );
-                                        })}
+                                        {bassSteps[r.key].map((v, i) => (
+                                            <div key={i} onClick={() => toggleBass(r.key, i)} style={{ width: "11px", height: "20px", background: v ? "#7928ca" : "#1a2130", border: i % 16 === 0 ? "1px solid #777" : "1px solid #222", borderRadius: "2px" }} />
+                                        ))}
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
 
-                    {tab === "KEYBOARD" && (
-                        <div style={{ background: "#121620", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
-                            <div style={{ marginBottom: "10px" }}>
-                                <span style={{ fontSize: "0.75rem", marginRight: "6px" }}>対象楽器:</span>
+                    {tab === "KEYS" && (
+                        <div style={{ background: "#111622", padding: "10px", borderRadius: "6px", textAlign: "center" }}>
+                            <div style={{ marginBottom: "8px" }}>
                                 {BASS_ROWS.map(r => (
-                                    <button key={r.key} onClick={() => setSelectedBassInst(r.key)} style={{ background: selectedBassInst === r.key ? "#7928ca" : "#222a3a", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "0.75rem", marginRight: "4px", cursor: "pointer" }}>
-                                        {r.label}
-                                    </button>
+                                    <button key={r.key} onClick={() => setSelectedInst(r.key)} style={{ background: selectedInst === r.key ? "#7928ca" : "#1a2130", color: "#fff", border: "none", padding: "4px 8px", marginRight: "4px", borderRadius: "4px", fontSize: "0.75rem" }}>{r.label}</button>
                                 ))}
                             </div>
                             <div style={{ display: "flex", justifyContent: "center", gap: "4px", flexWrap: "wrap" }}>
-                                {KEYBOARD_NOTES.map(note => (
-                                    <button
-                                        key={note}
-                                        onClick={() => {
-                                            setSelectedNote(note);
-                                            synths.current[selectedBassInst].triggerAttackRelease(note, "16n");
-                                        }}
-                                        style={{
-                                            background: selectedNote === note ? "#00ffcc" : "#fff",
-                                            color: "#121216",
-                                            border: "none",
-                                            width: "36px",
-                                            height: "70px",
-                                            borderRadius: "4px",
-                                            fontWeight: "bold",
-                                            cursor: "pointer",
-                                            fontSize: "0.75rem"
-                                        }}
-                                    >
-                                        {note}
+                                {NOTES.map(n => (
+                                    <button key={n} onClick={() => { setSelectedNote(n); synths.current[selectedInst].triggerAttackRelease(n, "16n"); }} style={{ background: selectedNote === n ? "#00ffcc" : "#fff", color: "#000", border: "none", width: "32px", height: "60px", fontWeight: "bold", fontSize: "0.7rem", borderRadius: "3px" }}>
+                                        {n}
                                     </button>
                                 ))}
                             </div>
@@ -364,29 +247,8 @@
                     )}
 
                     {tab === "LYRICS" && (
-                        <div style={{ background: "#121620", padding: "10px", borderRadius: "8px" }}>
-                            <h3 style={{ fontSize: "0.85rem", marginBottom: "6px" }}>🎤 ラップリリック エディタ</h3>
-                            <textarea
-                                value={lyrics}
-                                onChange={e => setLyrics(e.target.value)}
-                                style={{ width: "100%", height: "120px", background: "#06080d", color: "#fff", border: "1px solid #333", borderRadius: "4px", padding: "8px", boxSizing: "border-box", fontSize: "0.85rem" }}
-                            />
-                        </div>
-                    )}
-
-                    {tab === "LIST" && (
-                        <div style={{ background: "#121620", padding: "10px", borderRadius: "8px" }}>
-                            <h3 style={{ fontSize: "0.85rem", marginBottom: "6px" }}>💾 記録・保存リスト</h3>
-                            {recordList.length === 0 ? (
-                                <p style={{ fontSize: "0.75rem", color: "#aaa" }}>保存された記録はありません。</p>
-                            ) : (
-                                recordList.map((item, index) => (
-                                    <div key={index} style={{ background: "#222a3a", padding: "6px 8px", marginBottom: "4px", borderRadius: "4px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                        <span style={{ fontSize: "0.8rem" }}>{item}</span>
-                                        <button onClick={() => setRecordList(recordList.filter((_, i) => i !== index))} style={{ background: "#ff4444", color: "#fff", border: "none", padding: "3px 6px", borderRadius: "4px", fontSize: "0.7rem", cursor: "pointer" }}>削除</button>
-                                    </div>
-                                ))
-                            )}
+                        <div style={{ background: "#111622", padding: "8px", borderRadius: "6px" }}>
+                            <textarea value={lyrics} onChange={e => setLyrics(e.target.value)} style={{ width: "100%", height: "100px", background: "#030406", color: "#fff", border: "1px solid #333", borderRadius: "4px", padding: "6px", fontSize: "0.8rem", boxSizing: "border-box" }} />
                         </div>
                     )}
                 </div>
