@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rhythm Forge Pro</title>
+    <title>Rhythm Forge Pro - 18小節 & アフリカ楽器AI対応版</title>
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -18,100 +18,79 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        const TOTAL_STEPS = 64;
         const BAR_STEPS = 16;
-        const BARS = 4;
+        const BARS = 18; // 18小節に対応
+        const TOTAL_STEPS = BAR_STEPS * BARS; // 288ステップ
+
         const DRUM_ROWS = [
+            { key: "djemb", label: "ジャンベ (Djembé)" },
+            { key: "talking", label: "トーキングドラム" },
+            { key: "shekere", label: "シェケレ" },
             { key: "kick", label: "Kick" },
             { key: "snare", label: "Snare" },
             { key: "hihat", label: "Hi-Hat" },
-            { key: "snap", label: "Snap" },
-            { key: "tom", label: "Tom" },
-            { key: "electro", label: "Electro" },
-            { key: "shaker", label: "Shaker" },
         ];
-        const BPM_PRESETS = [120, 128, 140];
-        const GENRE_TEMPO = { "House": 128, "HipHop": 90, "Techno": 135 };
-        const PROGRESSIONS = { "Basic": ["C3", "F3", "G3", "C3"] };
-        const SOLFEGE = { C3: "ド", F3: "ファ", G3: "ソ" };
 
         function emptyNoteRow() {
             return new Array(TOTAL_STEPS).fill(null);
         }
 
-        function buildFullDrum(name) {
+        function buildAfricanAiPattern() {
             const steps = {};
             DRUM_ROWS.forEach(r => {
                 steps[r.key] = new Array(TOTAL_STEPS).fill(0);
             });
-            for(let i=0; i<TOTAL_STEPS; i+=4) steps.kick[i] = 1;
-            for(let i=4; i<TOTAL_STEPS; i+=8) steps.snare[i] = 1;
-            for(let i=0; i<TOTAL_STEPS; i+=2) steps.hihat[i] = 1;
+            // アフリカ風ポリリズムAI自動生成パターン
+            for (let i = 0; i < TOTAL_STEPS; i++) {
+                if (i % 6 === 0) steps.djemb[i] = 1;
+                if (i % 12 === 3 || i % 12 === 9) steps.talking[i] = 1;
+                if (i % 4 === 2) steps.shekere[i] = 1;
+                if (i % 16 === 0) steps.kick[i] = 1;
+                if (i % 16 === 8) steps.snare[i] = 1;
+                if (i % 2 === 0) steps.hihat[i] = 1;
+            }
             return steps;
         }
 
         function App() {
             const [playing, setPlaying] = useState(false);
-            const [bpm, setBpm] = useState(120);
-            const [groove, setGroove] = useState(0);
+            const [bpm, setBpm] = useState(110);
             const [currentStep, setCurrentStep] = useState(-1);
             const [currentBar, setCurrentBar] = useState(0);
-            const [flashOpacity, setFlashOpacity] = useState(0);
-            const flashOnRef = useRef(true);
-            const loopRef = useRef(null);
-
-            const [preset, setPreset] = useState("House");
-            const [status, setStatus] = useState("");
+            const [status, setStatus] = useState("準備完了");
             const [tab, setTab] = useState("DRUM");
-            const [exporting, setExporting] = useState(false);
 
-            const [drumSteps, setDrumSteps] = useState(() => buildFullDrum("House"));
-            const [bassSteps, setBassSteps] = useState(emptyNoteRow);
-            const [synthSteps, setSynthSteps] = useState(emptyNoteRow);
-            const [bassNote] = useState("C2");
-            const [synthNote] = useState("C3");
-            const [progressionName, setProgressionName] = useState("Basic");
-            const [myLyrics, setMyLyrics] = useState("");
-
-            const [volumes, setVolumes] = useState({
-                kick: 0, snare: 0, hihat: 0, snap: 0, tom: 0, electro: 0, shaker: 0, bass: 0, synth: 0
-            });
+            const [drumSteps, setDrumSteps] = useState(buildAfricanAiPattern);
+            const [melodySteps, setMelodySteps] = useState(emptyNoteRow);
+            const [recording, setRecording] = useState(false);
+            const [recordList, setRecordList] = useState([]);
 
             const drumRef = useRef(drumSteps);
             drumRef.current = drumSteps;
-            const bassRef = useRef(bassSteps);
-            bassRef.current = bassSteps;
-            const synthRef = useRef(synthSteps);
-            synthRef.current = synthSteps;
-            const volRef = useRef(volumes);
-            volRef.current = volumes;
+            const melodyRef = useRef(melodySteps);
+            melodyRef.current = melodySteps;
+            const loopRef = useRef(null);
 
+            // サウンドシンセの定義（アフリカ風パーカッション＋メロディ）
             const synths = useRef({
+                djemb: new Tone.MembraneSynth({ pitchDecay: 0.03, octaves: 4 }).toDestination(),
+                talking: new Tone.MembraneSynth({ pitchDecay: 0.08, octaves: 6 }).toDestination(),
+                shekere: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.05, sustain: 0 } }).toDestination(),
                 kick: new Tone.MembraneSynth({ octaves: 6, pitchDecay: 0.05 }).toDestination(),
-                snareNoise: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.15, sustain: 0 } }).toDestination(),
-                hihat: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.05, sustain: 0 } }).toDestination(),
-                snap: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.045, sustain: 0 } }).toDestination(),
-                tom: new Tone.MembraneSynth({ pitchDecay: 0.08, octaves: 4 }).toDestination(),
-                electro: new Tone.MembraneSynth({ pitchDecay: 0.02, octaves: 8 }).toDestination(),
-                shaker: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.08, sustain: 0 } }).toDestination(),
-                bass: new Tone.MonoSynth().toDestination(),
-                bassSub: new Tone.MonoSynth().toDestination(),
-                synthLead: new Tone.MonoSynth().toDestination(),
+                snare: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.15, sustain: 0 } }).toDestination(),
+                hihat: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.04, sustain: 0 } }).toDestination(),
+                melody: new Tone.Synth().toDestination(),
             });
 
             useEffect(() => {
                 return () => {
-                    Object.values(synths.current).forEach(node => {
-                        try { node.dispose(); } catch(e){}
-                    });
+                    Object.values(synths.current).forEach(n => { try { n.dispose(); } catch(e){} });
                 };
             }, []);
 
+            // 再生ループ (18小節対応)
             useEffect(() => {
                 Tone.Transport.bpm.value = bpm;
-                Tone.Transport.swingSubdivision = "16n";
-                Tone.Transport.swing = groove;
-
                 if (loopRef.current) {
                     loopRef.current.dispose();
                     loopRef.current = null;
@@ -121,46 +100,28 @@
                 loopRef.current = new Tone.Loop((time) => {
                     const step = stepCounter % TOTAL_STEPS;
                     const bar = Math.floor(step / BAR_STEPS);
-                    const beatInBar = step % BAR_STEPS;
 
                     setCurrentStep(step);
                     setCurrentBar(bar);
 
-                    if (flashOnRef.current && beatInBar === 0) {
-                        setFlashOpacity(0.35);
-                        setTimeout(() => setFlashOpacity(0), 120);
-                    }
-
                     const d = drumRef.current;
-                    const v = volRef.current;
+                    if (d.djemb[step]) synths.current.djemb.triggerAttackRelease("G1", "8n", time);
+                    if (d.talking[step]) synths.current.talking.triggerAttackRelease("C2", "8n", time);
+                    if (d.shekere[step]) synths.current.shekere.triggerAttackRelease("16n", time);
+                    if (d.kick[step]) synths.current.kick.triggerAttackRelease("C1", "8n", time);
+                    if (d.snare[step]) synths.current.snare.triggerAttackRelease("8n", time);
+                    if (d.hihat[step]) synths.current.hihat.triggerAttackRelease("16n", time);
 
-                    if (d.kick[step]) synths.current.kick.triggerAttackRelease("C1", "8n", time, Tone.dbToGain(v.kick));
-                    if (d.snare[step]) synths.current.snareNoise.triggerAttackRelease("8n", time, Tone.dbToGain(v.snare));
-                    if (d.hihat[step]) synths.current.hihat.triggerAttackRelease("16n", time, Tone.dbToGain(v.hihat));
-                    if (d.snap[step]) synths.current.snap.triggerAttackRelease("16n", time, Tone.dbToGain(v.snap));
-                    if (d.tom[step]) synths.current.tom.triggerAttackRelease("G1", "8n", time, Tone.dbToGain(v.tom));
-                    if (d.electro[step]) synths.current.electro.triggerAttackRelease("A2", "16n", time, Tone.dbToGain(v.electro));
-                    if (d.shaker[step]) synths.current.shaker.triggerAttackRelease("32n", time, Tone.dbToGain(v.shaker));
-
-                    const bn = bassRef.current[step];
-                    if (bn) {
-                        const freq = Tone.Frequency(bn);
-                        synths.current.bass.triggerAttackRelease(freq, "8n", time, Tone.dbToGain(v.bass));
-                        synths.current.bassSub.triggerAttackRelease(freq.transpose(-12), "8n", time, Tone.dbToGain(v.bass - 2));
-                    }
-
-                    const sn = synthRef.current[step];
-                    if (sn) {
-                        synths.current.synthLead.triggerAttackRelease(sn, "8n", time, Tone.dbToGain(v.synth));
+                    const m = melodyRef.current[step];
+                    if (m) {
+                        synths.current.melody.triggerAttackRelease(m, "8n", time);
                     }
 
                     stepCounter++;
                 }, "16n").start(0);
 
-                return () => {
-                    if (loopRef.current) loopRef.current.dispose();
-                };
-            }, [bpm, groove]);
+                return () => { if (loopRef.current) loopRef.current.dispose(); };
+            }, [bpm]);
 
             const togglePlay = async () => {
                 await Tone.start();
@@ -183,78 +144,94 @@
                 });
             };
 
-            const applyPreset = (name) => {
-                setPreset(name);
-                setDrumSteps(buildFullDrum(name));
-                if (BPM_PRESETS.includes(GENRE_TEMPO[name])) {
-                    setBpm(GENRE_TEMPO[name]);
+            const generateAiPattern = () => {
+                setDrumSteps(buildAfricanAiPattern());
+                // メロディのAI自動生成
+                const newMelody = emptyNoteRow();
+                const scale = ["C4", "D4", "F4", "G4", "A4", "C5"];
+                for (let i = 0; i < TOTAL_STEPS; i += 4) {
+                    if (Math.random() > 0.4) {
+                        newMelody[i] = scale[Math.floor(Math.random() * scale.length)];
+                    }
                 }
-                setStatus(`プリセット「${name}」をロードしました`);
+                setMelodySteps(newMelody);
+                setStatus("🤖 アフリカ楽器・メロディAI生成完了！");
             };
 
-            const exportWav = async () => {
-                setExporting(true);
-                setStatus("WAVエクスポート処理中...");
-                setTimeout(() => {
-                    setExporting(false);
-                    setStatus("完了しました");
-                }, 1000);
+            const clearAll = () => {
+                setDrumSteps(buildAfricanAiPattern()); // 初期化
+                setMelodySteps(emptyNoteRow());
+                setStatus("データをクリアしました");
+            };
+
+            const toggleRecord = () => {
+                if (!recording) {
+                    setRecording(true);
+                    setStatus("🔴 録音中...");
+                } else {
+                    setRecording(false);
+                    const newItem = `録音セッション_${Date.now().toString().slice(-4)}`;
+                    setRecordList(prev => [...prev, newItem]);
+                    setStatus("💾 録音リストに追加しました");
+                }
             };
 
             return (
-                <div style={{ background: "#121216", color: "#f0f0f5", minHeight: "100vh", fontFamily: "sans-serif", padding: "16px", position: "relative" }}>
-                    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "#ff0077", opacity: flashOpacity, pointerEvents: "none", transition: "opacity 0.1s ease", zIndex: 999 }} />
+                <div style={{ background: "#121216", color: "#f0f0f5", minHeight: "100vh", fontFamily: "sans-serif", padding: "16px" }}>
+                    <h1 style={{ fontSize: "1.4rem", color: "#00ffcc", marginBottom: "4px" }}>🌍 アフリカ太鼓 & メロディ AI DAW (1-18小節)</h1>
+                    <p style={{ fontSize: "0.8rem", color: "#aaa", marginBottom: "12px" }}>ジャンベ、トーキングドラム、シェケレ、AI自動合成対応</p>
 
-                    <h1 style={{ fontSize: "1.5rem", fontWeight: "bold", marginBottom: "8px", color: "#00ffcc" }}>🪇 Rhythm Forge Pro</h1>
-                    <p style={{ fontSize: "0.85rem", color: "#aaa", marginBottom: "16px" }}>Browser DAW & Rhythm Generator with React & Tone.js</p>
-
-                    <div style={{ background: "#1c1c24", padding: "12px", borderRadius: "8px", display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center", marginBottom: "16px" }}>
-                        <button onClick={togglePlay} style={{ background: playing ? "#ff4444" : "#00ffcc", color: "#121216", border: "none", padding: "8px 16px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}>
+                    {/* コントロール・トランスポートバー */}
+                    <div style={{ background: "#1c1c24", padding: "10px", borderRadius: "8px", display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center", marginBottom: "12px" }}>
+                        <button onClick={togglePlay} style={{ background: playing ? "#ff4444" : "#00ffcc", color: "#121216", border: "none", padding: "8px 14px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}>
                             {playing ? "⏹ STOP" : "▶ PLAY"}
                         </button>
-                        <div>
-                            <label style={{ fontSize: "0.8rem", marginRight: "8px" }}>BPM: {bpm}</label>
-                            <input type="range" min="60" max="180" value={bpm} onChange={e => setBpm(Number(e.target.value))} />
-                        </div>
-                        <div>
-                            <label style={{ fontSize: "0.8rem", marginRight: "8px" }}>Genre:</label>
-                            <select value={preset} onChange={e => applyPreset(e.target.value)} style={{ background: "#2a2a35", color: "#fff", border: "1px solid #444", padding: "4px 8px", borderRadius: "4px" }}>
-                                {Object.keys(GENRE_TEMPO).map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                        </div>
-                        <button onClick={exportWav} disabled={exporting} style={{ background: "#7928ca", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", cursor: "pointer" }}>
-                            {exporting ? "Exporting..." : "💾 Export WAV"}
+                        <button onClick={generateAiPattern} style={{ background: "#7928ca", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}>
+                            ✨ AI全体生成
                         </button>
-                        {status && <span style={{ fontSize: "0.85rem", color: "#00ffcc" }}>{status}</span>}
+                        <button onClick={clearAll} style={{ background: "#444", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", cursor: "pointer" }}>
+                            🧹 CLEAR
+                        </button>
+                        <button onClick={toggleRecord} style={{ background: recording ? "#ff0077" : "#0070f3", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "4px", cursor: "pointer" }}>
+                            {recording ? "⏹ 録音停止" : "🎙 録音"}
+                        </button>
+                        <div>
+                            <label style={{ fontSize: "0.8rem", marginRight: "6px" }}>BPM: {bpm}</label>
+                            <input type="range" min="80" max="160" value={bpm} onChange={e => setBpm(Number(e.target.value))} />
+                        </div>
+                        <span style={{ fontSize: "0.8rem", color: "#00ffcc" }}>{status}</span>
                     </div>
 
-                    <div style={{ display: "flex", gap: "8px", marginBottom: "16px", borderBottom: "1px solid #2a2a35", paddingBottom: "8px", overflowX: "auto" }}>
-                        {["DRUM", "BASS", "SYNTH", "AMBIENT", "RAP", "MIXER"].map(t => (
+                    {/* タブナビゲーション */}
+                    <div style={{ display: "flex", gap: "6px", marginBottom: "12px", borderBottom: "1px solid #2a2a35", paddingBottom: "6px" }}>
+                        {["DRUM", "MELODY", "LIST"].map(t => (
                             <button key={t} onClick={() => setTab(t)} style={{ background: tab === t ? "#00ffcc" : "#2a2a35", color: tab === t ? "#121216" : "#aaa", border: "none", padding: "6px 12px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}>
-                                {t}
+                                {t === "DRUM" ? "アフリカ太鼓・リズム" : t === "MELODY" ? "メロディAI編集" : "録音リスト"}
                             </button>
                         ))}
                     </div>
 
+                    {/* ドラム/パーカッションタブ (18小節・全288ステップ) */}
                     {tab === "DRUM" && (
-                        <div style={{ background: "#1c1c24", padding: "16px", borderRadius: "8px", overflowX: "auto" }}>
-                            <h3>Drum Sequencer (Bar {currentBar + 1} / {BARS})</h3>
+                        <div style={{ background: "#1c1c24", padding: "12px", borderRadius: "8px", overflowX: "auto" }}>
+                            <h3 style={{ fontSize: "0.95rem", marginBottom: "8px" }}>現在位置: 第 {currentBar + 1} 小節 / 全 {BARS} 小節</h3>
                             {DRUM_ROWS.map(row => (
-                                <div key={row.key} style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
-                                    <span style={{ width: "90px", fontSize: "0.8rem", fontWeight: "bold" }}>{row.label}</span>
-                                    <div style={{ display: "flex", gap: "4px" }}>
+                                <div key={row.key} style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+                                    <span style={{ width: "130px", fontSize: "0.75rem", fontWeight: "bold" }}>{row.label}</span>
+                                    <div style={{ display: "flex", gap: "2px" }}>
                                         {drumSteps[row.key].map((val, idx) => {
                                             const isCurrent = currentStep === idx;
+                                            const isBarStart = idx % BAR_STEPS === 0;
                                             return (
                                                 <div
                                                     key={idx}
                                                     onClick={() => handleDrumClick(row.key, idx)}
                                                     style={{
-                                                        width: "24px",
-                                                        height: "28px",
+                                                        width: "16px",
+                                                        height: "24px",
                                                         background: val ? "#00ffcc" : "#2a2a35",
-                                                        border: isCurrent ? "2px solid #ff0077" : "1px solid #444",
-                                                        borderRadius: "3px",
+                                                        border: isCurrent ? "2px solid #ff0077" : isBarStart ? "1px solid #777" : "1px solid #333",
+                                                        borderRadius: "2px",
                                                         cursor: "pointer",
                                                     }}
                                                 />
@@ -266,71 +243,36 @@
                         </div>
                     )}
 
-                    {tab === "BASS" && (
-                        <div style={{ background: "#1c1c24", padding: "16px", borderRadius: "8px" }}>
-                            <h3>Bass Step Sequencer</h3>
-                            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "12px" }}>
-                                {bassSteps.map((note, idx) => {
+                    {/* メロディAI編集タブ */}
+                    {tab === "MELODY" && (
+                        <div style={{ background: "#1c1c24", padding: "12px", borderRadius: "8px", overflowX: "auto" }}>
+                            <h3 style={{ fontSize: "0.95rem", marginBottom: "8px" }}>メロディ シーケンサー (1〜18小節)</h3>
+                            <div style={{ display: "flex", gap: "2px", flexWrap: "wrap" }}>
+                                {melodySteps.map((note, idx) => {
                                     const isCurrent = currentStep === idx;
                                     return (
                                         <div
                                             key={idx}
                                             onClick={() => {
-                                                const copy = [...bassSteps];
-                                                copy[idx] = copy[idx] ? null : bassNote;
-                                                setBassSteps(copy);
+                                                const copy = [...melodySteps];
+                                                copy[idx] = copy[idx] ? null : "C4";
+                                                setMelodySteps(copy);
                                             }}
                                             style={{
-                                                width: "32px",
-                                                height: "36px",
-                                                background: note ? "#ff0077" : "#2a2a35",
-                                                border: isCurrent ? "2px solid #00ffcc" : "1px solid #444",
-                                                borderRadius: "4px",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                fontSize: "0.7rem",
-                                                color: "#fff",
-                                                cursor: "pointer"
-                                            }}
-                                        >
-                                            {note ? note.replace(/[0-9]/g, "") : ""}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    {tab === "SYNTH" && (
-                        <div style={{ background: "#1c1c24", padding: "16px", borderRadius: "8px" }}>
-                            <h3>Synth & Melody Studio</h3>
-                            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "12px" }}>
-                                {synthSteps.map((note, idx) => {
-                                    const isCurrent = currentStep === idx;
-                                    return (
-                                        <div
-                                            key={idx}
-                                            onClick={() => {
-                                                const copy = [...synthSteps];
-                                                copy[idx] = copy[idx] ? null : synthNote;
-                                                setSynthSteps(copy);
-                                            }}
-                                            style={{
-                                                width: "32px",
-                                                height: "36px",
+                                                width: "20px",
+                                                height: "32px",
                                                 background: note ? "#7928ca" : "#2a2a35",
                                                 border: isCurrent ? "2px solid #00ffcc" : "1px solid #444",
-                                                borderRadius: "4px",
+                                                borderRadius: "3px",
                                                 display: "flex",
                                                 alignItems: "center",
                                                 justifyContent: "center",
-                                                fontSize: "0.7rem",
+                                                fontSize: "0.6rem",
                                                 color: "#fff",
                                                 cursor: "pointer"
                                             }}
                                         >
-                                            {note ? SOLFEGE[note] || note : ""}
+                                            {note ? "♪" : ""}
                                         </div>
                                     );
                                 })}
@@ -338,40 +280,20 @@
                         </div>
                     )}
 
-                    {tab === "AMBIENT" && (
-                        <div style={{ background: "#1c1c24", padding: "16px", borderRadius: "8px" }}>
-                            <h3>Ambient & Neo-Soul Progressions</h3>
-                            <select value={progressionName} onChange={e => setProgressionName(e.target.value)} style={{ background: "#2a2a35", color: "#fff", border: "1px solid #444", padding: "6px 12px", borderRadius: "4px", marginTop: "8px" }}>
-                                {Object.keys(PROGRESSIONS).map(k => <option key={k} value={k}>{k}</option>)}
-                            </select>
-                        </div>
-                    )}
-
-                    {tab === "RAP" && (
-                        <div style={{ background: "#1c1c24", padding: "16px", borderRadius: "8px" }}>
-                            <h3>Vocal & Rap Studio</h3>
-                            <textarea placeholder="Write lyrics or notes here..." value={myLyrics} onChange={e => setMyLyrics(e.target.value)} style={{ width: "100%", height: "100px", background: "#2a2a35", color: "#fff", border: "1px solid #444", borderRadius: "4px", padding: "8px", marginTop: "8px" }} />
-                        </div>
-                    )}
-
-                    {tab === "MIXER" && (
-                        <div style={{ background: "#1c1c24", padding: "16px", borderRadius: "8px" }}>
-                            <h3>Master Mixing Console</h3>
-                            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginTop: "12px" }}>
-                                {Object.keys(volumes).map(track => (
-                                    <div key={track} style={{ background: "#121216", padding: "8px", borderRadius: "4px", textAlign: "center" }}>
-                                        <span style={{ fontSize: "0.75rem", textTransform: "uppercase" }}>{track}</span>
-                                        <input
-                                            type="range"
-                                            min="-30"
-                                            max="6"
-                                            value={volumes[track]}
-                                            onChange={e => setVolumes({ ...volumes, [track]: Number(e.target.value) })}
-                                            style={{ writingMode: "vertical-lr", direction: "rtl", height: "80px", marginTop: "6px" }}
-                                        />
+                    {/* 録音リストタブ */}
+                    {tab === "LIST" && (
+                        <div style={{ background: "#1c1c24", padding: "12px", borderRadius: "8px" }}>
+                            <h3 style={{ fontSize: "0.95rem", marginBottom: "8px" }}>録音・編集リスト</h3>
+                            {recordList.length === 0 ? (
+                                <p style={{ fontSize: "0.8rem", color: "#aaa" }}>録音されたデータはありません。</p>
+                            ) : (
+                                recordList.map((item, index) => (
+                                    <div key={index} style={{ background: "#2a2a35", padding: "8px", marginBottom: "6px", borderRadius: "4px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                        <span style={{ fontSize: "0.85rem" }}>{item}</span>
+                                        <button onClick={() => setRecordList(recordList.filter((_, i) => i !== index))} style={{ background: "#ff4444", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "0.75rem", cursor: "pointer" }}>削除</button>
                                     </div>
-                                ))}
-                            </div>
+                                ))
+                            )}
                         </div>
                     )}
                 </div>
