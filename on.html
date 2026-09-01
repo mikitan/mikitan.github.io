@@ -38,18 +38,28 @@
 
     <!-- マスターコントロールルーム -->
     <div class="section">
-        <h2>マスターコントロールルーム</h2>
+        <h2>マスターコントロールルーム (全体音響)</h2>
         <div class="flex">
             <button onclick="masterPlay()" style="font-size: 13px;">▶ 総合再生 (Top)</button>
             <button onclick="masterStop()" style="font-size: 13px;">⏹ 停止 (Stop)</button>
             <button class="clear-btn" onclick="masterClear()">🗑 全トラッククリア</button>
-            <button class="clear-btn" onclick="executeCacheClear()" style="background: linear-gradient(135deg, #d9534f, #c9302c);">🧹 キャッシュ Clear (初期化)</button>
+            <button class="clear-btn" onclick="executeCacheClear()" style="background: linear-gradient(135deg, #d9534f, #c9302c);">🧹 キャッシュ Clear</button>
             <button onclick="saveProject()">💾 プロジェクト保存</button>
             <label><input type="checkbox" id="repeatToggle" checked> ループ再生</label>
             <span>BPM: <input type="number" id="bpmInput" value="126" min="40" max="240" style="width: 55px;" onchange="updateTempo(this.value)"></span>
             <button onclick="adjustBpm(-5)">-5</button>
             <button onclick="adjustBpm(5)">+5</button>
-            <span>リバーブ(残響): <input type="range" min="0" max="1" step="0.05" value="0.2" id="reverbControl" style="width: 70px;"></span>
+        </div>
+        <div class="flex" style="margin-top: 10px; border-top: 1px dashed #3d2c1e; padding-top: 10px;">
+            <span>🎚 マスター音量: <input type="range" min="0" max="1.5" step="0.05" value="0.9" id="masterVolumeControl" style="width: 80px;" onchange="updateMasterVolume(this.value)"></span>
+            <span>🌌 残響(リバーブ): <input type="range" min="0" max="1" step="0.05" value="0.2" id="reverbControl" style="width: 70px;"></span>
+            <span>💥 音圧コンプレッサー: 
+                <select id="masterCompMode" onchange="updateMasterCompressor()">
+                    <option value="normal">スタンダード (バランス)</option>
+                    <option value="punchy">パンチ強め (アフロビーツ最適)</option>
+                    <option value="off">オフ (ダイナミック重視)</option>
+                </select>
+            </span>
         </div>
     </div>
 
@@ -191,6 +201,8 @@
         };
 
         let audioCtx = null;
+        let masterGainNode = null;
+        let compressorNode = null;
         let reverbNode = null;
         let isPlaying = false;
         let currentTimer = null;
@@ -301,7 +313,7 @@
 
             distortion.connect(filter);
             filter.connect(gainNode);
-            connectWithReverb(ctx, gainNode);
+            connectWithMaster(ctx, gainNode);
 
             freqs.forEach((freq, idx) => {
                 const osc = ctx.createOscillator();
@@ -334,7 +346,7 @@
             osc.type = type;
             osc.frequency.setValueAtTime(freq, now);
             osc.connect(gain);
-            connectWithReverb(ctx, gain);
+            connectWithMaster(ctx, gain);
 
             gain.gain.setValueAtTime(0.4, now);
             gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
@@ -465,10 +477,50 @@
         function getAudioContext() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // マスターボリューム
+                masterGainNode = audioCtx.createGain();
+                masterGainNode.gain.value = parseFloat(document.getElementById('masterVolumeControl').value);
+
+                // マスターコンプレッサー（全体音圧調整）
+                compressorNode = audioCtx.createDynamicsCompressor();
+                updateMasterCompressor();
+
+                // 接続: エフェクト -> コンプレッサー -> マスターボリューム -> スピーカー
+                compressorNode.connect(masterGainNode);
+                masterGainNode.connect(audioCtx.destination);
+
                 createReverbImpulse();
             }
             if (audioCtx.state === 'suspended') audioCtx.resume();
             return audioCtx;
+        }
+
+        function updateMasterVolume(val) {
+            if (masterGainNode && audioCtx) {
+                masterGainNode.gain.setValueAtTime(parseFloat(val), audioCtx.currentTime);
+            }
+        }
+
+        function updateMasterCompressor() {
+            if (!compressorNode) return;
+            const mode = document.getElementById('masterCompMode').value;
+            if (mode === 'normal') {
+                compressorNode.threshold.setValueAtTime(-20, audioCtx.currentTime);
+                compressorNode.knee.setValueAtTime(30, audioCtx.currentTime);
+                compressorNode.ratio.setValueAtTime(4, audioCtx.currentTime);
+                compressorNode.attack.setValueAtTime(0.003, audioCtx.currentTime);
+                compressorNode.release.setValueAtTime(0.250, audioCtx.currentTime);
+            } else if (mode === 'punchy') {
+                compressorNode.threshold.setValueAtTime(-28, audioCtx.currentTime);
+                compressorNode.knee.setValueAtTime(10, audioCtx.currentTime);
+                compressorNode.ratio.setValueAtTime(8, audioCtx.currentTime);
+                compressorNode.attack.setValueAtTime(0.001, audioCtx.currentTime);
+                compressorNode.release.setValueAtTime(0.150, audioCtx.currentTime);
+            } else {
+                compressorNode.threshold.setValueAtTime(0, audioCtx.currentTime);
+                compressorNode.ratio.setValueAtTime(1, audioCtx.currentTime);
+            }
         }
 
         function createReverbImpulse() {
@@ -488,7 +540,7 @@
             reverbNode.buffer = impulse;
         }
 
-        function connectWithReverb(ctx, node) {
+        function connectWithMaster(ctx, node) {
             const reverbGain = ctx.createGain();
             const reverbAmt = parseFloat(document.getElementById('reverbControl').value) || 0.2;
             reverbGain.gain.setValueAtTime(reverbAmt, ctx.currentTime);
@@ -496,9 +548,9 @@
             if (reverbNode) {
                 node.connect(reverbNode);
                 reverbNode.connect(reverbGain);
-                reverbGain.connect(ctx.destination);
+                reverbGain.connect(compressorNode);
             }
-            node.connect(ctx.destination);
+            node.connect(compressorNode);
         }
 
         function playHighQualitySound(instId, stepIndex) {
@@ -524,9 +576,9 @@
                 const pannerNode = ctx.createStereoPanner();
                 pannerNode.pan.setValueAtTime(panVal, now);
                 gainNode.connect(pannerNode);
-                connectWithReverb(ctx, pannerNode);
+                connectWithMaster(ctx, pannerNode);
             } else {
-                connectWithReverb(ctx, gainNode);
+                connectWithMaster(ctx, gainNode);
             }
 
             let mult = 0.4;
@@ -594,7 +646,7 @@
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(freq * 0.5, now);
                 osc.connect(gain);
-                connectWithReverb(ctx, gain);
+                connectWithMaster(ctx, gain);
 
                 gain.gain.setValueAtTime(0.06, now);
                 gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
@@ -739,7 +791,6 @@
 
         function executeCacheClear() {
             masterStop();
-            // LocalStorageや各種ステータスをクリア
             localStorage.clear();
             sessionStorage.clear();
             masterClear();
