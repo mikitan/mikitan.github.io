@@ -43,6 +43,7 @@
             <button onclick="masterPlay()" style="font-size: 13px;">▶ 総合再生 (Top)</button>
             <button onclick="masterStop()" style="font-size: 13px;">⏹ 停止 (Stop)</button>
             <button class="clear-btn" onclick="masterClear()">🗑 全トラッククリア</button>
+            <button class="clear-btn" onclick="executeCacheClear()" style="background: linear-gradient(135deg, #d9534f, #c9302c);">🧹 キャッシュ Clear (初期化)</button>
             <button onclick="saveProject()">💾 プロジェクト保存</button>
             <label><input type="checkbox" id="repeatToggle" checked> ループ再生</label>
             <span>BPM: <input type="number" id="bpmInput" value="126" min="40" max="240" style="width: 55px;" onchange="updateTempo(this.value)"></span>
@@ -91,6 +92,7 @@
                 </select>
             </span>
             <button onclick="setManualChord()">小節にコードセット</button>
+            <button onclick="appendChordToAll()" style="background: linear-gradient(135deg, #206030, #103018);">➕ 全小節につけ足し/上書き</button>
         </div>
         <div class="flex" style="margin-top: 10px;">
             <span>AIスタイル自動進行: 
@@ -348,6 +350,15 @@
             updateChordDisplay();
         }
 
+        function appendChordToAll() {
+            const chord = document.getElementById('selectedChordInput').value;
+            for(let i=0; i<18; i++) {
+                songChords[i] = chord;
+            }
+            updateChordDisplay();
+            alert(`全18小節にコード「${chord}」をつけ足し・上書きしました！`);
+        }
+
         function applyAutoChords() {
             const style = document.getElementById('aiChordStyle').value;
             const template = chordTemplates[style];
@@ -522,7 +533,6 @@
             if (settings.lengthType === 'short') mult = 0.2;
             if (settings.lengthType === 'long') mult = 0.8;
 
-            // 🥁 【ドラム・パーカッション標準音】聞き取りやすい標準的な抜け感
             if (instId === 'djembes' || instId === 'shekere' || instId === 'clap') {
                 let centerFreq = 180;
                 let duration = 0.12;
@@ -530,15 +540,13 @@
                 if (instId === 'clap') centerFreq = 2500;
 
                 playPercussionNoise(ctx, gainNode, centerFreq, duration);
-            } 
-            // 🎻 【ベース標準音】聴きやすい通常のローエンドバランス
-            else if (instId === 'bass') {
+            } else if (instId === 'bass') {
                 const scale = [130.81, 146.83, 164.81, 196.00, 220.00, 261.63, 293.66];
                 let baseFreq = scale[noteIndex % scale.length] * 0.5;
 
                 const osc = ctx.createOscillator();
                 const filter = ctx.createBiquadFilter();
-                osc.type = 'triangle'; // 聴きやすい柔らかな三角波ベース
+                osc.type = 'triangle';
                 osc.frequency.setValueAtTime(baseFreq, now);
                 
                 filter.type = 'lowpass';
@@ -553,9 +561,7 @@
 
                 osc.start(now);
                 osc.stop(now + duration);
-            } 
-            // その他の楽器
-            else {
+            } else {
                 const scale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33];
                 const osc = ctx.createOscillator();
                 const filter = ctx.createBiquadFilter();
@@ -729,6 +735,20 @@
                 subBarData[id] = Array.from({ length: 18 }, () => new Array(16).fill(false));
                 renderGrid(id);
             });
+        }
+
+        function executeCacheClear() {
+            masterStop();
+            // LocalStorageや各種ステータスをクリア
+            localStorage.clear();
+            sessionStorage.clear();
+            masterClear();
+            songChords = new Array(18).fill("C");
+            savedList = [];
+            updateChordDisplay();
+            updateListDisplay();
+            clearVocal();
+            alert('🧹 キャッシュとプロジェクトデータをすべてクリア（初期化）しました！');
         }
 
         function saveProject() {
