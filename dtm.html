@@ -27,7 +27,7 @@
             const [bpm, setBpm] = React.useState(122);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("準備完了：全楽器・AI伴奏・ミキサー・全体録音スタンバイOK");
+            const [status, setStatus] = React.useState("準備完了：各楽器個別AI作曲・音響ミキサー・全体録音スタンバイOK");
 
             const BARS = 8;
             const BAR_STEPS = 16;
@@ -81,12 +81,11 @@
             const mediaRecorderRef = React.useRef(null);
             const audioChunksRef = React.useRef([]);
 
-            // 全体オーディオ録音（MediaRecorder via Master Destination）
+            // 全体オーディオ録音用
             const [isRecordingMaster, setIsRecordingMaster] = React.useState(false);
             const [masterAudioUrl, setMasterAudioUrl] = React.useState(null);
             const masterRecorderRef = React.useRef(null);
             const masterChunksRef = React.useRef([]);
-            const destNodeRef = React.useRef(null);
 
             const [songName, setSongName] = React.useState("");
             const [savedList, setSavedList] = React.useState([]);
@@ -149,18 +148,13 @@
                 const delay = new Tone.FeedbackDelay({ delayTime: "8n.", feedback: 0.2, wet: fxSettings.delayWet }).connect(reverb);
                 const distortion = new Tone.Distortion(fxSettings.distortion).connect(delay);
 
-                // 各楽器用チャンネル（Volume & Mute用）と言音源の作成
                 const channels = {};
-                const syns = {};
-
                 INSTRUMENTS.forEach(inst => {
                     const ch = new Tone.Channel({ volume: 0, mute: false }).connect(delay);
                     channels[inst.id] = ch;
                 });
-
                 channelNodesRef.current = channels;
 
-                // 各音源
                 const kickSynth = new Tone.MembraneSynth({
                     pitchDecay: 0.05, octaves: 10, oscillator: { type: "sine" },
                     envelope: { attack: 0.001, decay: 0.6, sustain: 0.01, release: 0.4 }
@@ -201,7 +195,7 @@
                 const electricGuitarSynth = new Tone.Synth({
                     oscillator: { type: "sawtooth" },
                     envelope: { attack: 0.002, decay: 0.2, sustain: 0.3, release: 0.2 }
-                }).connect(distortion); // 歪みエフェクト経由
+                }).connect(distortion);
 
                 const violinSynth = new Tone.Synth({
                     oscillator: { type: "sawtooth" },
@@ -251,7 +245,7 @@
                 };
             }, []);
 
-            // ミキサー・エフェクト変更の反映
+            // ミキサー・エフェクト設定反映
             React.useEffect(() => {
                 Object.keys(mixerSettings).forEach(instKey => {
                     const ch = channelNodesRef.current[instKey];
@@ -382,40 +376,42 @@
                 }
 
                 setInstrumentSteps(prev => ({ ...prev, drums: newDrums }));
-                setStatus(`✨ プリセット「${preset.name}」(BPM: ${preset.bpm}) を適用しました！`);
+                setStatus(`✨ プリセット「${preset.name}」(BPM: ${preset.bpm}) をドラムに適用しました！`);
             };
 
-            // AI伴奏自動作曲
-            const generateAiAccompaniment = () => {
+            // ★ 各楽器ごとの個別AI作曲機能
+            const generateAiForCurrentInstrument = () => {
                 const scale = ["C4", "E4", "G4", "B4", "C5"];
-                const newDrums = [...instrumentSteps.drums];
-                const newPiano = [...instrumentSteps.piano];
-                const newSynth = [...instrumentSteps.synth];
-                const newBass = [...instrumentSteps.bass];
+                const newArr = new Array(TOTAL_STEPS).fill(null);
 
-                for (let i = 0; i < TOTAL_STEPS; i++) {
-                    if (i % 4 === 0) {
-                        newDrums[i] = { kick: true, snare: i % 8 === 4, hihat: true, clap: i % 8 === 4 };
+                if (selectedInstrument === "drums") {
+                    for (let i = 0; i < TOTAL_STEPS; i++) {
+                        if (i % 2 === 0) {
+                            newArr[i] = {
+                                kick: i % 4 === 0,
+                                snare: i % 8 === 4,
+                                hihat: true,
+                                clap: i % 16 === 12
+                            };
+                        }
                     }
-                    if (i % 2 === 0) {
-                        newPiano[i] = scale[Math.floor(Math.random() * scale.length)];
+                } else if (selectedInstrument === "bass") {
+                    for (let i = 0; i < TOTAL_STEPS; i++) {
+                        if (i % 4 === 0) newArr[i] = "C4";
+                        else if (i % 8 === 6) newArr[i] = "G4";
                     }
-                    if (i % 4 === 2) {
-                        newSynth[i] = scale[Math.floor(Math.random() * scale.length)];
-                    }
-                    if (i % 8 === 0) {
-                        newBass[i] = "C4";
+                } else {
+                    // メロディ・コード楽器
+                    for (let i = 0; i < TOTAL_STEPS; i++) {
+                        if (Math.random() > 0.5) {
+                            newArr[i] = scale[Math.floor(Math.random() * scale.length)];
+                        }
                     }
                 }
 
-                setInstrumentSteps(prev => ({
-                    ...prev,
-                    drums: newDrums,
-                    piano: newPiano,
-                    synth: newSynth,
-                    bass: newBass
-                }));
-                setStatus("✨ AI伴奏・メロディパターンを自動生成しました！");
+                setInstrumentSteps(prev => ({ ...prev, [selectedInstrument]: newArr }));
+                const instObj = INSTRUMENTS.find(i => i.id === selectedInstrument);
+                setStatus(`✨ ${instObj.label} のAI作曲パターンを生成しました！`);
             };
 
             // ボイス録音
@@ -453,7 +449,7 @@
                 }
             };
 
-            // 全体オーディオ録音機能 (Web Audio API Destination録音)
+            // 全体オーディオ録音機能
             const startMasterRecording = async () => {
                 try {
                     masterChunksRef.current = [];
@@ -469,7 +465,7 @@
                         const blob = new Blob(masterChunksRef.current, { type: 'audio/webm' });
                         const url = URL.createObjectURL(blob);
                         setMasterAudioUrl(url);
-                        setStatus("🎵 全体演奏の録音が完了しました！試聴・ダウンロード可能です");
+                        setStatus("🎵 全体演奏の録音が完了しました！");
                     };
 
                     masterRecorderRef.current.start();
@@ -629,14 +625,9 @@
 
                     <div className="bg-slate-900/50 px-3 py-1 text-[11px] text-cyan-400 border-b border-slate-900 truncate flex justify-between items-center">
                         <span>💡 {status}</span>
-                        <div className="flex gap-1">
-                            <button onClick={generateAiAccompaniment} className="bg-pink-600 text-white px-2 py-0.5 rounded text-[10px] font-bold">
-                                ✨ AI伴奏生成
-                            </button>
-                            <button onClick={clearAll} className="bg-red-950 text-red-300 px-2 py-0.5 rounded text-[10px] font-bold border border-red-800">
-                                🗑️ 全体クリア
-                            </button>
-                        </div>
+                        <button onClick={clearAll} className="bg-red-950 text-red-300 px-2 py-0.5 rounded text-[10px] font-bold border border-red-800">
+                            🗑️ 全体クリア
+                        </button>
                     </div>
 
                     <main className="p-2 flex flex-col gap-3">
@@ -645,7 +636,15 @@
                             <>
                                 {/* 楽器セレクター */}
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 flex flex-col gap-2">
-                                    <span className="text-[11px] font-bold text-slate-300">🎵 楽器選択:</span>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-bold text-slate-300">🎵 楽器選択:</span>
+                                        <button 
+                                            onClick={generateAiForCurrentInstrument} 
+                                            className="bg-gradient-to-r from-pink-600 to-purple-600 text-white px-3 py-1 rounded text-[11px] font-bold shadow hover:brightness-110 transition-all flex items-center gap-1"
+                                        >
+                                            ✨ [{currentInstObj.label}] AI作曲
+                                        </button>
+                                    </div>
                                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-1.5">
                                         {INSTRUMENTS.map(inst => (
                                             <button
@@ -842,7 +841,6 @@
                                 <div className="text-xs font-bold text-pink-400">🎤 ボイス録音 & 🎵 全体演奏オーディオ録音</div>
                                 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg">
-                                    {/* ボイス録音 */}
                                     <div className="bg-slate-950 p-3 rounded border border-slate-800 flex flex-col items-center gap-2">
                                         <span className="font-bold text-slate-300">ボイスパーツ用録音</span>
                                         {!isRecordingVoice ? (
@@ -857,7 +855,6 @@
                                         {recordedVoiceAudio && <span className="text-[10px] text-emerald-400">✔ 録音完了済</span>}
                                     </div>
 
-                                    {/* 全体オーディオ録音 */}
                                     <div className="bg-slate-950 p-3 rounded border border-slate-800 flex flex-col items-center gap-2">
                                         <span className="font-bold text-slate-300">全体演奏の音声ファイル化</span>
                                         {!isRecordingMaster ? (
