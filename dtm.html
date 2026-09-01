@@ -18,15 +18,16 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        function DanceSynthApp() {
+        function MasterSynthApp() {
             const [tab, setTab] = React.useState("PLAY");
             const [playing, setPlaying] = React.useState(false);
             const [isLooping, setIsLooping] = React.useState(true);
+            const [isRandomMode, setIsRandomMode] = React.useState(false);
             const [flashEffect, setFlashEffect] = React.useState(false);
             const [bpm, setBpm] = React.useState(122);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("準備完了：重低音キック・アフリカンリズム・コード機能スタンバイOK");
+            const [status, setStatus] = React.useState("準備完了：バイオリン・シンセ・パイプ・ボイス・AI伴奏機能スタンバイOK");
 
             const BARS = 8;
             const BAR_STEPS = 16;
@@ -35,9 +36,8 @@
             const [selectedInstrument, setSelectedInstrument] = React.useState("drums");
             const [selectedNote, setSelectedNote] = React.useState("C4");
             const [selectedDrumPart, setSelectedDrumPart] = React.useState("kick");
-            const [selectedChord, setSelectedChord] = React.useState("C");
 
-            // 楽器データの保持
+            // 楽器データの保持（すべての楽器＋ボイス）
             const [instrumentSteps, setInstrumentSteps] = React.useState({
                 drums: new Array(TOTAL_STEPS).fill(null),
                 bass: new Array(TOTAL_STEPS).fill(null),
@@ -46,8 +46,17 @@
                 electric_guitar: new Array(TOTAL_STEPS).fill(null),
                 violin: new Array(TOTAL_STEPS).fill(null),
                 trumpet: new Array(TOTAL_STEPS).fill(null),
+                synth: new Array(TOTAL_STEPS).fill(null),
+                pipe: new Array(TOTAL_STEPS).fill(null),
+                voice: new Array(TOTAL_STEPS).fill(null),
                 djembe: new Array(TOTAL_STEPS).fill(null),
             });
+
+            // ボイス録音用ステート
+            const [isRecordingVoice, setIsRecordingVoice] = React.useState(false);
+            const [recordedVoiceAudio, setRecordedVoiceAudio] = React.useState(null);
+            const mediaRecorderRef = React.useRef(null);
+            const audioChunksRef = React.useRef([]);
 
             const [songName, setSongName] = React.useState("");
             const [savedList, setSavedList] = React.useState([]);
@@ -59,20 +68,23 @@
             const SOLFEGE = { "C4": "ド", "D4": "レ", "E4": "ミ", "F4": "ファ", "G4": "ソ", "A4": "ラ", "B4": "シ", "C5": "ド" };
 
             const INSTRUMENTS = [
-                { id: "drums", label: "🥁 ドラム(16ビート)", color: "from-red-600 to-amber-600" },
-                { id: "bass", label: "🎸 重低音ベース", color: "from-emerald-600 to-teal-600" },
+                { id: "drums", label: "🥁 ドラム", color: "from-red-600 to-amber-600" },
+                { id: "bass", label: "🎸 ベース", color: "from-emerald-600 to-teal-600" },
                 { id: "piano", label: "🎹 ピアノ", color: "from-blue-600 to-indigo-600" },
                 { id: "guitar", label: "🎸 ギター", color: "from-amber-600 to-orange-600" },
-                { id: "electric_guitar", label: "⚡ 高音エレキ", color: "from-rose-600 to-red-700" },
+                { id: "electric_guitar", label: "⚡ エレキ", color: "from-rose-600 to-red-700" },
                 { id: "violin", label: "🎻 バイオリン", color: "from-purple-600 to-pink-600" },
                 { id: "trumpet", label: "🎺 トランペット", color: "from-yellow-600 to-amber-600" },
+                { id: "synth", label: "🎹 シンセ", color: "from-cyan-600 to-blue-700" },
+                { id: "pipe", label: "🎺 パイプ音", color: "from-amber-600 to-yellow-700" },
+                { id: "voice", label: "🎤 ボイス", color: "from-rose-600 to-pink-700" },
                 { id: "djembe", label: "🪘 ジャンベ", color: "from-orange-700 to-yellow-900" },
             ];
 
             const DRUM_PARTS = [
-                { id: "kick", label: "キック(超重低音)" },
-                { id: "snare", label: "スネア(Poppingヒット)" },
-                { id: "hihat", label: "ハイハット(高音16ビート)" },
+                { id: "kick", label: "キック" },
+                { id: "snare", label: "スネア" },
+                { id: "hihat", label: "ハイハット" },
                 { id: "clap", label: "クラップ" },
             ];
 
@@ -159,6 +171,16 @@
                     envelope: { attack: 0.04, decay: 0.2, sustain: 0.5, release: 0.2 }
                 }).connect(delay);
 
+                const synthLead = new Tone.Synth({
+                    oscillator: { type: "square" },
+                    envelope: { attack: 0.01, decay: 0.2, sustain: 0.4, release: 0.2 }
+                }).connect(delay);
+
+                const pipeSynth = new Tone.Synth({
+                    oscillator: { type: "triangle" },
+                    envelope: { attack: 0.05, decay: 0.4, sustain: 0.8, release: 0.3 }
+                }).connect(reverb);
+
                 const djembeSynth = new Tone.MembraneSynth({
                     pitchDecay: 0.04, octaves: 4, oscillator: { type: "sine" },
                     envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1 }
@@ -172,6 +194,8 @@
                     electric_guitar: electricGuitarSynth,
                     violin: violinSynth,
                     trumpet: trumpetSynth,
+                    synth: synthLead,
+                    pipe: pipeSynth,
                     djembe: djembeSynth,
                     masterGain
                 };
@@ -182,7 +206,7 @@
                 };
             }, []);
 
-            // 再生ループ制御
+            // 再生ループ制御（リピート＆ランダム対応）
             React.useEffect(() => {
                 Tone.Transport.bpm.value = bpm;
                 Tone.Transport.cancel();
@@ -190,7 +214,11 @@
                 if (playing) {
                     let stepCounter = 0;
                     loopRef.current = new Tone.Loop(time => {
-                        const step = stepCounter % TOTAL_STEPS;
+                        let step = stepCounter % TOTAL_STEPS;
+                        if (isRandomMode) {
+                            step = Math.floor(Math.random() * TOTAL_STEPS);
+                        }
+
                         const bar = Math.floor(step / BAR_STEPS);
                         const sInBar = step % BAR_STEPS;
 
@@ -216,6 +244,11 @@
                                     if (val.hihat) syns.drums.hihat.triggerAttackRelease("32n", time, 0.8);
                                     if (val.clap) syns.drums.clap.triggerAttackRelease("8n", time);
                                 }
+                            } else if (instKey === "voice") {
+                                if (recordedVoiceAudio) {
+                                    recordedVoiceAudio.currentTime = 0;
+                                    recordedVoiceAudio.play().catch(e => console.log(e));
+                                }
                             } else if (syns[instKey]) {
                                 let playNote = val;
                                 if (instKey === "bass") playNote = val.replace("4", "1").replace("5", "2");
@@ -225,7 +258,7 @@
                         });
 
                         stepCounter++;
-                        if (stepCounter >= TOTAL_STEPS && !isLooping) {
+                        if (stepCounter >= TOTAL_STEPS && !isLooping && !isRandomMode) {
                             setPlaying(false);
                             Tone.Transport.stop();
                         }
@@ -235,7 +268,7 @@
                 } else {
                     Tone.Transport.stop();
                 }
-            }, [playing, bpm, instrumentSteps, isLooping]);
+            }, [playing, bpm, instrumentSteps, isLooping, isRandomMode, recordedVoiceAudio]);
 
             const togglePlay = async () => {
                 await Tone.start();
@@ -258,6 +291,8 @@
                         const updatedObj = { ...currentObj, [selectedDrumPart]: !currentObj[selectedDrumPart] };
                         const hasAny = Object.values(updatedObj).some(Boolean);
                         currentArr[idx] = hasAny ? updatedObj : null;
+                    } else if (instKey === "voice") {
+                        currentArr[idx] = currentArr[idx] ? null : "VOICE";
                     } else {
                         currentArr[idx] = currentArr[idx] ? null : selectedNote;
                     }
@@ -284,6 +319,69 @@
                 setStatus(`✨ プリセット「${preset.name}」(BPM: ${preset.bpm}) を適用しました！`);
             };
 
+            // AIメロディ伴奏連動生成
+            const generateAiAccompaniment = () => {
+                const scale = ["C4", "E4", "G4", "B4", "C5"];
+                const newDrums = [...instrumentSteps.drums];
+                const newPiano = [...instrumentSteps.piano];
+                const newSynth = [...instrumentSteps.synth];
+
+                for (let i = 0; i < TOTAL_STEPS; i++) {
+                    if (i % 4 === 0) {
+                        newDrums[i] = { kick: true, snare: i % 8 === 4, hihat: true, clap: i % 8 === 4 };
+                    }
+                    if (i % 2 === 0) {
+                        newPiano[i] = scale[Math.floor(Math.random() * scale.length)];
+                    }
+                    if (i % 4 === 2) {
+                        newSynth[i] = scale[Math.floor(Math.random() * scale.length)];
+                    }
+                }
+
+                setInstrumentSteps(prev => ({
+                    ...prev,
+                    drums: newDrums,
+                    piano: newPiano,
+                    synth: newSynth
+                }));
+                setStatus("✨ AIメロディ連動の伴奏パターンを自動生成しました！");
+            };
+
+            // ボイス録音機能
+            const startVoiceRecording = async () => {
+                audioChunksRef.current = [];
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorderRef.current = mediaRecorder;
+
+                    mediaRecorder.ondataavailable = event => {
+                        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        const audio = new Audio(audioUrl);
+                        setRecordedVoiceAudio(audio);
+                        setStatus("🎤 ボイス録音完了！「ボイス」楽器を選択してステップに配置できます");
+                    };
+
+                    mediaRecorder.start();
+                    setIsRecordingVoice(true);
+                    setStatus("🔴 ボイス録音中...");
+                } catch (err) {
+                    setStatus("⚠️ マイクへのアクセスが許可されていません");
+                }
+            };
+
+            const stopVoiceRecording = () => {
+                if (mediaRecorderRef.current && isRecordingVoice) {
+                    mediaRecorderRef.current.stop();
+                    setIsRecordingVoice(false);
+                }
+            };
+
             const clearCurrentInstrument = () => {
                 setInstrumentSteps(prev => ({ ...prev, [selectedInstrument]: new Array(TOTAL_STEPS).fill(null) }));
                 setStatus(`🧹 ${selectedInstrument} のデータをクリアしました`);
@@ -298,16 +396,25 @@
                     electric_guitar: new Array(TOTAL_STEPS).fill(null),
                     violin: new Array(TOTAL_STEPS).fill(null),
                     trumpet: new Array(TOTAL_STEPS).fill(null),
+                    synth: new Array(TOTAL_STEPS).fill(null),
+                    pipe: new Array(TOTAL_STEPS).fill(null),
+                    voice: new Array(TOTAL_STEPS).fill(null),
                     djembe: new Array(TOTAL_STEPS).fill(null),
                 });
-                setStatus("🧹 すべての楽器データをクリアしました");
+                setStatus("🧹 すべての記憶データをクリアしました");
             };
 
             const saveProject = () => {
                 if (!songName) { setStatus("⚠️ 曲名を入力してください"); return; }
-                setSavedList([...savedList, { name: songName, time: new Date().toLocaleTimeString(), bpm }]);
-                setStatus(`💾 「${songName}」(BPM: ${bpm}) を記録保存しました！`);
+                setSavedList([...savedList, { name: songName, time: new Date().toLocaleTimeString(), bpm, steps: JSON.parse(JSON.stringify(instrumentSteps)) }]);
+                setStatus(`💾 「${songName}」(BPM: ${bpm}) を記憶リストに保存しました！`);
                 setSongName("");
+            };
+
+            const loadProject = (item) => {
+                setInstrumentSteps(item.steps);
+                setBpm(item.bpm);
+                setStatus(`📂 記憶リストから「${item.name}」を呼び出しました`);
             };
 
             const currentInstObj = INSTRUMENTS.find(i => i.id === selectedInstrument);
@@ -319,7 +426,7 @@
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-50 shadow-lg">
                         <div className="flex items-center gap-2">
                             <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                SOUL, DISCO & AFRICAN SYNTH
+                                MASTER SYNTHESIZER
                             </span>
                             <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">8小節</span>
                         </div>
@@ -335,6 +442,20 @@
                             </button>
                             <button onClick={restartFromTop} className="px-2 py-1 bg-slate-800 text-slate-200 rounded text-[11px]">
                                 ⏮ 頭
+                            </button>
+
+                            <button
+                                onClick={() => setIsLooping(!isLooping)}
+                                className={`px-2 py-1 rounded text-[10px] font-bold ${isLooping ? "bg-cyan-600 text-white" : "bg-slate-800 text-slate-400"}`}
+                            >
+                                リピート: {isLooping ? "ON" : "OFF"}
+                            </button>
+
+                            <button
+                                onClick={() => setIsRandomMode(!isRandomMode)}
+                                className={`px-2 py-1 rounded text-[10px] font-bold ${isRandomMode ? "bg-purple-600 text-white" : "bg-slate-800 text-slate-400"}`}
+                            >
+                                ランダム: {isRandomMode ? "ON" : "OFF"}
                             </button>
                             
                             <div className="flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
@@ -353,8 +474,9 @@
                     <nav className="bg-slate-900/90 border-b border-slate-800 px-2 py-1.5 flex gap-1 overflow-x-auto">
                         {[
                             { id: "PLAY", label: "🕺 メイン演奏・エディタ" },
-                            { id: "AFRICAN", label: "🌍 アフリカン20+ドラムプリセット" },
-                            { id: "SAVE", label: "💾 記録・保存リスト" },
+                            { id: "AFRICAN", label: "🌍 アフリカン20+ドラム" },
+                            { id: "VOICE", label: "🎤 ボイス録音スタジオ" },
+                            { id: "SAVE", label: "💾 記憶リスト" },
                         ].map(t => (
                             <button
                                 key={t.id}
@@ -368,8 +490,11 @@
                         ))}
                     </nav>
 
-                    <div className="bg-slate-900/50 px-3 py-1 text-[11px] text-cyan-400 border-b border-slate-900 truncate">
+                    <div className="bg-slate-900/50 px-3 py-1 text-[11px] text-cyan-400 border-b border-slate-900 truncate flex justify-between items-center">
                         <span>💡 {status}</span>
+                        <button onClick={generateAiAccompaniment} className="bg-pink-600 text-white px-2 py-0.5 rounded text-[10px] font-bold">
+                            ✨ AI伴奏生成
+                        </button>
                     </div>
 
                     <main className="p-2 flex flex-col gap-3">
@@ -379,7 +504,7 @@
                                 {/* 楽器セレクター */}
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 flex flex-col gap-2">
                                     <span className="text-[11px] font-bold text-slate-300">🎵 楽器選択:</span>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-1.5">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-1.5">
                                         {INSTRUMENTS.map(inst => (
                                             <button
                                                 key={inst.id}
@@ -417,7 +542,7 @@
                                 )}
 
                                 {/* 音階選択 */}
-                                {selectedInstrument !== "drums" && (
+                                {selectedInstrument !== "drums" && selectedInstrument !== "voice" && (
                                     <div className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 flex items-center gap-1.5">
                                         <span className="text-[11px] font-bold text-slate-300">音階選択:</span>
                                         <div className="flex gap-1 overflow-x-auto pb-1">
@@ -433,6 +558,12 @@
                                                 </button>
                                             ))}
                                         </div>
+                                    </div>
+                                )}
+
+                                {selectedInstrument === "voice" && (
+                                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-[11px] text-pink-300">
+                                        🎤 「ボイス」タブで音声を録音後、グリッドをクリックして配置するとリズムに合わせて再生されます。
                                     </div>
                                 )}
 
@@ -480,7 +611,11 @@
                                             const stepVal = instrumentSteps[selectedInstrument][stepIdx];
                                             const isCurrentPlay = playing && currentStep === i;
 
-                                            let isActive = selectedInstrument === "drums" ? (stepVal && stepVal[selectedDrumPart]) : !!stepVal;
+                                            let isActive = selectedInstrument === "drums" 
+                                                ? (stepVal && stepVal[selectedDrumPart]) 
+                                                : selectedInstrument === "voice" 
+                                                ? !!stepVal 
+                                                : !!stepVal;
 
                                             return (
                                                 <button
@@ -519,9 +654,34 @@
                             </div>
                         )}
 
+                        {tab === "VOICE" && (
+                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col items-center gap-4">
+                                <div className="text-xs font-bold text-pink-400">🎤 ボイス録音・再生スタジオ</div>
+                                <div className="flex gap-2">
+                                    {!isRecordingVoice ? (
+                                        <button onClick={startVoiceRecording} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded text-xs shadow">
+                                            🔴 ボイス録音開始
+                                        </button>
+                                    ) : (
+                                        <button onClick={stopVoiceRecording} className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded text-xs shadow animate-pulse">
+                                            ⏹ 録音停止
+                                        </button>
+                                    )}
+                                </div>
+                                {recordedVoiceAudio && (
+                                    <div className="flex flex-col items-center gap-2">
+                                        <span className="text-emerald-400 text-[11px]">✔ 録音されたボイスがあります</span>
+                                        <button onClick={() => recordedVoiceAudio.play()} className="px-3 py-1 bg-slate-800 text-white rounded text-xs">
+                                            ▶ 試聴する
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {tab === "SAVE" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3">
-                                <div className="text-xs font-bold text-pink-400">💾 記録・保存リスト</div>
+                                <div className="text-xs font-bold text-pink-400">💾 記憶リスト管理</div>
                                 <div className="flex gap-2">
                                     <input 
                                         type="text" 
@@ -531,20 +691,22 @@
                                         className="flex-1 bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-pink-500" 
                                     />
                                     <button onClick={saveProject} className="px-4 py-1.5 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded text-xs shadow">
-                                        記録保存
+                                        記憶保存
                                     </button>
                                 </div>
                                 <div className="flex flex-col gap-1.5 mt-1 max-h-60 overflow-y-auto">
                                     {savedList.length === 0 ? (
-                                        <span className="text-[10px] text-slate-500 text-center py-6">保存された記録はありません</span>
+                                        <span className="text-[10px] text-slate-500 text-center py-6">記憶された曲はありません</span>
                                     ) : (
                                         savedList.map((s, idx) => (
                                             <div key={idx} className="bg-slate-950 px-3 py-2 rounded border border-slate-800 flex justify-between items-center text-[11px]">
                                                 <div className="flex flex-col">
                                                     <span className="font-bold text-slate-200">🎵 {s.name}</span>
-                                                    <span className="text-[9px] text-pink-400">BPM: {s.bpm}</span>
+                                                    <span className="text-[9px] text-pink-400">BPM: {s.bpm} | {s.time}</span>
                                                 </div>
-                                                <span className="text-slate-500 text-[10px]">{s.time}</span>
+                                                <button onClick={() => loadProject(s)} className="px-2.5 py-1 bg-amber-600 text-slate-950 font-bold rounded text-[10px]">
+                                                    呼び出し
+                                                </button>
                                             </div>
                                         ))
                                     )}
@@ -559,7 +721,7 @@
 
         const container = document.getElementById('root');
         if (container) {
-            ReactDOM.createRoot(container).render(<DanceSynthApp />);
+            ReactDOM.createRoot(container).render(<MasterSynthApp />);
         }
     </script>
 </body>
