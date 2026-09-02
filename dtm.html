@@ -1497,3 +1497,258 @@
     </script>
 </body>
 </html>
+
+
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DISCO ROBOT MASTER SYNTHESIZER</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel -->
+    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tone.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+</head>
+<body class="bg-black text-white font-sans select-none overflow-x-hidden">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        function DiscoRobotSynth() {
+            const [playing, setPlaying] = React.useState(false);
+            const [bpm, setBpm] = React.useState(145); // 最高テンポ・ハイテンション
+            const [currentStep, setCurrentStep] = React.useState(-1);
+            const [flashColor, setFlashColor] = React.useState("border-cyan-500");
+            const [status, setStatus] = React.useState("READY: 超ハイテンポ＆重低音ステレオ・ロボットディスコ");
+
+            const TOTAL_STEPS = 16;
+            
+            // 楽器ステップ
+            const [steps, setSteps] = React.useState({
+                subBass: [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,1,0], // 重低音ベース
+                kick:    [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,1], // ドンッ！
+                snare:   [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0], // パンッ！
+                hihat:   [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1], // 高音ハイハット
+                robot:   [1,0,0,0, 0,0,1,0, 1,0,0,0, 0,0,0,1], // ロボット音声FX
+            });
+
+            const synthsRef = React.useRef(null);
+            const pannerRef = React.useRef(null);
+
+            // 音源の初期化
+            React.useEffect(() => {
+                const masterGain = new Tone.Gain(1.2).toDestination();
+                
+                // ステレオ感を出すためのパナー
+                const panner = new Tone.Panner(0).connect(masterGain);
+                pannerRef.current = panner;
+
+                const reverb = new Tone.Reverb({ decay: 1.5, wet: 0.3 }).connect(panner);
+                const distortion = new Tone.Distortion(0.4).connect(reverb); // 重低音に迫力を出す歪み
+
+                // 重低音サブベース
+                const bassSynth = new Tone.MonoSynth({
+                    oscillator: { type: "sawtooth" },
+                    envelope: { attack: 0.005, decay: 0.2, sustain: 0.1, release: 0.1 },
+                    filterEnvelope: { attack: 0.001, decay: 0.2, baseFrequency: 50, octaves: 4 }
+                }).connect(distortion);
+
+                // キック（超重低音）
+                const kickSynth = new Tone.MembraneSynth({
+                    pitchDecay: 0.08, octaves: 8,
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.2 }
+                }).connect(masterGain);
+
+                // スネア
+                const snareSynth = new Tone.NoiseSynth({
+                    noise: { type: "white" },
+                    envelope: { attack: 0.001, decay: 0.2, sustain: 0 }
+                }).connect(reverb);
+
+                // ハイハット（高音）
+                const hihatSynth = new Tone.MetalSynth({
+                    frequency: 800, envelope: { attack: 0.001, decay: 0.05, release: 0.01 },
+                    harmonicity: 5.1, modulationIndex: 32, resonance: 4000
+                }).connect(reverb);
+
+                // ロボット電子音 (高低音ミックス)
+                const robotSynth = new Tone.Synth({
+                    oscillator: { type: "square" },
+                    envelope: { attack: 0.01, decay: 0.15, sustain: 0.2, release: 0.1 }
+                }).connect(distortion);
+
+                synthsRef.current = { bass: bassSynth, kick: kickSynth, snare: snareSynth, hihat: hihatSynth, robot: robotSynth };
+
+                return () => {
+                    Tone.Transport.stop();
+                    Tone.Transport.cancel();
+                };
+            }, []);
+
+            // テンポ変更
+            React.useEffect(() => {
+                Tone.Transport.bpm.value = bpm;
+            }, [bpm]);
+
+            // シーケンサーの再生ループ
+            React.useEffect(() => {
+                Tone.Transport.cancel();
+
+                if (playing) {
+                    let stepCounter = 0;
+                    
+                    const loop = new Tone.Loop(time => {
+                        const step = stepCounter % TOTAL_STEPS;
+                        setCurrentStep(step);
+
+                        // 画面チカチカ・ミラーボール風カラー変化
+                        const colors = ["border-pink-500", "border-cyan-400", "border-yellow-400", "border-purple-500", "border-green-400"];
+                        setFlashColor(colors[Math.floor(Math.random() * colors.length)]);
+
+                        // ステレオ感を自動で左右に揺らす（パンニング効果）
+                        if (pannerRef.current) {
+                            pannerRef.current.pan.value = Math.sin(stepCounter * 0.5) * 0.8;
+                        }
+
+                        const syns = synthsRef.current;
+                        if (syns) {
+                            if (steps.subBass[step]) syns.bass.triggerAttackRelease("C1", "8n", time); // 超重低音
+                            if (steps.kick[step]) syns.kick.triggerAttackRelease("C1", "8n", time);
+                            if (steps.snare[step]) syns.snare.triggerAttackRelease("8n", time);
+                            if (steps.hihat[step]) syns.hihat.triggerAttackRelease("32n", time, 0.7);
+                            if (steps.robot[step]) {
+                                // 高低音をランダムに行き来するロボット電子音
+                                const robotNote = Math.random() > 0.5 ? "C6" : "C3"; 
+                                syns.robot.triggerAttackRelease(robotNote, "16n", time);
+                            }
+                        }
+
+                        stepCounter++;
+                    }, "16n").start(0);
+
+                    Tone.Transport.start();
+                } else {
+                    Tone.Transport.stop();
+                    setCurrentStep(-1);
+                }
+            }, [playing, steps]);
+
+            const togglePlay = async () => {
+                await Tone.start();
+                setPlaying(!playing);
+                setStatus(playing ? "ストップしました" : "🔥 超ハイテンポ＆重低音・ロボットディスコ再生中！！");
+            };
+
+            const toggleStep = (part, idx) => {
+                setSteps(prev => {
+                    const arr = [...prev[part]];
+                    arr[idx] = arr[idx] === 1 ? 0 : 1;
+                    return { ...prev, [part]: arr };
+                });
+            };
+
+            // ランダム爆アゲ生成
+            const randomizeBeats = () => {
+                setSteps({
+                    subBass: Array.from({length: 16}, () => Math.random() > 0.4 ? 1 : 0),
+                    kick: Array.from({length: 16}, () => Math.random() > 0.3 ? 1 : 0),
+                    snare: Array.from({length: 16}, () => (i => i % 4 === 2 ? 1 : 0)(Math.random())),
+                    hihat: Array.from({length: 16}, () => Math.random() > 0.2 ? 1 : 0),
+                    robot: Array.from({length: 16}, () => Math.random() > 0.5 ? 1 : 0),
+                });
+                setStatus("⚡ 爆アゲ・ランダムパターン生成！");
+            };
+
+            return (
+                <div className={`min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 border-8 transition-all duration-75 ${flashColor}`}>
+                    
+                    {/* ミラーボール風タイトル */}
+                    <div className="text-center mb-6">
+                        <h1 className="text-2xl sm:text-4xl font-black bg-gradient-to-r from-pink-500 via-yellow-400 to-cyan-400 bg-clip-text text-transparent animate-pulse">
+                            DISCO ROBOT MASTER v21
+                        </h1>
+                        <p className="text-xs text-cyan-400 mt-1">⚡ 超ハイテンポ & 重低音ステレオ & 画面チカチカ演出</p>
+                    </div>
+
+                    {/* コントロールパネル */}
+                    <div className="flex flex-wrap items-center justify-center gap-3 mb-6 bg-zinc-900 p-4 rounded-2xl border border-zinc-800 shadow-2xl">
+                        <button
+                            onClick={togglePlay}
+                            className={`px-8 py-3 rounded-xl font-black text-lg shadow-lg transition-all ${
+                                playing ? "bg-amber-400 text-black animate-bounce" : "bg-gradient-to-r from-pink-600 to-purple-600 text-white"
+                            }`}
+                        >
+                            {playing ? "■ 停止 (STOP)" : "▶ 爆アゲ再生 (PLAY)"}
+                        </button>
+
+                        <div className="flex items-center gap-2 bg-black px-3 py-2 rounded-xl border border-zinc-800">
+                            <span className="text-xs text-zinc-400">超テンポ BPM:</span>
+                            <input
+                                type="number"
+                                value={bpm}
+                                onChange={e => setBpm(Number(e.target.value))}
+                                className="w-16 bg-zinc-900 text-center font-bold text-pink-500 rounded text-sm py-1"
+                            />
+                        </div>
+
+                        <button
+                            onClick={randomizeBeats}
+                            className="px-4 py-3 bg-cyan-600 hover:bg-cyan-500 text-black font-black rounded-xl text-xs"
+                        >
+                            🎲 ランダム・ビート生成
+                        </button>
+                    </div>
+
+                    <div className="text-xs text-yellow-400 mb-4 font-bold">{status}</div>
+
+                    {/* ステップシーケンサー (グリッド) */}
+                    <div className="w-full max-w-2xl bg-zinc-950 border border-zinc-800 p-4 rounded-2xl flex flex-col gap-3 shadow-2xl">
+                        {[
+                            { id: "subBass", label: "🔊 重低音 サブベース", color: "bg-red-600" },
+                            { id: "kick", label: "🥁 重低音 キック", color: "bg-amber-600" },
+                            { id: "snare", label: "💥 スネア", color: "bg-pink-600" },
+                            { id: "hihat", label: "✨ 高音 ハイハット", color: "bg-cyan-600" },
+                            { id: "robot", label: "🤖 ロボット高低音FX", color: "bg-purple-600" },
+                        ].map(part => (
+                            <div key={part.id} className="flex flex-col gap-1">
+                                <div className="text-[11px] font-bold text-zinc-400">{part.label}</div>
+                                <div className="grid grid-cols-16 gap-1">
+                                    {steps[part.id].map((isActive, idx) => {
+                                        const isCurrent = playing && currentStep === idx;
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={() => toggleStep(part.id, idx)}
+                                                className={`h-9 rounded-md transition-all border ${
+                                                    isActive 
+                                                        ? `${part.color} border-white shadow-lg shadow-${part.id}/50 scale-105` 
+                                                        : "bg-zinc-900 border-zinc-800 text-zinc-700"
+                                                } ${isCurrent ? "ring-2 ring-white z-10" : ""}`}
+                                            ></button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="text-[10px] text-zinc-500 mt-6 text-center">
+                        ※スマホやPCの音量を上げて、重低音とステレオの広がりをお楽しみください！
+                    </div>
+
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<DiscoRobotSynth />);
+    </script>
+</body>
+</html>
+
