@@ -276,10 +276,12 @@
                     <h3>${inst.name}</h3>
                     <div class="flex">
                         <span>楽器別AI作曲: 
-                            <select id="ai-sel-${inst.id}" onchange="applyTrackAi('${inst.id}', this.value)" style="color: #f2a900; font-weight: bold;">
+                            <select id="ai-sel-${inst.id}" onchange="updateAiChoice('${inst.id}', this.value)" style="color: #f2a900; font-weight: bold;">
                                 ${styleOptions}
                             </select>
                         </span>
+                        <button onclick="applyTrackAi('${inst.id}', document.getElementById('ai-sel-${inst.id}').value, false)" style="background: linear-gradient(135deg, #205030, #103020); color:#fff;">✨ AI上書き作成</button>
+                        <button onclick="applyTrackAi('${inst.id}', document.getElementById('ai-sel-${inst.id}').value, true)" style="background: linear-gradient(135deg, #104060, #082030); color:#fff;">➕ つけ足しAI埋め込み</button>
                         <button onclick="openBarEditor('${inst.id}')" style="background: linear-gradient(135deg, #f2a900, #c67d00); color: #0f0c08;">🔍 手動エディター</button>
                         <button onclick="playTrackPreview('${inst.id}')">▶ 試聴</button>
                         <button class="clear-btn" onclick="clearTrack('${inst.id}')">🗑 Clear</button>
@@ -330,23 +332,36 @@
             loadSong(albumSongs.length - 1);
         }
 
-        // 各楽器別の洗練されたAIメロディ自動作曲関数
-        function applyTrackAi(id, styleIndex) {
+        function updateAiChoice(id, styleIndex) {
+            albumSongs[currentSongIndex].aiChoices[id] = parseInt(styleIndex);
+        }
+
+        // 各楽器別の洗練されたAIメロディ自動作曲関数（append=trueで既存の打ち込みに「つけ足し」する）
+        function applyTrackAi(id, styleIndex, append = false) {
             const sIdx = parseInt(styleIndex);
             albumSongs[currentSongIndex].aiChoices[id] = sIdx;
             let tData = albumSongs[currentSongIndex].trackData[id];
             
+            if (!append) {
+                tData.fill(false);
+            }
+
             for(let i=0; i<18; i++) {
+                let generated = false;
                 if (sIdx === 0) {
-                    tData[i] = (i % 2 === 0 || i % 4 === 0);
+                    generated = (i % 2 === 0 || i % 4 === 0);
                 } else if (sIdx === 1) {
-                    tData[i] = (i % 3 === 0 || i === 5 || i === 12);
+                    generated = (i % 3 === 0 || i === 5 || i === 12);
                 } else if (sIdx === 2) {
-                    tData[i] = (i % 2 !== 0 && i % 3 === 0);
+                    generated = (i % 2 !== 0 && i % 3 === 0);
                 } else if (sIdx === 3) {
-                    tData[i] = (i === 0 || i === 4 || i === 8 || i === 12 || i === 16);
+                    generated = (i === 0 || i === 4 || i === 8 || i === 12 || i === 16);
                 } else {
-                    tData[i] = (i % 5 === 0 || i % 7 === 0);
+                    generated = (i % 5 === 0 || i % 7 === 0);
+                }
+
+                if (generated) {
+                    tData[i] = true;
                 }
             }
             renderGrid(id);
@@ -358,7 +373,7 @@
                 const randomStyle = Math.floor(Math.random() * inst.aiStyles.length);
                 const selectElem = document.getElementById(`ai-sel-${inst.id}`);
                 if(selectElem) selectElem.value = randomStyle;
-                applyTrackAi(inst.id, randomStyle);
+                applyTrackAi(inst.id, randomStyle, false);
             });
             alert('🤖 各楽器のAIメロディがそれぞれのジャンル・スタイルに合わせて一括自動作曲されました！');
         }
