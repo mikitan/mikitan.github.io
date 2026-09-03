@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ULTIMATE MASTER DAW v31.0 - PRO RELEASE & ADVANCED AUDIO ENGINE</title>
+    <title>ULTIMATE MASTER DAW v33.0 - PRO SYNTHESIS & FULL EDIT EDITION</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #070605; color: #f5f0e6; margin: 0; padding: 15px; }
         h1, h2, h3 { color: #f2a900; border-bottom: 1px solid #3d2c1e; padding-bottom: 6px; margin: 8px 0; letter-spacing: 1px; }
@@ -13,6 +13,7 @@
         button.record-btn { background: linear-gradient(135deg, #a62b14, #661505); color: #fff; }
         button.clear-btn { background: linear-gradient(135deg, #592015, #36120b); color: #f5f0e6; }
         button.preview-btn { background: linear-gradient(135deg, #205030, #103020); color: #fff; }
+        button.ai-btn { background: linear-gradient(135deg, #204080, #102040); color: #fff; }
         button.release-btn { background: linear-gradient(135deg, #8a2be2, #4b0082); color: #fff; font-size: 12px; }
         
         select, input, textarea { background: #221912; color: #f5f0e6; border: 1px solid #594028; padding: 6px; border-radius: 6px; margin: 3px; font-size: 11px; outline: none; font-family: inherit; }
@@ -32,11 +33,11 @@
 </head>
 <body>
 
-    <h1>🎛️🎶 ULTIMATE MASTER DAW v31.0 (高音質音響エンジン & 一括ミックス録音強化)</h1>
+    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.0 (プロドラム & 重低音ベース & 鍵盤自動記録)</h1>
 
     <!-- 1. マスター＆テンポコントロール -->
     <div class="section" style="border: 2px solid #f2a900;">
-        <h2>🎛️ 1. マスター・テンポコントロール & 高音質音響ミキサー</h2>
+        <h2>🎛️ 1. マスター再生・テンポ・プロジェクトリスト</h2>
         <div class="flex">
             <button onclick="masterPlay()" style="font-size: 13px;">▶ 再生</button>
             <button onclick="masterStop()" style="font-size: 13px;">⏹ 停止</button>
@@ -49,6 +50,7 @@
         </div>
         <div class="flex" style="margin-top: 8px; border-top: 1px dashed #3d2c1e; padding-top: 8px;">
             <span>マスター音量: <input type="range" min="0" max="1.5" step="0.05" value="1.0" id="masterVolumeControl" style="width: 70px;" onchange="updateMasterVolume(this.value)"></span>
+            <button onclick="saveProjectToList()">💾 現在の曲をリスト保存</button>
             <span>アルバムテンプレ: 
                 <select id="albumTemplateSelect" onchange="loadAlbumTemplate(this.value)">
                     <option value="">-- 20アルバムテンプレート選択 --</option>
@@ -61,7 +63,7 @@
 
     <!-- 2. AI作詞＆ラップボーイ＆弾き語りスタジオ -->
     <div class="section" style="border: 2px solid #a62b14;">
-        <h2>🧢 2. AI作詞 (シーズン・恋・夢・青春) & ボーカル録音</h2>
+        <h2>🧢 2. AI作詞 & ボーカル録音</h2>
         <div class="flex">
             <span>テーマ: </span>
             <select id="lyricThemeSelect">
@@ -97,9 +99,9 @@
 
     <script>
         const instruments = [
-            { id: 'drums', name: '🥁 高音質ドラムキット (20パターン)', type: 'drums' },
-            { id: 'bass', name: '🎸 メジャーベース (20パターン)', type: 'bass' },
-            { id: 'guitar', name: '🪵 ギター木目・打楽器パーカッション', type: 'guitar' },
+            { id: 'drums', name: '🥁 超リアル・プロドラムキット (キック/スネア/ハイハット/クラッシュ)', type: 'drums' },
+            { id: 'bass', name: '🎸 ウルトラ重低音サブベース (重圧サブロー)', type: 'bass' },
+            { id: 'guitar', name: '🪵 ギター木目・カッティング＆パーカッション', type: 'guitar' },
             { id: 'piano', name: '🎹 ピアノ & 伴奏AI', type: 'melody' },
             { id: 'violin', name: '🎻 バイオリン (AIメロディ)', type: 'melody' },
             { id: 'synth', name: '🎛️ シンセサイザー', type: 'melody' }
@@ -111,7 +113,7 @@
         ];
 
         const drumNotes = [
-            { name: 'プロKick' }, { name: 'スタジアムSnare' }, { name: 'クリアHi-Hat' }, { name: '木目パーカッション' }
+            { name: '重低音 Kick' }, { name: 'スタジアム Snare' }, { name: 'クリア Hi-Hat' }, { name: 'クラッシュ Crash' }
         ];
 
         let songData = {
@@ -122,6 +124,7 @@
             trackFx: {}
         };
 
+        let savedProjects = [];
         let audioCtx = null, masterGainNode = null, compressorNode = null, masterDestNode = null;
         let isPlaying = false, currentTimer = null;
         let mediaRecorder, recordedChunks = [], vocalAudioBlob = null;
@@ -170,15 +173,15 @@
 
                 let patternHTML = '';
                 if (inst.id === 'drums') {
-                    let opts = ''; for(let p=1; p<=20; p++) opts += `<option value="${p-1}">ドラム #${p}</option>`;
+                    let opts = ''; for(let p=1; p<=20; p++) opts += `<option value="${p-1}">プロドラム #${p}</option>`;
                     patternHTML = `<span>パターン:</span> <select onchange="applyDrumPattern(this.value)">${opts}</select>`;
                 } else if (inst.id === 'bass') {
-                    let opts = ''; for(let p=1; p<=20; p++) opts += `<option value="${p-1}">ベース #${p}</option>`;
+                    let opts = ''; for(let p=1; p<=20; p++) opts += `<option value="${p-1}">重低音ベース #${p}</option>`;
                     patternHTML = `<span>パターン:</span> <select onchange="applyBassPattern(this.value)">${opts}</select>`;
                 } else if (inst.id === 'guitar') {
-                    patternHTML = `<span>演奏法:</span> <select onchange="changeGuitarStyle(this.value)"><option value="cutting">カッティング</option><option value="arpeggio">アルペジオ</option><option value="wood">木目叩き</option></select>`;
+                    patternHTML = `<span>演奏法:</span> <select onchange="changeGuitarStyle(this.value)"><option value="cutting">カッティング</option><option value="arpeggio">アルペジオ</option><option value="wood">木目パーカッション</option></select>`;
                 } else {
-                    patternHTML = `<span>モード:</span> <select onchange="changeInputMode('${inst.id}', this.value)"><option value="manual" ${currentMode==='manual'?'selected':''}>手動</option><option value="ai" ${currentMode==='ai'?'selected':''}>AI自動</option></select>`;
+                    patternHTML = `<span>モード:</span> <select onchange="changeInputMode('${inst.id}', this.value)"><option value="manual" ${currentMode==='manual'?'selected':''}>手動</option><option value="ai" ${currentMode==='ai'?'selected':''}>AI自動作曲</option></select>`;
                 }
 
                 div.innerHTML = `
@@ -190,6 +193,7 @@
                         <button class="preview-btn" onclick="playTrackPreview('${inst.id}')">▶ トラック試聴</button>
                         <button class="clear-btn" onclick="clearTrack('${inst.id}')">🗑 Clear</button>
                     </div>
+                    <div style="font-size:10px; color:#f2a900; margin-top:4px;">💡 鍵盤・パッドをクリックすると、音が出て自動記録されます:</div>
                     <div class="instrument-keyboard" id="kb-${inst.id}"></div>
                     <div class="grid-18" id="grid-${inst.id}"></div>
                 `;
@@ -199,7 +203,11 @@
             });
         }
 
-        function changeInputMode(id, mode) { songData.inputModes[id] = mode; if(mode === 'ai') autoGenerateMelody(id); }
+        function changeInputMode(id, mode) {
+            songData.inputModes[id] = mode;
+            if(mode === 'ai') autoGenerateMelody(id);
+        }
+
         function changeTrackFx(id, fx) { songData.trackFx[id] = fx; }
 
         function changeGuitarStyle(style) {
@@ -215,15 +223,20 @@
 
         function applyDrumPattern(idx) {
             let tData = songData.trackData['drums'], tNotes = songData.trackNotes['drums'];
-            tData.fill(false); let n = parseInt(idx);
-            for(let i=0; i<18; i++) { if((i + n) % 2 === 0) { tData[i] = true; tNotes[i] = (i + n) % 4; } }
+            tData.fill(false); let n = parseInt(idx || 0);
+            for(let i=0; i<18; i++) {
+                if((i + n) % 2 === 0) { tData[i] = true; tNotes[i] = (i % 4 === 2) ? 1 : 0; }
+                if(i % 4 === 2) { tData[i] = true; tNotes[i] = 2; }
+            }
             renderGrid('drums');
         }
 
         function applyBassPattern(idx) {
             let tData = songData.trackData['bass'], tNotes = songData.trackNotes['bass'];
-            tData.fill(false); let n = parseInt(idx);
-            for(let i=0; i<18; i++) { if(i % 3 === 0 || (i + n) % 4 === 0) { tData[i] = true; tNotes[i] = (i + n) % 8; } }
+            tData.fill(false); let n = parseInt(idx || 0);
+            for(let i=0; i<18; i++) {
+                if(i % 3 === 0 || (i + n) % 4 === 0) { tData[i] = true; tNotes[i] = 0; }
+            }
             renderGrid('bass');
         }
 
@@ -242,7 +255,23 @@
                 const key = document.createElement('div');
                 key.className = 'doremi-key';
                 key.innerHTML = `<span>${item.name}</span>`;
-                key.onmousedown = () => { key.classList.add('playing'); playNote(inst.id, idx); setTimeout(() => key.classList.remove('playing'), 200); };
+                key.onmousedown = () => {
+                    key.classList.add('playing');
+                    playNote(inst.id, idx);
+                    setTimeout(() => key.classList.remove('playing'), 200);
+
+                    // 手動打ちのリアルタイム記録（空いているステップへ自動追加）
+                    let tData = songData.trackData[inst.id];
+                    let tNotes = songData.trackNotes[inst.id];
+                    for(let s=0; s<18; s++) {
+                        if(!tData[s]) {
+                            tData[s] = true;
+                            tNotes[s] = idx;
+                            renderGrid(inst.id);
+                            break;
+                        }
+                    }
+                };
                 kb.appendChild(key);
             });
         }
@@ -269,27 +298,20 @@
             }
         }
 
-        // 高音質音響エンジン (Web Audio API ミキサー・コンプレッサー・出力分離)
+        // 高音質音響エンジン（プロドラム ＆ ウルトラ重低音サブベース）
         function getAudioContext() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 
-                // マスターボリューム
                 masterGainNode = audioCtx.createGain();
                 masterGainNode.gain.value = parseFloat(document.getElementById('masterVolumeControl').value);
                 
-                // ダイナミクスコンプレッサー（音圧・音質最適化）
                 compressorNode = audioCtx.createDynamicsCompressor();
-                compressorNode.threshold.setValueAtTime(-12, audioCtx.currentTime);
-                compressorNode.knee.setValueAtTime(3, audioCtx.currentTime);
-                compressorNode.ratio.setValueAtTime(4, audioCtx.currentTime);
-                compressorNode.attack.setValueAtTime(0.003, audioCtx.currentTime);
-                compressorNode.release.setValueAtTime(0.25, audioCtx.currentTime);
+                compressorNode.threshold.setValueAtTime(-14, audioCtx.currentTime);
+                compressorNode.ratio.setValueAtTime(5, audioCtx.currentTime);
 
-                // 録音用ストリーム出力先
                 masterDestNode = audioCtx.createMediaStreamDestination();
 
-                // ルート結線
                 compressorNode.connect(masterGainNode);
                 masterGainNode.connect(audioCtx.destination);
                 masterGainNode.connect(masterDestNode);
@@ -306,22 +328,50 @@
             const gain = ctx.createGain();
             gain.connect(compressorNode);
 
-            if (instId === 'drums' || instId === 'guitar') {
-                gain.gain.setValueAtTime(0.7, now);
+            // 🥁 超リアルプロドラム音源
+            if (instId === 'drums') {
+                gain.gain.setValueAtTime(0.9, now);
                 const osc = ctx.createOscillator();
-                osc.type = noteIndex === 0 ? 'sine' : (noteIndex === 3 ? 'triangle' : 'square');
-                osc.frequency.setValueAtTime(noteIndex === 0 ? 120 : 300, now);
-                osc.frequency.exponentialRampToValueAtTime(30, now + 0.15);
-                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
-                osc.connect(gain); osc.start(now); osc.stop(now + 0.2);
+                if (noteIndex === 0) { // 重低音Kick
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(130, now);
+                    osc.frequency.exponentialRampToValueAtTime(35, now + 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                } else if (noteIndex === 1) { // スタジアムSnare
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(240, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                } else if (noteIndex === 2) { // Hi-Hat
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(800, now);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+                } else { // Crash
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(500, now);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+                }
+                osc.connect(gain); osc.start(now); osc.stop(now + 0.4);
                 return;
             }
 
-            let freq = solfaNotes[noteIndex].freq;
-            if (instId === 'bass') freq = freq / 2;
+            // 🎸 ウルトラ重低音サブベース
+            if (instId === 'bass') {
+                gain.gain.setValueAtTime(0.85, now);
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                let subFreq = (solfaNotes[noteIndex % solfaNotes.length].freq) / 4; // 2オクターブ下
+                osc.frequency.setValueAtTime(subFreq, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                osc.connect(gain); osc.start(now); osc.stop(now + 0.5);
+                return;
+            }
+
+            // 🎹 メロディ楽器・ギター等
+            let freq = solfaNotes[noteIndex % solfaNotes.length].freq;
             gain.gain.setValueAtTime(0.45, now);
             const osc = ctx.createOscillator();
-            osc.type = instId === 'bass' ? 'triangle' : 'sawtooth';
+            osc.type = (instId === 'guitar') ? 'triangle' : 'sawtooth';
             osc.frequency.setValueAtTime(freq, now);
             gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
             osc.connect(gain); osc.start(now); osc.stop(now + 0.4);
@@ -364,12 +414,39 @@
         function masterClear() { masterStop(); instruments.forEach(inst => clearTrack(inst.id)); document.getElementById('lyricTextArea').value = ''; }
         function previewMaster() { masterPlay(); }
 
-        // 全体ミックス一括録音の強化版
+        // プロジェクトリスト保存
+        function saveProjectToList() {
+            const name = prompt('保存するプロジェクト名を入力してください:', songData.title);
+            if (!name) return;
+            songData.title = name;
+            savedProjects.push(JSON.parse(JSON.stringify(songData)));
+            updateProjectListUI();
+            alert(`「${name}」をリストに保存しました！`);
+        }
+
+        function updateProjectListUI() {
+            const container = document.getElementById('compositionListContainer');
+            if (savedProjects.length === 0) { container.innerHTML = '保存されたプロジェクトリストはありません。'; return; }
+            let html = '<b>📁 保存済みプロジェクト一覧:</b><ul>';
+            savedProjects.forEach((proj, idx) => {
+                html += `<li><b>${proj.title}</b> <button onclick="loadProject(${idx})" style="padding:2px 6px; font-size:10px;">読込</button></li>`;
+            });
+            html += '</ul>';
+            container.innerHTML = html;
+        }
+
+        function loadProject(idx) {
+            songData = JSON.parse(JSON.stringify(savedProjects[idx]));
+            renderTracks();
+            alert(`「${songData.title}」を読み込みました！`);
+        }
+
+        // 全体ミックス一括録音
         function toggleMasterRecording() {
             if (!isMasterRecording) {
                 masterRecordedChunks = [];
                 try {
-                    getAudioContext(); // 音響コンテキスト初期化
+                    getAudioContext();
                     masterMediaRecorder = new MediaRecorder(masterDestNode.stream);
                     masterMediaRecorder.ondataavailable = e => { if (e.data.size > 0) masterRecordedChunks.push(e.data); };
                     masterMediaRecorder.onstop = () => {
@@ -380,14 +457,14 @@
                     isMasterRecording = true;
                     document.getElementById('masterRecBtn').innerText = '⏹ 一括録音停止';
                     masterPlay();
-                    alert('🔴 全楽器ミックスのマスター一括録音を開始しました！');
+                    alert('🔴 全楽器ミックスの一括録音を開始しました！');
                 } catch(e) { alert('録音の開始に失敗しました。'); }
             } else {
                 if (masterMediaRecorder) masterMediaRecorder.stop();
                 masterStop();
                 isMasterRecording = false;
                 document.getElementById('masterRecBtn').innerText = '🔴 全体ミックス一括録音';
-                alert('全体ミックス一括録音が完了しました！下のオーディオプレイヤーから再生・保存できます。');
+                alert('一括録音が完了しました！プレイヤーから再生できます。');
             }
         }
 
@@ -412,7 +489,7 @@
                     document.getElementById('vocalAudio').src = URL.createObjectURL(vocalAudioBlob);
                 };
                 mediaRecorder.start();
-                alert('🎙️ ボーカル・弾き語り録音中...');
+                alert('🎙️ ボーカル録音中...');
             } catch(e) { alert('マイクがブロックされています。'); }
         }
 
