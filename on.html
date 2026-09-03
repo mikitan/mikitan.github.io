@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate 7-Instruments DAW with Drums & AI/Manual Switch</title>
+    <title>Ultimate DAW with AI Lyrics & Rap Boy / Vocal Track</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #0b0907; color: #f5f0e6; margin: 0; padding: 20px; }
         h1, h2, h3 { color: #f2a900; border-bottom: 1px solid #3d2c1e; padding-bottom: 8px; margin: 10px 0; letter-spacing: 1px; }
@@ -17,7 +17,8 @@
         button.preview-btn { background: linear-gradient(135deg, #205030, #103020); color: #fff; }
         button.edit-btn { background: linear-gradient(135deg, #204060, #102030); color: #fff; }
         
-        select, input { background: #261d15; color: #f5f0e6; border: 1px solid #594028; padding: 6px; border-radius: 6px; margin: 3px; font-size: 11px; outline: none; font-family: inherit; }
+        select, input, textarea { background: #261d15; color: #f5f0e6; border: 1px solid #594028; padding: 6px; border-radius: 6px; margin: 3px; font-size: 11px; outline: none; font-family: inherit; }
+        textarea { width: 100%; height: 60px; resize: vertical; box-sizing: border-box; }
         
         .grid-18 { display: grid; grid-template-columns: repeat(18, 1fr); gap: 4px; margin-top: 8px; overflow-x: auto; }
         .step-cell { background: #261d15; height: 35px; text-align: center; font-size: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; user-select: none; color: #8c735e; border: 1px solid #38291e; transition: 0.1s; }
@@ -27,7 +28,6 @@
         .flex { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .summary-box { background: #120e0b; padding: 12px; border-radius: 8px; font-size: 12px; margin-top: 10px; color: #b89b82; border: 1px solid #332418; max-height: 150px; overflow-y: auto; }
         
-        /* 鍵盤・パッド専用スタイル */
         .instrument-keyboard { display: flex; gap: 4px; margin-top: 10px; overflow-x: auto; padding: 8px; background: #120e0b; border-radius: 6px; border: 1px solid #332418; }
         .doremi-key { width: 42px; height: 55px; background: #eaeaf0; color: #111; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 4px; font-size: 10px; font-weight: bold; cursor: pointer; border-radius: 0 0 4px 4px; user-select: none; }
         .doremi-key:active, .doremi-key.playing { background: #f2a900 !important; color: #0f0c08 !important; }
@@ -41,16 +41,17 @@
 </head>
 <body>
 
-    <h1>🥁🎹🎸 7大楽器・AI/手動切替DAW</h1>
+    <h1>🎤🎹 7大楽器・ラップボーイ & AI/手動歌詞DAW</h1>
 
     <!-- マスターコントロール -->
     <div class="section" style="border: 2px solid #f2a900;">
         <h2>🎛️ マスターコントロール</h2>
         <div class="flex">
-            <button onclick="masterPlay()" style="font-size: 13px;">▶ 全体再生</button>
+            <button onclick="masterPlay()" style="font-size: 13px;">▶ 再生</button>
             <button onclick="masterStop()" style="font-size: 13px;">⏹ 停止</button>
-            <button class="clear-btn" onclick="masterClear()">🗑 全パートClear</button>
-            <button onclick="generateAllAi()" style="background: linear-gradient(135deg, #ff4500, #ff8c00); color: #fff; font-size: 13px;">🤖 一括AI自動作曲</button>
+            <button class="clear-btn" onclick="masterClear()">🗑 Clear</button>
+            <button class="preview-btn" onclick="previewMaster()">▶ 試聴</button>
+            <button onclick="saveCompositionList()">💾 リスト保存</button>
             <label><input type="checkbox" id="repeatToggle" checked> ループ</label>
             <span>BPM: <input type="number" id="bpmInput" value="120" min="50" max="240" style="width: 50px;"></span>
         </div>
@@ -58,21 +59,31 @@
             <span>音量: <input type="range" min="0" max="1.5" step="0.05" value="0.9" id="masterVolumeControl" style="width: 70px;" onchange="updateMasterVolume(this.value)"></span>
             <span>リバーブ: <input type="range" min="0" max="1" step="0.05" value="0.3" id="reverbControl" style="width: 60px;"></span>
         </div>
+        <div id="compositionListContainer" class="summary-box" style="margin-top:10px;">保存リストはありません。</div>
     </div>
 
-    <!-- ボーカル・アルバム -->
-    <div class="section" style="border: 1px solid #f2a900;">
-        <h2>🎙️ ボーカル録音・アルバム</h2>
+    <!-- ラップボーイ＆ボーカル・歌詞セクション -->
+    <div class="section" style="border: 2px solid #a62b14;">
+        <h2>🧢 ラップボーイ & 歌詞エディター</h2>
         <div class="flex">
-            <button class="record-btn" onclick="startVocalRecording()">🔴 録音開始</button>
+            <span>モード切替: </span>
+            <select id="lyricModeSelect" onchange="toggleLyricMode(this.value)">
+                <option value="manual">手動書き込み歌詞</option>
+                <option value="ai">AI歌詞生成</option>
+                <option value="rapboy">ラップボーイ (自動ラップ)</option>
+            </select>
+            <button onclick="generateAiLyrics()" style="background: linear-gradient(135deg, #ff4500, #ff8c00); color: #fff;">🤖 AI歌詞/ラップ自動作成</button>
+            <button class="record-btn" onclick="startVocalRecording()">🔴 音声録音</button>
             <button onclick="stopVocalRecording()">⏹ 停止</button>
-            <button class="preview-btn" onclick="playVocal()">▶ 試聴</button>
-            <button onclick="saveVocalData()">💾 保存</button>
-            <button class="clear-btn" onclick="clearVocal()">🗑 Clear</button>
-            <button onclick="addToList()">➕ アルバム登録</button>
+            <button class="preview-btn" onclick="playVocal()">▶ 音声試聴</button>
+            <button class="clear-btn" onclick="clearVocal()">🗑 歌詞/音声Clear</button>
+            <button class="edit-btn" onclick="openLyricEditor()">🔍 編集</button>
         </div>
-        <div style="margin-top: 10px;"><audio id="vocalAudio" controls style="height: 32px; width: 100%;"></audio></div>
-        <div id="compositionListContainer" class="summary-box">登録曲はありません。</div>
+        <div style="margin-top: 10px;">
+            <label style="font-size: 11px; color: #f2a900;">歌詞 / ラップテキストエリア:</label>
+            <textarea id="lyricTextArea" placeholder="ここに手動で歌詞を入力するか、AI生成・ラップボーイを使用してください..."></textarea>
+        </div>
+        <div style="margin-top: 5px;"><audio id="vocalAudio" controls style="height: 32px; width: 100%;"></audio></div>
     </div>
 
     <!-- 7大楽器トラックコンテナ -->
@@ -127,20 +138,17 @@
             { name: 'Cymbal', noteName: 'シンバル' }
         ];
 
-        const drumPresets = {
-            rock: [0, 2, 1, 2, 0, 2, 1, 2, 0, 2, 1, 2, 0, 3, 1, 2],
-            edm: [0, 2, 0, 2, 1, 2, 3, 2, 0, 2, 0, 2, 1, 3, 1, 2],
-            pops: [0, 2, 0, 2, 1, 2, 0, 2, 0, 2, 1, 2, 0, 2, 3, 2]
-        };
-
         let songData = {
-            title: '7大楽器・完全オーケストラ',
+            title: 'マイソング 01',
             trackData: {},
             trackNotes: {},
             subBarData: {},
             subBarNotes: {},
             liveRecordingStates: {},
-            inputModes: {} // 'ai' or 'manual'
+            inputModes: {},
+            trackFx: {},
+            lyrics: '',
+            lyricMode: 'manual'
         };
 
         let audioCtx = null, masterGainNode = null, compressorNode = null, reverbNode = null;
@@ -156,7 +164,8 @@
                 songData.subBarData[inst.id] = Array.from({ length: 18 }, () => new Array(16).fill(false));
                 songData.subBarNotes[inst.id] = Array.from({ length: 18 }, () => new Array(16).fill(0));
                 songData.liveRecordingStates[inst.id] = false;
-                songData.inputModes[inst.id] = 'manual'; // 初期値は手動
+                songData.inputModes[inst.id] = 'manual';
+                songData.trackFx[inst.id] = 'normal';
             });
             renderTracks();
             initBarSelect();
@@ -185,18 +194,7 @@
                 let recordBtnText = isRecording ? '⏹ 記録停止中...' : '🔴 記録 (鍵盤)';
                 let recordBtnClass = isRecording ? 'record-btn' : '';
                 let currentMode = songData.inputModes[inst.id];
-
-                let extraHtml = '';
-                if (inst.type === 'drums') {
-                    extraHtml = `
-                        <div class="flex" style="margin-top:6px;">
-                            <span>パターン: </span>
-                            <button onclick="applyDrumPattern('${inst.id}', 'rock')">🎸 ロック</button>
-                            <button onclick="applyDrumPattern('${inst.id}', 'edm')">⚡ EDM</button>
-                            <button onclick="applyDrumPattern('${inst.id}', 'pops')">🎤 ポップス</button>
-                        </div>
-                    `;
-                }
+                let currentFx = songData.trackFx[inst.id];
 
                 div.innerHTML = `
                     <h3>${inst.name}</h3>
@@ -206,12 +204,18 @@
                             <option value="manual" ${currentMode==='manual'?'selected':''}>手動打ち込み</option>
                             <option value="ai" ${currentMode==='ai'?'selected':''}>AI自動生成</option>
                         </select>
+                        <span>音FX: </span>
+                        <select onchange="changeTrackFx('${inst.id}', this.value)">
+                            <option value="normal" ${currentFx==='normal'?'selected':''}>普通の音 (Normal)</option>
+                            <option value="distortion" ${currentFx==='distortion'?'selected':''}>ディストーション</option>
+                            <option value="lowpass" ${currentFx==='lowpass'?'selected':''}>ローパス (こもり)</option>
+                            <option value="delay" ${currentFx==='delay'?'selected':''}>ディレイ (残響)</option>
+                        </select>
                         <button class="${recordBtnClass}" id="rec-btn-${inst.id}" onclick="toggleLiveRecording('${inst.id}')">${recordBtnText}</button>
-                        <button class="edit-btn" onclick="openBarEditor('${inst.id}')">🔍 編集 (エディター)</button>
+                        <button class="edit-btn" onclick="openBarEditor('${inst.id}')">🔍 編集</button>
                         <button class="preview-btn" onclick="playTrackPreview('${inst.id}')">▶ 試聴</button>
                         <button class="clear-btn" onclick="clearTrack('${inst.id}')">🗑 Clear</button>
                     </div>
-                    ${extraHtml}
                     <div style="font-size:11px; color:#f2a900; margin-top:8px;">${inst.type==='drums'?'🥁 ドラム演奏パッド':'🎹 ドレミファ鍵盤'}:</div>
                     <div class="instrument-keyboard" id="kb-${inst.id}"></div>
                     <div class="grid-18" id="grid-${inst.id}" style="margin-top:10px;"></div>
@@ -226,8 +230,33 @@
             songData.inputModes[instId] = mode;
             if (mode === 'ai') {
                 autoGenerateTrack(instId);
-                alert(`${instruments.find(i=>i.id===instId).name} をAIモードに切り替え、自動パターンを適用しました！`);
             }
+        }
+
+        function changeTrackFx(instId, fxVal) {
+            songData.trackFx[instId] = fxVal;
+        }
+
+        function toggleLyricMode(mode) {
+            songData.lyricMode = mode;
+            const ta = document.getElementById('lyricTextArea');
+            if (mode === 'ai') {
+                ta.value = "【AI自動生成歌詞】\n光るステージ 夜を駆けていく\nビートに乗せて 夢を掴むんだ\n未来へ向かう 2026の風";
+            } else if (mode === 'rapboy') {
+                ta.value = "【ラップボーイ・フロー】\nYo! チェックイン ビートが鳴り響く街\nフロウ止まらない 限界突破のステージ\nRhyme & Flow 刻むぜ刻むぜ このビートにRide on!";
+            } else {
+                ta.value = "";
+            }
+        }
+
+        function generateAiLyrics() {
+            const mode = document.getElementById('lyricModeSelect').value;
+            toggleLyricMode(mode);
+            alert(mode === 'rapboy' ? '🧢 ラップボーイがラップ歌詞を生成しました！' : '🤖 AI歌詞を自動生成しました！');
+        }
+
+        function openLyricEditor() {
+            alert('歌詞エリアで直接テキスト編集が可能です。');
         }
 
         function renderInstrumentKeyboard(inst) {
@@ -261,11 +290,9 @@
             if (songData.liveRecordingStates[instId]) {
                 btn.innerText = '⏹ 記録停止';
                 btn.className = 'record-btn';
-                alert('リアルタイム記録を有効にしました。パッド/鍵盤を押すとタイムラインに記録されます！');
             } else {
                 btn.innerText = '🔴 記録 (鍵盤)';
                 btn.className = '';
-                alert('記録を終了しました。');
             }
         }
 
@@ -300,16 +327,6 @@
                 };
                 grid.appendChild(cell);
             }
-        }
-
-        function applyDrumPattern(instId, patternName) {
-            let pattern = drumPresets[patternName];
-            for (let b = 0; b < 18; b++) {
-                songData.trackData[instId][b] = true;
-                songData.trackNotes[instId][b] = pattern[b % pattern.length];
-            }
-            renderGrid(instId);
-            alert(`🥁 ドラムに「${patternName}」パターンを適用しました！`);
         }
 
         function openBarEditor(trackId) {
@@ -417,29 +434,66 @@
             reverbNode.buffer = impulse;
         }
 
-        function connectWithMaster(ctx, node) {
+        function applyFxToNode(ctx, sourceNode, fxType) {
+            let lastNode = sourceNode;
+            if (fxType === 'distortion') {
+                const waveShaper = ctx.createWaveShaper();
+                const curve = new Float32Array(44100);
+                const k = 50;
+                for (let i = 0; i < 44100; ++i) {
+                    let x = (i * 2) / 44100 - 1;
+                    curve[i] = ((3 + k) * x * 20 * (Math.PI / 180)) / (Math.PI + k * Math.abs(x));
+                }
+                waveShaper.curve = curve;
+                waveShaper.oversample = '4x';
+                lastNode.connect(waveShaper);
+                lastNode = waveShaper;
+            } else if (fxType === 'lowpass') {
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, ctx.currentTime);
+                lastNode.connect(filter);
+                lastNode = filter;
+            } else if (fxType === 'delay') {
+                const delay = ctx.createDelay();
+                delay.delayTime.setValueAtTime(0.25, ctx.currentTime);
+                const feedback = ctx.createGain();
+                feedback.gain.setValueAtTime(0.3, ctx.currentTime);
+                delay.connect(feedback);
+                feedback.connect(delay);
+                lastNode.connect(delay);
+                delay.connect(compressorNode);
+            }
+            return lastNode;
+        }
+
+        function connectWithMaster(ctx, node, instId) {
+            const fxType = songData.trackFx[instId] || 'normal';
+            const processedNode = applyFxToNode(ctx, node, fxType);
+
             const reverbGain = ctx.createGain();
             reverbGain.gain.setValueAtTime(parseFloat(document.getElementById('reverbControl').value) || 0.3, ctx.currentTime);
             if (reverbNode) {
-                node.connect(reverbNode);
+                processedNode.connect(reverbNode);
                 reverbNode.connect(reverbGain);
                 reverbGain.connect(compressorNode);
             }
-            node.connect(compressorNode);
+            processedNode.connect(compressorNode);
         }
 
         function playInstrumentNote(instId, noteIndex) {
             const ctx = getAudioContext();
             const now = ctx.currentTime;
             const gain = ctx.createGain();
-            connectWithMaster(ctx, gain);
+            
+            connectWithMaster(ctx, gain, instId);
 
             if (instId === 'drums') {
                 gain.gain.setValueAtTime(0.7, now);
                 const osc = ctx.createOscillator();
                 const filter = ctx.createBiquadFilter();
                 
-                if (noteIndex === 0) { // Kick
+                if (noteIndex === 0) {
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(130, now);
                     osc.frequency.exponentialRampToValueAtTime(30, now + 0.15);
@@ -447,7 +501,7 @@
                     osc.connect(gain);
                     osc.start(now);
                     osc.stop(now + 0.2);
-                } else { // Snare & Hi-Hat (Noise based)
+                } else {
                     const bufferSize = ctx.sampleRate * 0.1;
                     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
                     const data = buffer.getChannelData(0);
@@ -468,7 +522,6 @@
                 return;
             }
 
-            // メロディ楽器の処理
             let freq = solfaNotes[noteIndex].freq;
             if (instId === 'bass') freq = freq / 2;
             gain.gain.setValueAtTime(0.5, now);
@@ -529,15 +582,6 @@
             renderGrid(instId);
         }
 
-        function generateAllAi() {
-            instruments.forEach(inst => {
-                autoGuideMode = songData.inputModes[inst.id] = 'ai';
-                autoGenerateTrack(inst.id);
-            });
-            renderTracks();
-            alert('🤖 すべてのパートのAI自動作曲パターンを一括生成しました！');
-        }
-
         function masterPlay() {
             if (isPlaying) return;
             isPlaying = true;
@@ -569,7 +613,8 @@
         }
 
         function masterStop() { isPlaying = false; if (currentTimer) { clearInterval(currentTimer); currentTimer = null; } }
-        function masterClear() { masterStop(); instruments.forEach(inst => clearTrack(inst.id)); }
+        function masterClear() { masterStop(); instruments.forEach(inst => clearTrack(inst.id)); document.getElementById('lyricTextArea').value = ''; }
+        function previewMaster() { masterPlay(); }
 
         async function startVocalRecording() {
             recordedChunks = [];
@@ -582,25 +627,19 @@
                     document.getElementById('vocalAudio').src = URL.createObjectURL(vocalAudioBlob);
                 };
                 mediaRecorder.start();
-                alert('🎙️ ボーカル録音中...');
+                alert('🎙️ 音声録音中...');
             } catch(e) { alert('マイクアクセスが拒否されました。'); }
         }
 
         function stopVocalRecording() { if (mediaRecorder) mediaRecorder.stop(); alert('録音停止しました。'); }
         function playVocal() { const aud = document.getElementById('vocalAudio'); if (aud.src) aud.play(); else alert('試聴データがありません。'); }
-        function saveVocalData() {
-            if (!vocalAudioBlob) return alert('データがありません。');
-            const url = URL.createObjectURL(vocalAudioBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'vocal_take.webm';
-            a.click();
-        }
-        function clearVocal() { vocalAudioBlob = null; document.getElementById('vocalAudio').src = ''; alert('クリアしました。'); }
-        function addToList() {
-            savedList.push(songData.title);
-            document.getElementById('compositionListContainer').innerHTML = savedList.map((item, i) => `<div>💿 登録曲 ${i+1}: ${item}</div>`).join('');
-            alert('アルバム登録しました！');
+        function clearVocal() { vocalAudioBlob = null; document.getElementById('vocalAudio').src = ''; document.getElementById('lyricTextArea').value = ''; alert('クリアしました。'); }
+        
+        function saveCompositionList() {
+            const lyricContent = document.getElementById('lyricTextArea').value;
+            savedList.push({ title: songData.title, lyrics: lyricContent });
+            document.getElementById('compositionListContainer').innerHTML = savedList.map((item, i) => `<div>💿 曲 ${i+1}: ${item.title} (歌詞: ${item.lyrics.slice(0, 15)}...)</div>`).join('');
+            alert('保存リストに登録しました！');
         }
 
         window.onload = initApp;
