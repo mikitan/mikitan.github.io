@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - MASTER SYNTHESIZER v35.0</title>
+    <title>MIC VICTORY - MASTER SYNTHESIZER v36.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -22,7 +22,7 @@
             const [bpm, setBpm] = React.useState(116);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("🎹 ソウル・ディスコ・黒コン・Poppin' 対応 v35.0 完全稼働中！");
+            const [status, setStatus] = React.useState("🎹 各楽器別AI自動作曲・ソウル＆ディスコ v36.1 完全稼働中！");
 
             const BARS = 8;
             const BAR_STEPS = 16;
@@ -330,76 +330,81 @@
                 }
             };
 
-            const generateGenreAI = (genre) => {
-                setGenrePreset(genre);
-                const scalesC = ["C4", "E4", "G4", "A4", "C5", "D5"];
-                const scalesMinor = ["C4", "D#4", "G4", "A#4", "C5", "G4"];
-                
-                let newSteps = JSON.parse(JSON.stringify(instrumentSteps));
+            const generateInstrumentAI = (targetInst) => {
+                const scalesC = ["C4", "D4", "E4", "G4", "A4", "C5"];
+                const scalesDisco = ["C4", "Eb4", "F4", "G4", "Bb4", "C5"];
+                const newSteps = JSON.parse(JSON.stringify(instrumentSteps));
 
-                if (genre === "SOUL_DISCO" || genre === "BLACK_CON") {
-                    setBpm(120);
-                    const drumArr = new Array(TOTAL_STEPS).fill(null);
-                    const bassArr = new Array(TOTAL_STEPS).fill(null);
-                    const synthArr = new Array(TOTAL_STEPS).fill(null);
+                const instArr = new Array(TOTAL_STEPS).fill(null);
 
+                if (targetInst === "drums") {
                     for (let s = 0; s < TOTAL_STEPS; s++) {
                         const sInBar = s % BAR_STEPS;
-                        drumArr[s] = {
-                            kick: sInBar % 4 === 0,
+                        instArr[s] = {
+                            kick: sInBar % 4 === 0 || sInBar === 10,
                             snare: sInBar === 4 || sInBar === 12,
                             hihat: true,
-                            cowbell: sInBar === 2 || sInBar === 10
+                            cowbell: sInBar === 2 || sInBar === 10,
+                            openHihat: sInBar === 14
                         };
-                        if (sInBar % 2 === 0) {
-                            bassArr[s] = "C1";
-                        }
-                        if (sInBar === 0 || sInBar === 3 || sInBar === 6 || sInBar === 10) {
-                            synthArr[s] = scalesC[Math.floor(Math.random() * scalesC.length)];
-                        }
                     }
-                    newSteps.drums = drumArr;
-                    newSteps.subBass = bassArr;
-                    newSteps.synth = synthArr;
-                    setStatus("🕺 ディスコ・ブラックコンテンポラリーのグルーヴを自動生成しました！");
-                } else if (genre === "POPPING_DANCE") {
-                    setBpm(108);
-                    const drumArr = new Array(TOTAL_STEPS).fill(null);
-                    const bassArr = new Array(TOTAL_STEPS).fill(null);
+                } else if (targetInst === "subBass" || targetInst === "bass") {
                     for (let s = 0; s < TOTAL_STEPS; s++) {
                         const sInBar = s % BAR_STEPS;
-                        drumArr[s] = {
-                            kick: sInBar === 0 || sInBar === 6 || sInBar === 10,
-                            snare: sInBar === 4 || sInBar === 12,
-                            clap: sInBar === 4 || sInBar === 12,
-                            hihat: sInBar % 4 === 2
-                        };
-                        if (sInBar === 0 || sInBar === 8) bassArr[s] = "C1";
-                    }
-                    newSteps.drums = drumArr;
-                    newSteps.subBass = bassArr;
-                    setStatus("⚡ ポッピンダンス（ロボット・ロック）のリズムを生成しました！");
-                } else if (genre === "BALLAD") {
-                    setBpm(72);
-                    const pianoArr = new Array(TOTAL_STEPS).fill(null);
-                    for (let s = 0; s < TOTAL_STEPS; s++) {
-                        const sInBar = s % BAR_STEPS;
-                        if (sInBar === 0 || sInBar === 8) {
-                            pianoArr[s] = scalesMinor[Math.floor(Math.random() * scalesMinor.length)];
+                        if (sInBar % 2 === 0 || sInBar === 3 || sInBar === 11) {
+                            instArr[s] = sInBar % 4 === 0 ? "C1" : "G1";
                         }
                     }
-                    newSteps.piano = pianoArr;
-                    setStatus("🌹 バラード調の美しいアルペジオを生成しました（BPM 72）");
+                } else if (targetInst === "piano") {
+                    for (let s = 0; s < TOTAL_STEPS; s++) {
+                        const sInBar = s % BAR_STEPS;
+                        if (sInBar === 0 || sInBar === 4 || sInBar === 8 || sInBar === 12) {
+                            instArr[s] = scalesDisco[Math.floor(Math.random() * scalesDisco.length)];
+                        }
+                    }
+                } else if (targetInst === "guitar") {
+                    for (let s = 0; s < TOTAL_STEPS; s++) {
+                        const sInBar = s % BAR_STEPS;
+                        if (sInBar % 4 === 2 || sInBar % 4 === 3) {
+                            instArr[s] = "E4";
+                        }
+                    }
+                } else if (targetInst === "trumpet") {
+                    for (let s = 0; s < TOTAL_STEPS; s++) {
+                        const sInBar = s % BAR_STEPS;
+                        if (sInBar === 0 || sInBar === 6 || sInBar === 12) {
+                            instArr[s] = scalesC[Math.floor(Math.random() * scalesC.length)];
+                        }
+                    }
                 } else {
-                    const instArr = new Array(TOTAL_STEPS).fill(null);
                     for (let s = 0; s < TOTAL_STEPS; s++) {
-                        if (s % 2 === 0) instArr[s] = scalesC[Math.floor(Math.random() * scalesC.length)];
+                        const sInBar = s % BAR_STEPS;
+                        if (sInBar % 2 === 0) {
+                            instArr[s] = scalesC[Math.floor(Math.random() * scalesC.length)];
+                        }
                     }
-                    newSteps[selectedInstrument] = instArr;
-                    setStatus(`✨ 【${selectedInstrument}】のAI自動作曲が完了しました！`);
                 }
 
+                newSteps[targetInst] = instArr;
                 setInstrumentSteps(newSteps);
+                setStatus(`✨ 【${INSTRUMENTS.find(i => i.id === targetInst)?.label || targetInst}】のAI自動作曲が完了しました！`);
+            };
+
+            const generateGenreAI = (genre) => {
+                setGenrePreset(genre);
+                if (genre === "SOUL_DISCO" || genre === "BLACK_CON") {
+                    setBpm(120);
+                    ["drums", "subBass", "synth", "piano", "guitar", "trumpet"].forEach(inst => generateInstrumentAI(inst));
+                    setStatus("🕺 ディスコ・ブラックコンテンポラリーのフルバンドグルーヴを自動生成しました！");
+                } else if (genre === "POPPING_DANCE") {
+                    setBpm(108);
+                    ["drums", "subBass", "robot", "synth"].forEach(inst => generateInstrumentAI(inst));
+                    setStatus("⚡ ポッピンダンス（ロボット・エレクトロ）のリズムを生成しました！");
+                } else if (genre === "BALLAD") {
+                    setBpm(72);
+                    ["piano", "violin", "subBass"].forEach(inst => generateInstrumentAI(inst));
+                    setStatus("🌹 バラード調の美しいアンサンブルを生成しました（BPM 72）");
+                }
             };
 
             const startVoiceRecording = async () => {
@@ -452,7 +457,7 @@
                     {/* ヘッダーコントロール */}
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-50 shadow-lg">
                         <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                            MIC VICTORY <span className="text-[10px] text-amber-400 font-normal">v35.0</span>
+                            MIC VICTORY <span className="text-[10px] text-amber-400 font-normal">v36.1</span>
                         </span>
 
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -501,9 +506,11 @@
                             <div className="flex flex-col gap-3">
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-2.5 shadow">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className="text-xs font-bold text-pink-400">① 楽器・音色セレクト (ドラム20種 / ベース20種完備)</span>
-                                        <div className="flex gap-1">
-                                            <button onClick={() => generateGenreAI("BLACK_CON")} className="px-2.5 py-1 bg-purple-950 hover:bg-purple-900 text-purple-300 font-bold rounded text-[10px] border border-purple-800">✨ 黒コンAI作曲</button>
+                                        <span className="text-xs font-bold text-pink-400">① 楽器・音色セレクト & 各楽器別AI自動作曲</span>
+                                        <div className="flex gap-1.5 flex-wrap">
+                                            <button onClick={() => generateInstrumentAI(selectedInstrument)} className="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-[10px] shadow border border-cyan-400 animate-pulse">
+                                                🤖 【{currentInstObj.label.split("(")[0]}】AI作曲
+                                            </button>
                                             <button onClick={() => clearSpecificInstrument(selectedInstrument)} className="px-2.5 py-1 bg-red-950 hover:bg-red-900 text-red-300 font-bold rounded text-[10px] border border-red-800">🗑️ Clear</button>
                                         </div>
                                     </div>
