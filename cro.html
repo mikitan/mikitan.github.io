@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIC VICTORY - UNIT LOG</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+:root{
+  --bg:#08090f;
+  --panel:#0f1320;
+  --panel2:#141a2b;
+  --cyan:#2de2e6;
+  --magenta:#ff2ec4;
+  --gold:#f5c542;
+  --line: rgba(45,226,230,0.25);
+  --text:#d9e4ee;
+  --dim:#7a8aa0;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(45,226,230,0.08), transparent 40%),
+    radial-gradient(circle at 80% 100%, rgba(255,46,196,0.08), transparent 45%),
+    var(--bg);
+  color:var(--text);
+  font-family:'Noto Sans JP', sans-serif;
+  padding-bottom:60px;
+}
+h1,h2,h3,.mono{ font-family:'Orbitron', sans-serif; letter-spacing:0.04em; }
+
+.scan{
+  position:fixed; inset:0; pointer-events:none; z-index:50; opacity:0.035;
+  background:repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 3px);
+}
+
+header{
+  padding:26px 18px 18px;
+  border-bottom:1px solid var(--line);
+  position:relative;
+  overflow:hidden;
+}
+header::before{
+  content:"";
+  position:absolute; left:0; top:0; height:2px; width:100%;
+  background:linear-gradient(90deg, var(--cyan), var(--magenta), var(--gold));
+}
+.eyebrow{ font-size:11px; color:var(--cyan); letter-spacing:0.3em; }
+h1{ font-size:22px; margin:6px 0 4px; color:#fff; text-shadow:0 0 12px rgba(45,226,230,0.5);}
+.sub{ font-size:12px; color:var(--dim); }
+
+main{ padding:16px; max-width:520px; margin:0 auto; }
+
+.panel{
+  background:linear-gradient(180deg, var(--panel), var(--panel2));
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:16px;
+  margin-bottom:16px;
+  position:relative;
+}
+.panel-title{
+  font-size:12px; color:var(--gold); letter-spacing:0.2em; margin-bottom:12px;
+  display:flex; align-items:center; gap:8px;
+}
+.panel-title::before{ content:"//"; color:var(--magenta); }
+
+.ring-wrap{ display:flex; align-items:center; gap:18px; }
+.ring{
+  width:118px; height:118px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background: conic-gradient(var(--cyan) calc(var(--pct,0)*1%), rgba(255,255,255,0.06) 0);
+  flex-shrink:0;
+}
+.ring-inner{
+  width:92px; height:92px; border-radius:50%;
+  background:var(--panel);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+.ring-inner .num{ font-family:'Orbitron'; font-size:20px; color:#fff; }
+.ring-inner .lbl{ font-size:9px; color:var(--dim); letter-spacing:0.1em; }
+.stat-list{ font-size:13px; line-height:1.9; }
+.stat-list b{ color:var(--cyan); }
+
+.goal-row{ display:flex; gap:8px; margin-top:12px; align-items:center; }
+.goal-row input{
+  flex:1; background:#0a0d16; border:1px solid var(--line); color:var(--text);
+  padding:8px 10px; border-radius:4px; font-family:'Orbitron'; font-size:13px;
+}
+.btn{
+  background:transparent; border:1px solid var(--cyan); color:var(--cyan);
+  padding:8px 14px; border-radius:4px; font-family:'Orbitron'; font-size:11px;
+  letter-spacing:0.08em; cursor:pointer; white-space:nowrap;
+}
+.btn:active{ background:rgba(45,226,230,0.15); }
+.btn.gold{ border-color:var(--gold); color:var(--gold); }
+.btn.magenta{ border-color:var(--magenta); color:var(--magenta); }
+.btn.small{ padding:5px 9px; font-size:10px; }
+.btn.block{ width:100%; margin-top:10px; }
+
+.tabs{ display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-bottom:12px; }
+.tab{
+  flex-shrink:0; padding:7px 12px; border-radius:20px; font-size:11px;
+  border:1px solid var(--line); color:var(--dim); font-family:'Orbitron'; cursor:pointer;
+}
+.tab.active{ border-color:var(--cyan); color:var(--cyan); background:rgba(45,226,230,0.08); }
+
+.food-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.food-item{
+  border:1px solid var(--line); border-radius:4px; padding:9px 10px;
+  cursor:pointer; background:rgba(255,255,255,0.02);
+}
+.food-item:active{ background:rgba(45,226,230,0.1); }
+.food-item .name{ font-size:12.5px; color:#fff; }
+.food-item .meta{ font-size:10.5px; color:var(--dim); margin-top:2px; }
+.food-item .meta b{ color:var(--gold); }
+
+.entry-list{ margin-top:4px; }
+.entry{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 0; border-bottom:1px dashed var(--line); font-size:13px;
+}
+.entry:last-child{ border-bottom:none; }
+.entry .del{ color:var(--magenta); font-size:11px; cursor:pointer; margin-left:10px; }
+.empty{ color:var(--dim); font-size:12px; text-align:center; padding:14px 0; }
+
+textarea{
+  width:100%; background:#0a0d16; border:1px solid var(--line); color:var(--text);
+  padding:10px; border-radius:4px; font-family:'Noto Sans JP'; font-size:13px;
+  min-height:80px; resize:vertical;
+}
+
+.date-row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.date-row select, .date-row input[type=date]{
+  background:#0a0d16; border:1px solid var(--line); color:var(--cyan);
+  padding:6px 8px; border-radius:4px; font-family:'Orbitron'; font-size:12px;
+}
+
+.hist-item{
+  border:1px solid var(--line); border-radius:4px; padding:10px 12px; margin-bottom:8px;
+  display:flex; justify-content:space-between; align-items:center; font-size:12.5px;
+}
+.hist-item .d{ color:var(--gold); font-family:'Orbitron'; font-size:11px; }
+.hist-item .k{ color:#fff; }
+
+.actions-row{ display:flex; gap:8px; margin-top:12px; }
+.actions-row .btn{ flex:1; }
+
+.toast{
+  position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+  background:var(--panel2); border:1px solid var(--cyan); color:var(--cyan);
+  padding:9px 18px; border-radius:20px; font-size:12px; font-family:'Orbitron';
+  opacity:0; transition:opacity 0.3s; pointer-events:none; z-index:100;
+}
+.toast.show{ opacity:1; }
+
+footer{ text-align:center; color:var(--dim); font-size:10px; padding:20px; letter-spacing:0.1em; }
+</style>
+</head>
+<body>
+<div class="scan"></div>
+
+<header>
+  <div class="eyebrow">MIC VICTORY // DIABETES CARE MODULE</div>
+  <h1>UNIT LOG</h1>
+  <div class="sub">食品交換表 準拠・80kcal=1単位でカロリー管理</div>
+</header>
+
+<main>
+
+  <div class="panel">
+    <div class="panel-title">TODAY STATUS</div>
+    <div class="date-row">
+      <input type="date" id="todayDate">
+      <span class="mono" id="unitCount" style="font-size:12px;color:var(--cyan);">0.0 単位</span>
+    </div>
+    <div class="ring-wrap">
+      <div class="ring" id="ring">
+        <div class="ring-inner">
+          <div class="num" id="ringNum">0</div>
+          <div class="lbl">KCAL</div>
+        </div>
+      </div>
+      <div class="stat-list">
+        目標: <b id="goalDisp">1600</b> kcal<br>
+        残り: <b id="remainDisp">1600</b> kcal<br>
+        記録数: <b id="countDisp">0</b> 件
+      </div>
+    </div>
+    <div class="goal-row">
+      <input type="number" id="goalInput" value="1600" placeholder="目標kcal">
+      <button class="btn small" onclick="setGoal()">目標設定</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">ADD FOOD UNIT</div>
+    <div class="tabs" id="tabs"></div>
+    <div class="food-grid" id="foodGrid"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">TODAY'S ENTRIES</div>
+    <div class="entry-list" id="entryList"></div>
+    <textarea id="diaryNote" placeholder="今日のメモ・体調・気づきなど..."></textarea>
+    <button class="btn block" onclick="saveDay()">この内容を保存</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">MEDICATION / SUPPLEMENT LOG</div>
+    <div class="goal-row" style="margin-top:0;">
+      <input type="text" id="medInput" placeholder="服薬・サプリ名を入力">
+      <button class="btn small" onclick="addMed()">記録</button>
+    </div>
+    <div class="entry-list" id="medList" style="margin-top:10px;"></div>
+    <div class="sub" style="margin-top:6px;">名称と時刻のみを記録します。用量・服用方法についてはかかりつけ医・薬剤師の指示に従ってください。</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">SHARE / CALENDAR / DRIVE</div>
+    <div class="actions-row">
+      <button class="btn gold" onclick="shareDay()">共有</button>
+      <button class="btn magenta" onclick="addToCalendar()">カレンダーに記録</button>
+    </div>
+    <div class="actions-row">
+      <button class="btn" onclick="saveToDrive()" style="border-color:#4f9cd9;color:#4f9cd9;">Google Driveに保存</button>
+    </div>
+    <div class="sub" id="syncStatus" style="margin-top:8px;">保存済みの記録をカレンダー・Driveと連携できます</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">HISTORY LOG</div>
+    <div id="histList"><div class="empty">読み込み中...</div></div>
+  </div>
+
+</main>
+
+<footer>MIC VICTORY BLAUND — UNIT LOG v1.0</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+// ---- 食品交換表 データ (表1〜8 + 調味料・お酒・駄菓子・飲料) 1単位=80kcal ----
+const FOODS = {
+  "表1": {label:"穀物・炭水化物", color:"#f08a3c", items:[
+    {n:"ごはん", g:"50g", u:1}, {n:"食パン", g:"30g(1/2枚)", u:1},
+    {n:"うどん(ゆで)", g:"80g", u:1}, {n:"そば(ゆで)", g:"60g", u:1},
+    {n:"じゃがいも", g:"110g", u:1}, {n:"さつまいも", g:"60g", u:1},
+    {n:"とうもろこし", g:"90g", u:1}, {n:"中華めん(ゆで)", g:"50g", u:1},
+  ]},
+  "表2": {label:"くだもの", color:"#2ecf76", items:[
+    {n:"りんご", g:"150g", u:1}, {n:"バナナ", g:"100g", u:1},
+    {n:"みかん", g:"200g", u:1}, {n:"かき", g:"150g", u:1},
+    {n:"ぶどう", g:"150g", u:1}, {n:"いちご", g:"250g", u:1},
+    {n:"グレープフルーツ", g:"200g", u:1}, {n:"すいか", g:"200g", u:1},
+  ]},
+  "表3": {label:"魚介・肉・卵・大豆", color:"#e8394a", items:[
+    {n:"鶏卵", g:"50g", u:1}, {n:"納豆", g:"40g", u:1},
+    {n:"とうふ(もめん)", g:"100g", u:1}, {n:"とり肉ささみ", g:"80g", u:1},
+    {n:"とり肉もも(皮なし)", g:"60g", u:1}, {n:"豚肉もも(薄切り)", g:"60g", u:1},
+    {n:"牛肉もも(薄切り)", g:"40g", u:1}, {n:"さけ(切り身)", g:"60g", u:1},
+    {n:"さば", g:"40g", u:1}, {n:"かれい", g:"80g", u:1},
+    {n:"くるまえび", g:"80g", u:1}, {n:"ゆでだこ", g:"80g", u:1},
+  ]},
+  "表4": {label:"乳製品", color:"#c9a63c", items:[
+    {n:"牛乳(普通)", g:"120ml", u:1}, {n:"ヨーグルト(全脂無糖)", g:"120g", u:1},
+    {n:"脱脂粉乳", g:"20g", u:1}, {n:"プロセスチーズ", g:"20g", u:1},
+  ]},
+  "表5": {label:"油脂・脂質の多い食品", color:"#d94fd9", items:[
+    {n:"植物油", g:"10g(大さじ1弱)", u:1}, {n:"バター", g:"10g", u:1},
+    {n:"マヨネーズ", g:"10g", u:1}, {n:"ドレッシング", g:"20g", u:1},
+    {n:"ピーナッツ", g:"15g", u:1}, {n:"ベーコン", g:"20g", u:1},
+    {n:"アボカド", g:"40g", u:1},
+  ]},
+  "表6": {label:"野菜・海藻・きのこ", color:"#3cb7a6", items:[
+    {n:"緑黄色野菜+淡色野菜", g:"300g", u:1}, {n:"海藻・きのこ・こんにゃく", g:"制限なし", u:0.2},
+  ]},
+  "表7": {label:"調味料", color:"#9c6cd9", items:[
+    {n:"みそ", g:"40g(大さじ2)", u:1}, {n:"砂糖", g:"20g(大さじ2)", u:1},
+    {n:"トマトケチャップ", g:"60g(大さじ3)", u:1}, {n:"カレールウ", g:"15g", u:1},
+  ]},
+  "表8": {label:"肉類(高脂肪)", color:"#e85c2e", items:[
+    {n:"牛バラ肉", g:"20g", u:1}, {n:"豚バラ肉", g:"20g", u:1},
+    {n:"ひき肉(合いびき)", g:"25g", u:1}, {n:"鶏もも肉(皮つき)", g:"40g", u:1},
+    {n:"ベーコン", g:"20g", u:1}, {n:"ソーセージ", g:"25g", u:1},
+    {n:"サラミ", g:"15g", u:1}, {n:"スペアリブ", g:"30g", u:1},
+  ]},
+  "お酒": {label:"嗜好品・アルコール", color:"#b83cd9", items:[
+    {n:"ビール", g:"200ml", u:1}, {n:"日本酒", g:"70ml", u:1},
+    {n:"ビール(350ml缶)", g:"350ml", u:1.75}, {n:"焼酎", g:"100ml", u:1.75},
+    {n:"ワイン", g:"120ml", u:1.25}, {n:"ハイボール", g:"350ml", u:0.9},
+  ]},
+  "駄菓子": {label:"嗜好品・スナック菓子", color:"#d94f8c", items:[
+    {n:"せんべい", g:"20g", u:1}, {n:"シュークリーム", g:"35g", u:1},
+    {n:"ポテトチップス", g:"60g(1袋)", u:4.2}, {n:"板チョコ", g:"50g", u:3.5},
+    {n:"ガム", g:"1粒", u:0.1}, {n:"クッキー", g:"20g(2枚)", u:1.3},
+  ]},
+  "飲料": {label:"ドリンク類", color:"#4f9cd9", items:[
+    {n:"缶コーヒー(加糖)", g:"190ml", u:1}, {n:"炭酸飲料", g:"350ml", u:1.9},
+    {n:"スポーツドリンク", g:"500ml", u:1.25}, {n:"野菜ジュース", g:"200ml", u:1},
+    {n:"果汁100%ジュース", g:"200ml", u:1.2}, {n:"お茶・水", g:"制限なし", u:0},
+  ]},
+};
+const KCAL_PER_UNIT = 80;
+
+let state = { date:null, goal:1600, entries:[], note:"", meds:[] };
+let activeTab = "表1";
+
+function todayStr(){
+  const d = new Date();
+  return d.toISOString().slice(0,10);
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+function renderTabs(){
+  const wrap = document.getElementById('tabs');
+  wrap.innerHTML = "";
+  Object.keys(FOODS).forEach(key=>{
+    const el = document.createElement('div');
+    el.className = 'tab' + (key===activeTab ? ' active' : '');
+    el.textContent = key;
+    el.onclick = ()=>{ activeTab = key; renderTabs(); renderFoodGrid(); };
+    wrap.appendChild(el);
+  });
+}
+
+function renderFoodGrid(){
+  const grid = document.getElementById('foodGrid');
+  grid.innerHTML = "";
+  FOODS[activeTab].items.forEach(item=>{
+    const el = document.createElement('div');
+    el.className = 'food-item';
+    el.innerHTML = `<div class="name">${item.n}</div><div class="meta">${item.g} ・ <b>${item.u}単位</b></div>`;
+    el.onclick = ()=> addEntry(item.n, item.u, activeTab);
+    grid.appendChild(el);
+  });
+}
+
+function addEntry(name, units, group){
+  state.entries.push({ name, units, group, kcal: Math.round(units*KCAL_PER_UNIT) });
+  renderEntries();
+  renderStatus();
+}
+
+function removeEntry(idx){
+  state.entries.splice(idx,1);
+  renderEntries();
+  renderStatus();
+}
+
+function renderEntries(){
+  const wrap = document.getElementById('entryList');
+  if(state.entries.length===0){
+    wrap.innerHTML = '<div class="empty">まだ記録がありません。上のリストから食品をタップしてください。</div>';
+    return;
+  }
+  wrap.innerHTML = "";
+  state.entries.forEach((e,i)=>{
+    const el = document.createElement('div');
+    el.className = 'entry';
+    el.innerHTML = `<span>${e.name} <span style="color:var(--dim);font-size:11px;">(${e.group}・${e.units}単位)</span></span>
+      <span>${e.kcal}kcal <span class="del" onclick="removeEntry(${i})">✕</span></span>`;
+    wrap.appendChild(el);
+  });
+}
+
+function addMed(){
+  const input = document.getElementById('medInput');
+  const name = input.value.trim();
+  if(!name) return;
+  const time = new Date().toTimeString().slice(0,5);
+  state.meds.push({ name, time });
+  input.value = "";
+  renderMedList();
+}
+function removeMed(idx){
+  state.meds.splice(idx,1);
+  renderMedList();
+}
+function renderMedList(){
+  const wrap = document.getElementById('medList');
+  if(!state.meds || state.meds.length===0){
+    wrap.innerHTML = '<div class="empty">記録なし</div>';
+    return;
+  }
+  wrap.innerHTML = "";
+  state.meds.forEach((m,i)=>{
+    const el = document.createElement('div');
+    el.className = 'entry';
+    el.innerHTML = `<span>${m.name} <span style="color:var(--dim);font-size:11px;">(${m.time})</span></span>
+      <span class="del" onclick="removeMed(${i})">✕</span>`;
+    wrap.appendChild(el);
+  });
+}
+
+function totalKcal(){
+  return state.entries.reduce((s,e)=>s+e.kcal, 0);
+}
+function totalUnits(){
+  return state.entries.reduce((s,e)=>s+e.units, 0);
+}
+
+function renderStatus(){
+  const total = totalKcal();
+  const goal = state.goal;
+  const pct = goal>0 ? Math.min(100, Math.round(total/goal*100)) : 0;
+  document.getElementById('ring').style.setProperty('--pct', pct);
+  document.getElementById('ringNum').textContent = total;
+  document.getElementById('goalDisp').textContent = goal;
+  document.getElementById('remainDisp').textContent = Math.max(0, goal-total);
+  document.getElementById('countDisp').textContent = state.entries.length;
+  document.getElementById('unitCount').textContent = totalUnits().toFixed(1) + " 単位";
+}
+
+function setGoal(){
+  const v = parseInt(document.getElementById('goalInput').value, 10);
+  if(!isNaN(v) && v>0){
+    state.goal = v;
+    renderStatus();
+    showToast('目標を更新しました');
+  }
+}
+
+async function loadDay(dateStr){
+  state.date = dateStr;
+  document.getElementById('todayDate').value = dateStr;
+  try{
+    const res = await window.storage.get('diary:'+dateStr);
+    if(res && res.value){
+      const parsed = JSON.parse(res.value);
+      state.entries = parsed.entries || [];
+      state.goal = parsed.goal || state.goal;
+      state.note = parsed.note || "";
+      state.meds = parsed.meds || [];
+    } else {
+      state.entries = [];
+      state.note = "";
+      state.meds = [];
+    }
+  }catch(e){
+    state.entries = [];
+    state.note = "";
+    state.meds = [];
+  }
+  document.getElementById('diaryNote').value = state.note;
+  document.getElementById('goalInput').value = state.goal;
+  renderEntries();
+  renderStatus();
+  renderMedList();
+}
+
+async function saveDay(){
+  state.note = document.getElementById('diaryNote').value;
+  const payload = {
+    date: state.date,
+    goal: state.goal,
+    entries: state.entries,
+    note: state.note,
+    meds: state.meds,
+    total: totalKcal(),
+    units: totalUnits(),
+  };
+  try{
+    const result = await window.storage.set('diary:'+state.date, JSON.stringify(payload));
+    if(result){
+      showToast('保存しました');
+      renderHistory();
+    } else {
+      showToast('保存に失敗しました');
+    }
+  }catch(e){
+    showToast('保存エラー');
+  }
+}
+
+async function renderHistory(){
+  const wrap = document.getElementById('histList');
+  try{
+    const listRes = await window.storage.list('diary:');
+    if(!listRes || !listRes.keys || listRes.keys.length===0){
+      wrap.innerHTML = '<div class="empty">保存された記録がありません</div>';
+      return;
+    }
+    const keys = listRes.keys.slice().sort().reverse().slice(0,14);
+    wrap.innerHTML = "";
+    for(const k of keys){
+      try{
+        const r = await window.storage.get(k);
+        if(!r || !r.value) continue;
+        const d = JSON.parse(r.value);
+        const dateLabel = k.replace('diary:','');
+        const el = document.createElement('div');
+        el.className = 'hist-item';
+        el.innerHTML = `<span class="d">${dateLabel}</span><span class="k">${d.total||0}kcal / ${(d.units||0).toFixed?d.units.toFixed(1):d.units}単位</span>`;
+        el.onclick = ()=> loadDay(dateLabel);
+        wrap.appendChild(el);
+      }catch(err){ /* skip broken key */ }
+    }
+    if(wrap.innerHTML === "") wrap.innerHTML = '<div class="empty">保存された記録がありません</div>';
+  }catch(e){
+    wrap.innerHTML = '<div class="empty">履歴の読み込みに失敗しました</div>';
+  }
+}
+
+function buildShareText(){
+  const total = totalKcal();
+  const units = totalUnits();
+  let lines = [`【MIC VICTORY UNIT LOG】${state.date}`, `摂取: ${total}kcal / ${units.toFixed(1)}単位 (目標${state.goal}kcal)`];
+  if(state.entries.length){
+    lines.push('---');
+    state.entries.forEach(e=> lines.push(`・${e.name} (${e.group}) ${e.units}単位`));
+  }
+  if(state.meds && state.meds.length){
+    lines.push('---');
+    state.meds.forEach(m => lines.push(`[服薬/サプリ] ${m.name} (${m.time})`));
+  }
+  if(document.getElementById('diaryNote').value.trim()){
+    lines.push('---');
+    lines.push(document.getElementById('diaryNote').value.trim());
+  }
+  return lines.join('\n');
+}
+
+async function shareDay(){
+  const text = buildShareText();
+  if(navigator.share){
+    try{
+      await navigator.share({ title:'UNIT LOG', text });
+      return;
+    }catch(e){ /* fallthrough to copy */ }
+  }
+  try{
+    await navigator.clipboard.writeText(text);
+    showToast('クリップボードにコピーしました');
+  }catch(e){
+    showToast('共有できませんでした');
+  }
+}
+
+function calendarFallback(){
+  const total = totalKcal();
+  const units = totalUnits();
+  const dateCompact = state.date.replace(/-/g,'');
+  const title = encodeURIComponent(`UNIT LOG: ${total}kcal (${units.toFixed(1)}単位)`);
+  const details = encodeURIComponent(buildShareText());
+  const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dateCompact}/${dateCompact}&details=${details}`;
+  window.open(url, '_blank');
+}
+
+async function addToCalendar(){
+  const status = document.getElementById('syncStatus');
+  const total = totalKcal();
+  const units = totalUnits();
+  const text = buildShareText();
+  status.textContent = 'カレンダーに登録中...';
+  try{
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        messages: [{
+          role: "user",
+          content: `Googleカレンダーに終日予定を1件作成してください。タイトル:「UNIT LOG ${total}kcal (${units.toFixed(1)}単位)」、日付:${state.date}、詳細欄:\n${text}\n作成できたら「完了」とだけ返答してください。`
+        }],
+        mcp_servers: [{ type:"url", url:"https://calendarmcp.googleapis.com/mcp/v1", name:"google-calendar" }]
+      })
+    });
+    const data = await response.json();
+    const toolResult = (data.content||[]).find(b=>b.type==='mcp_tool_result');
+    const textBlock = (data.content||[]).find(b=>b.type==='text');
+    if(toolResult){
+      status.textContent = 'Googleカレンダーに登録しました';
+      showToast('カレンダーに登録しました');
+    } else if(textBlock){
+      status.textContent = textBlock.text.slice(0,80);
+      calendarFallback();
+    } else {
+      calendarFallback();
+    }
+  }catch(e){
+    status.textContent = 'MCP連携に失敗したためブラウザで開きます';
+    calendarFallback();
+  }
+}
+
+async function saveToDrive(){
+  const status = document.getElementById('syncStatus');
+  const text = buildShareText();
+  status.textContent = 'Google Driveに保存中...';
+  try{
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        messages: [{
+          role: "user",
+          content: `次の内容で「UNIT LOG ${state.date}」という名前のGoogleドキュメントを新規作成し、Google Driveのマイドライブに保存してください。内容:\n${text}\n作成できたら「完了」とだけ返答してください。`
+        }],
+        mcp_servers: [{ type:"url", url:"https://drivemcp.googleapis.com/mcp/v1", name:"google-drive" }]
+      })
+    });
+    const data = await response.json();
+    const toolResult = (data.content||[]).find(b=>b.type==='mcp_tool_result');
+    if(toolResult){
+      status.textContent = 'Google Driveに保存しました';
+      showToast('Driveに保存しました');
+    } else {
+      status.textContent = 'Drive保存に失敗しました。共有ボタンからコピーしてご利用ください。';
+    }
+  }catch(e){
+    status.textContent = 'Drive連携エラー。共有ボタンからコピーしてご利用ください。';
+  }
+}
+
+document.getElementById('todayDate').addEventListener('change', (e)=>{
+  loadDay(e.target.value);
+});
+
+// init
+renderTabs();
+renderFoodGrid();
+loadDay(todayStr());
+renderHistory();
+</script>
+</body>
+</html>
