@@ -26,7 +26,7 @@
                 const [bpm, setBpm] = React.useState(116);
                 const [currentBar, setCurrentBar] = React.useState(0);
                 const [currentStep, setCurrentStep] = React.useState(-1);
-                const [status, setStatus] = React.useState("✨ v42.0 完全統連合システム（アフリカ太鼓・連打・高低切り替え・WAV録音搭載）：準備完了");
+                const [status, setStatus] = React.useState("✨ v42.0 完全統連合システム（アフリカ太鼓・連打・高低切り替え搭載）：準備完了");
 
                 const BARS = 8;
                 const BAR_STEPS = 16;
@@ -43,11 +43,9 @@
                 const [liveRecordMode, setLiveRecordMode] = React.useState(false);
                 const [recordStepIndex, setRecordStepIndex] = React.useState(0);
 
-                // 保存・リスト切り替え・WAV録音
+                // 保存・リスト切り替え
                 const [slotName, setSlotName] = React.useState("MY_BEAT_01");
                 const [savedSlots, setSavedSlots] = React.useState({});
-                const [isRecordingWav, setIsRecordingWav] = React.useState(false);
-                const [audioBlobUrl, setAudioBlobUrl] = React.useState(null);
 
                 const [instrumentSteps, setInstrumentSteps] = React.useState({
                     trumpet: new Array(TOTAL_STEPS).fill(null),
@@ -63,10 +61,8 @@
 
                 const synthsRef = React.useRef(null);
                 const loopRef = React.useRef(null);
-                const mediaRecorderRef = React.useRef(null);
-                const audioChunksRef = React.useRef([]);
 
-                // ジャンルパーツ拡張（アフリカビーツ追加）
+                // ジャンルパーツ拡張
                 const GENRE_PARTS = {
                     AFRO_BEATS: [
                         { id: "af01", label: "01. アフロ・ジャンベ鼓", note: "C2" },
@@ -120,79 +116,44 @@
                     { id: "guitar", label: "🎸 ロックギター", color: "from-orange-800 to-amber-950" },
                     { id: "subBass", label: "🔊 重低音シンセベース", color: "from-amber-700 to-orange-900" },
                     { id: "drums", label: "🥁 ドラムキット", color: "from-red-800 to-amber-900" },
-                    { id: "afroPerc", label: "🪘 アフリカ太鼓・パーカッション", color: "from-yellow-700 to-amber-900" },
-                    { id: "rapVocals", label: "🎤 ラップ・ボーカル＆ハーモニー", color: "from-rose-800 to-purple-950" },
+                    { id: "afroPerc", label: "🪘 アフリカ太鼓", color: "from-yellow-700 to-amber-900" },
+                    { id: "rapVocals", label: "🎤 ラップ・ボーカル", color: "from-rose-800 to-purple-950" },
                 ];
 
-                const DRUM_PARTS = [
-                    { id: "kick", label: "01. ドン！重低音キック" }, { id: "snare", label: "02. スナッピー・スネア" },
-                    { id: "hihat", label: "03. クリスピー・ハイハット" }, { id: "clap", label: "04. スタジアム・ハンドクラップ" },
-                ];
+                const DRUM_PARTS = [{ id: "kick", label: "キック" }, { id: "snare", label: "スネア" }, { id: "hihat", label: "ハイハット" }, { id: "clap", label: "クラップ" }];
+                const AFRO_PARTS = [{ id: "djembe", label: "ジャンベ" }, { id: "talkingDrum", label: "トーキングドラム" }, { id: "conga", label: "コンガ" }, { id: "kalimba", label: "カリンバ" }];
+                const BASS_PARTS = [{ id: "sub808", label: "808サブ" }, { id: "synthBass", label: "シンセベース" }, { id: "funkBass", label: "ファンク" }, { id: "slapBass", label: "スラップ" }];
+                const RAP_PARTS = [{ id: "rapPunch", label: "ラップパンチ" }, { id: "vocalLead", label: "ボーカルリード" }, { id: "harmony3rd", label: "3度上" }, { id: "harmony5th", label: "5度上" }];
 
-                const AFRO_PARTS = [
-                    { id: "djembe", label: "01. ジャンベ (低音ドン)" }, { id: "talkingDrum", label: "02. トーキングドラム" },
-                    { id: "conga", label: "03. コンガ" }, { id: "kalimba", label: "04. カリンバ響き" }
-                ];
-
-                const BASS_PARTS = [
-                    { id: "sub808", label: "01. 爆音808重低音サブ" }, { id: "synthBass", label: "02. アグレッシブ・ベース" },
-                    { id: "funkBass", label: "03. ファット・ファンク" }, { id: "slapBass", label: "04. ディープ・スラップ" }
-                ];
-
-                const RAP_PARTS = [
-                    { id: "rapPunch", label: "01. ラップ・パンチライン" }, { id: "vocalLead", label: "02. メイン・ボーカルリード" },
-                    { id: "harmony3rd", label: "03. 3度上ハーモニー" }, { id: "harmony5th", label: "04. 5度上ハーモニー隊" }
-                ];
-
-                // 音響の完全初期化（高品質リバーブ・コーラス・ディレイ・リミッター）
+                // 音響の初期化
                 React.useEffect(() => {
                     try {
                         const dest = Tone.Destination;
                         const limiter = new Tone.Limiter(-0.2).connect(dest);
-                        const stereoWidener = new Tone.StereoWidener(0.7).connect(limiter);
-                        const chorus = new Tone.Chorus(3, 2.5, 0.6).connect(stereoWidener);
-                        const reverb = new Tone.Reverb({ roomSize: 0.88, dampening: 2500, wet: 0.28 }).connect(chorus);
-                        const compressor = new Tone.Compressor({ threshold: -16, ratio: 4 }).connect(reverb);
-                        const masterGain = new Tone.Gain(1.5).connect(compressor);
+                        const reverb = new Tone.Reverb({ roomSize: 0.84, dampening: 3000, wet: 0.25 }).connect(limiter);
+                        const masterGain = new Tone.Gain(1.4).connect(reverb);
 
-                        // 各楽器の高品質ポリフォニック／モノフォニックシンセ
-                        const trumpetSynth = new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.01, decay: 0.25, sustain: 0.6, release: 0.2 } }).connect(masterGain);
-                        const synthLead = new Tone.Synth({ oscillator: { type: "fmsawtooth" }, envelope: { attack: 0.015, decay: 0.3, sustain: 0.5, release: 0.3 } }).connect(masterGain);
-                        const violinSynth = new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.08, decay: 0.4, sustain: 0.8, release: 0.5 } }).connect(masterGain);
-                        const pianoSynth = new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.005, decay: 0.5, sustain: 0.2, release: 0.4 } }).connect(masterGain);
-                        const guitarSynth = new Tone.Synth({ oscillator: { type: "square" }, envelope: { attack: 0.01, decay: 0.25, sustain: 0.3, release: 0.2 } }).connect(masterGain);
+                        const trumpetSynth = new Tone.Synth({ oscillator: { type: "sawtooth" } }).connect(masterGain);
+                        const synthLead = new Tone.Synth({ oscillator: { type: "fmsawtooth" } }).connect(masterGain);
+                        const violinSynth = new Tone.Synth({ oscillator: { type: "triangle" } }).connect(masterGain);
+                        const pianoSynth = new Tone.Synth({ oscillator: { type: "sine" } }).connect(masterGain);
+                        const guitarSynth = new Tone.Synth({ oscillator: { type: "square" } }).connect(masterGain);
 
-                        // 重低音ベース・ドラム・アフリカ太鼓・ボーカル音源
                         const bassSynths = {};
-                        Object.keys(BASS_PARTS).forEach(k => {
-                            bassSynths[BASS_PARTS[k].id] = new Tone.MonoSynth({ oscillator: { type: "sine" }, envelope: { attack: 0.005, decay: 0.8, sustain: 0.9, release: 0.4 } }).connect(masterGain);
-                        });
+                        BASS_PARTS.forEach(p => { bassSynths[p.id] = new Tone.MonoSynth({ oscillator: { type: "sine" } }).connect(masterGain); });
 
                         const drumSynths = {};
-                        Object.keys(DRUM_PARTS).forEach(k => {
-                            drumSynths[DRUM_PARTS[k].id] = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 6, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.7, sustain: 0.01, release: 0.3 } }).connect(masterGain);
-                        });
+                        DRUM_PARTS.forEach(p => { drumSynths[p.id] = new Tone.MembraneSynth().connect(masterGain); });
 
                         const afroSynths = {};
-                        Object.keys(AFRO_PARTS).forEach(k => {
-                            afroSynths[AFRO_PARTS[k].id] = new Tone.MembraneSynth({ pitchDecay: 0.08, octaves: 5, oscillator: { type: "triangle" }, envelope: { attack: 0.002, decay: 0.6, sustain: 0.05, release: 0.3 } }).connect(masterGain);
-                        });
+                        AFRO_PARTS.forEach(p => { afroSynths[p.id] = new Tone.MembraneSynth().connect(masterGain); });
 
                         const rapSynths = {};
-                        Object.keys(RAP_PARTS).forEach(k => {
-                            rapSynths[RAP_PARTS[k].id] = new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.01, decay: 0.3, sustain: 0.4, release: 0.2 } }).connect(masterGain);
-                        });
+                        RAP_PARTS.forEach(p => { rapSynths[p.id] = new Tone.Synth().connect(masterGain); });
 
                         synthsRef.current = {
-                            trumpet: trumpetSynth,
-                            synth: synthLead,
-                            violin: violinSynth,
-                            piano: pianoSynth,
-                            guitar: guitarSynth,
-                            subBass: bassSynths,
-                            drums: drumSynths,
-                            afroPerc: afroSynths,
-                            rapVocals: rapSynths
+                            trumpet: trumpetSynth, synth: synthLead, violin: violinSynth, piano: pianoSynth, guitar: guitarSynth,
+                            subBass: bassSynths, drums: drumSynths, afroPerc: afroSynths, rapVocals: rapSynths
                         };
                     } catch (e) {
                         console.error("Audio Init Error:", e);
@@ -231,36 +192,12 @@
                                 const val = instrumentSteps[instKey][step];
                                 if (!val) return;
 
-                                if (instKey === "drums") {
+                                if (["drums", "afroPerc", "subBass", "rapVocals"].includes(instKey)) {
                                     if (typeof val === "object") {
                                         Object.keys(val).forEach(partKey => {
-                                            if (val[partKey] && syns.drums[partKey]) {
-                                                const note = partKey === "kick" ? "C1" : partKey === "snare" ? "E1" : "G1";
-                                                syns.drums[partKey].triggerAttackRelease(note, "8n", time);
-                                            }
-                                        });
-                                    }
-                                } else if (instKey === "afroPerc") {
-                                    if (typeof val === "object") {
-                                        Object.keys(val).forEach(partKey => {
-                                            if (val[partKey] && syns.afroPerc[partKey]) {
-                                                syns.afroPerc[partKey].triggerAttackRelease("C2", "8n", time);
-                                            }
-                                        });
-                                    }
-                                } else if (instKey === "subBass") {
-                                    if (typeof val === "object") {
-                                        Object.keys(val).forEach(partKey => {
-                                            if (val[partKey] && syns.subBass[partKey]) {
-                                                syns.subBass[partKey].triggerAttackRelease("C1", "4n", time);
-                                            }
-                                        });
-                                    }
-                                } else if (instKey === "rapVocals") {
-                                    if (typeof val === "object") {
-                                        Object.keys(val).forEach(partKey => {
-                                            if (val[partKey] && syns.rapVocals[partKey]) {
-                                                syns.rapVocals[partKey].triggerAttackRelease("C3", "8n", time);
+                                            if (val[partKey] && syns[instKey][partKey]) {
+                                                const note = instKey === "drums" ? (partKey === "kick" ? "C1" : "E1") : "C2";
+                                                syns[instKey][partKey].triggerAttackRelease(note, "8n", time);
                                             }
                                         });
                                     }
@@ -285,7 +222,6 @@
                     setStatus(playing ? "⏸️ 停止しました" : `▶ 再生中 (BPM: ${bpm})`);
                 };
 
-                // 音階のオクターブ計算
                 const getAdjustedNote = (baseNote) => {
                     const octaveMap = { "C": 3, "D": 3, "E": 3, "F": 3, "G": 3, "A": 3, "B": 3, "C+": 4 };
                     let oct = (octaveMap[baseNote] || 3) + octaveShift;
@@ -293,7 +229,6 @@
                     return `${cleanNote}${Math.max(1, Math.min(6, oct))}`;
                 };
 
-                // ライブ試聴・連打・リアルタイム記録機能
                 const playNoteLive = (baseNote, labelName) => {
                     const syns = synthsRef.current;
                     if (!syns || !syns[selectedInstrument]) return;
@@ -301,10 +236,9 @@
                     const noteValue = getAdjustedNote(baseNote);
 
                     if (rollMode) {
-                        // 連打機能（16分音符で4回連続トリガー）
                         for (let i = 0; i < 4; i++) {
                             setTimeout(() => {
-                                if (syns[selectedInstrument]) {
+                                if (syns[selectedInstrument].triggerAttackRelease) {
                                     syns[selectedInstrument].triggerAttackRelease(noteValue, "16n");
                                 }
                             }, i * 90);
@@ -327,27 +261,16 @@
                     }
                 };
 
-                // グリッドトグル
                 const toggleStep = (instKey, idx) => {
                     setInstrumentSteps(prev => {
                         const currentArr = [...prev[instKey]];
                         const targetNote = getAdjustedNote("C");
 
-                        if (instKey === "drums") {
+                        if (["drums", "afroPerc", "subBass", "rapVocals"].includes(instKey)) {
+                            const partsMap = instKey === "drums" ? DRUM_PARTS : instKey === "afroPerc" ? AFRO_PARTS : instKey === "subBass" ? BASS_PARTS : RAP_PARTS;
                             const currentObj = currentArr[idx] || {};
-                            const updatedObj = { ...currentObj, [DRUM_PARTS[0].id]: !currentObj[DRUM_PARTS[0].id] };
-                            currentArr[idx] = Object.values(updatedObj).some(Boolean) ? updatedObj : null;
-                        } else if (instKey === "afroPerc") {
-                            const currentObj = currentArr[idx] || {};
-                            const updatedObj = { ...currentObj, [AFRO_PARTS[0].id]: !currentObj[AFRO_PARTS[0].id] };
-                            currentArr[idx] = Object.values(updatedObj).some(Boolean) ? updatedObj : null;
-                        } else if (instKey === "subBass") {
-                            const currentObj = currentArr[idx] || {};
-                            const updatedObj = { ...currentObj, [BASS_PARTS[0].id]: !currentObj[BASS_PARTS[0].id] };
-                            currentArr[idx] = Object.values(updatedObj).some(Boolean) ? updatedObj : null;
-                        } else if (instKey === "rapVocals") {
-                            const currentObj = currentArr[idx] || {};
-                            const updatedObj = { ...currentObj, [RAP_PARTS[0].id]: !currentObj[RAP_PARTS[0].id] };
+                            const firstPartId = partsMap[0].id;
+                            const updatedObj = { ...currentObj, [firstPartId]: !currentObj[firstPartId] };
                             currentArr[idx] = Object.values(updatedObj).some(Boolean) ? updatedObj : null;
                         } else {
                             currentArr[idx] = currentArr[idx] === targetNote ? null : targetNote;
@@ -356,7 +279,6 @@
                     });
                 };
 
-                // クリア機能
                 const clearSpecificInstrument = (instKey) => {
                     setInstrumentSteps(prev => ({ ...prev, [instKey]: new Array(TOTAL_STEPS).fill(null) }));
                     setStatus(`🗑️ クリア: 【${instKey}】のデータを消去しました`);
@@ -369,7 +291,6 @@
                     setStatus("🧹 全クリア完了");
                 };
 
-                // AI自動作曲（アフリカ太鼓・シンセベース・重低音・ラップ＆ハーモニー対応）
                 const generateAIForInstrument = (targetInst) => {
                     const newSteps = JSON.parse(JSON.stringify(instrumentSteps));
                     const arr = new Array(TOTAL_STEPS).fill(null);
@@ -378,26 +299,15 @@
                     for (let s = 0; s < TOTAL_STEPS; s++) {
                         const sInBar = s % BAR_STEPS;
                         if (targetInst === "subBass") {
-                            if (sInBar % 4 === 0 || sInBar === 6 || sInBar === 10 || sInBar === 14) {
-                                arr[s] = { [BASS_PARTS[0].id]: true, [BASS_PARTS[1].id]: sInBar % 8 === 0 };
-                            }
+                            if (sInBar % 4 === 0) arr[s] = { [BASS_PARTS[0].id]: true };
                         } else if (targetInst === "drums") {
-                            arr[s] = {
-                                kick: sInBar % 4 === 0 || sInBar === 10,
-                                snare: sInBar === 4 || sInBar === 12,
-                                hihat: true,
-                                clap: sInBar === 4 || sInBar === 12
-                            };
+                            arr[s] = { kick: sInBar % 4 === 0, snare: sInBar === 4 || sInBar === 12, hihat: true };
                         } else if (targetInst === "afroPerc") {
-                            if (sInBar % 2 === 0 || sInBar === 3 || sInBar === 7 || sInBar === 11) {
-                                arr[s] = { [AFRO_PARTS[0].id]: sInBar % 4 === 0, [AFRO_PARTS[1].id]: sInBar % 4 !== 0 };
-                            }
+                            if (sInBar % 2 === 0) arr[s] = { [AFRO_PARTS[0].id]: true };
                         } else if (targetInst === "rapVocals") {
-                            if (sInBar % 4 === 2 || sInBar === 14) {
-                                arr[s] = { [RAP_PARTS[0].id]: true, [RAP_PARTS[2].id]: true };
-                            }
-                        } else if (["trumpet", "synth", "violin", "piano", "guitar"].includes(targetInst)) {
-                            if (sInBar % 2 === 0 || sInBar === 3 || sInBar === 7 || sInBar === 11) {
+                            if (sInBar % 4 === 2) arr[s] = { [RAP_PARTS[0].id]: true };
+                        } else {
+                            if (sInBar % 2 === 0) {
                                 const partItem = currentParts[(s / 2) % currentParts.length];
                                 arr[s] = partItem.note;
                             }
@@ -406,7 +316,7 @@
 
                     newSteps[targetInst] = arr;
                     setInstrumentSteps(newSteps);
-                    setStatus(`🤖 ✨ 【${selectedGenre}】AI作曲: 【${targetInst}】 の演奏パターンを作成しました！`);
+                    setStatus(`🤖 ✨ 【${selectedGenre}】AI自動作曲: 【${targetInst}】 のパターンを作成しました！`);
                 };
 
                 const generateAllAI = () => {
@@ -414,7 +324,6 @@
                     setStatus(`🌟 【${selectedGenre}】全9楽器のAI自動作曲が完了しました！`);
                 };
 
-                // つけ足し保存・セッションロード
                 const saveOrAppendSession = (isAppend) => {
                     if (isAppend && savedSlots[slotName]) {
                         const existing = savedSlots[slotName];
@@ -491,7 +400,7 @@
                                     {/* 楽器選択 */}
                                     <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3 shadow">
                                         <div className="flex justify-between items-center flex-wrap gap-2">
-                                            <span className="text-xs font-bold text-orange-400">① 楽器セレクト (全9種・高音質)</span>
+                                            <span className="text-xs font-bold text-orange-400">① 楽器セレクト (全9種)</span>
                                             <button onClick={() => clearSpecificInstrument(selectedInstrument)} className="px-2 py-0.5 bg-red-950 text-red-300 rounded text-[10px] border border-red-800">
                                                 🗑️ この楽器をクリア
                                             </button>
@@ -505,12 +414,11 @@
                                         </div>
                                     </div>
 
-                                    {/* 操作コントロールパネル（高低切り替え ＆ 連打機能 ＆ ライブ手動記録） */}
+                                    {/* 操作コントロールパネル */}
                                     <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3 shadow">
                                         <div className="flex justify-between items-center flex-wrap gap-2">
                                             <span className="text-xs font-bold text-amber-400">② 高低切り替え・連打モード・リアルタイム記録</span>
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                {/* 高低切り替え */}
                                                 <div className="flex items-center bg-slate-950 px-2 py-1 rounded border border-slate-800 gap-1">
                                                     <span className="text-[10px] text-slate-400">オクターブ:</span>
                                                     <button onClick={() => setOctaveShift(-1)} className={`px-2 py-0.5 rounded text-[10px] font-bold ${octaveShift === -1 ? "bg-amber-600 text-white" : "bg-slate-900 text-slate-300"}`}>低 (-1)</button>
@@ -518,19 +426,16 @@
                                                     <button onClick={() => setOctaveShift(1)} className={`px-2 py-0.5 rounded text-[10px] font-bold ${octaveShift === 1 ? "bg-amber-600 text-white" : "bg-slate-900 text-slate-300"}`}>高 (+1)</button>
                                                 </div>
 
-                                                {/* 連打ボタン */}
                                                 <button onClick={() => setRollMode(!rollMode)} className={`px-3 py-1 rounded font-bold text-xs border transition-all ${rollMode ? "bg-purple-600 text-white border-white animate-pulse" : "bg-slate-800 text-slate-400 border-slate-700"}`}>
-                                                    {rollMode ? "🔥 連打モード: ON (高速バースト)" : "⚡ 連打モード: OFF"}
+                                                    {rollMode ? "🔥 連打モード: ON" : "⚡ 連打モード: OFF"}
                                                 </button>
 
-                                                {/* 手動リアルタイム記録 */}
                                                 <button onClick={() => setLiveRecordMode(!liveRecordMode)} className={`px-3 py-1 rounded font-bold text-xs border transition-all ${liveRecordMode ? "bg-red-600 text-white border-white animate-pulse" : "bg-slate-800 text-slate-400 border-slate-700"}`}>
                                                     {liveRecordMode ? "🔴 手動記録: ON" : "⚪ 手動記録: OFF"}
                                                 </button>
                                             </div>
                                         </div>
 
-                                        {/* ドレミファ鍵盤 */}
                                         <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5 bg-slate-950 p-2.5 rounded border border-slate-800">
                                             {DOREMI_KEYS.map(k => (
                                                 <button key={k.baseNote} onClick={() => playNoteLive(k.baseNote, k.label)} className={`py-3 px-1 rounded font-bold text-xs shadow transition-all hover:scale-105 ${k.color} border border-slate-700 flex flex-col items-center justify-center`}>
@@ -541,12 +446,12 @@
                                         </div>
                                     </div>
 
-                                    {/* ジャンル別パーツ & アフリカ太鼓・重低音ベース選択 */}
+                                    {/* ジャンル選択 */}
                                     <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-2 shadow">
-                                        <span className="text-xs font-bold text-emerald-400">③ ジャンル & アフリカ太鼓・重低音リズムパーツ</span>
+                                        <span className="text-xs font-bold text-emerald-400">③ ジャンル & パーツ選択</span>
                                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
                                             {[
-                                                { id: "AFRO_BEATS", label: "🪘 アフロビーツ (太鼓)" },
+                                                { id: "AFRO_BEATS", label: "🪘 アフロビーツ" },
                                                 { id: "SOUL", label: "🎷 SOUL & R&B" },
                                                 { id: "POP", label: "🌟 POP" },
                                                 { id: "ROCK", label: "🎸 ROCK" },
@@ -558,7 +463,6 @@
                                             ))}
                                         </div>
 
-                                        {/* パーツ切替グリッド */}
                                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-950 p-2.5 rounded border border-slate-800 mt-1">
                                             {activeGenreParts.map(part => (
                                                 <button key={part.id} onClick={() => playNoteLive(part.note.replace(/[0-9]/g, ""), part.label)} className="py-2 px-2 rounded font-bold text-[10px] bg-slate-900 text-slate-300 border border-slate-800 hover:bg-slate-800 flex flex-col items-center">
@@ -569,7 +473,7 @@
                                         </div>
                                     </div>
 
-                                    {/* グリッド編集シーケンサー */}
+                                    {/* 8小節ステップシーケンサー */}
                                     <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3 shadow">
                                         <div className="flex justify-between items-center">
                                             <span className="text-xs font-bold text-cyan-400">④ ステップシーケンサー ({currentInstObj.label}) - 小節: {currentBar + 1} / 8</span>
@@ -587,7 +491,6 @@
                                                         const stepIdx = currentBar * BAR_STEPS + i;
                                                         const stepVal = instrumentSteps[selectedInstrument][stepIdx];
                                                         const isCurrentPlay = playing && currentStep === i;
-                                                        
                                                         let isActive = !!stepVal;
 
                                                         return (
