@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - ULTIMATE MAESTRO v44.2</title>
+    <title>MIC VICTORY - ULTIMATE MAESTRO v44.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -13,7 +13,7 @@
 <body class="bg-slate-950 text-slate-100 font-sans select-none pb-20 overflow-x-hidden">
     <div id="root">
         <div class="flex items-center justify-center h-screen text-amber-500 font-bold text-sm animate-pulse">
-            究極マエストロシステム v44.2 読み込み中...
+            究極マエストロシステム v44.1 読み込み中...
         </div>
     </div>
 
@@ -26,7 +26,7 @@
                 const [bpm, setBpm] = React.useState(112);
                 const [currentBar, setCurrentBar] = React.useState(0);
                 const [currentStep, setCurrentStep] = React.useState(-1);
-                const [status, setStatus] = React.useState("✨ v44.2 ドレミファソラシド鍵盤完全搭載＆安全つけ足し版：準備完了");
+                const [status, setStatus] = React.useState("✨ v44.1 ドラム復元＆崩れない安全つけ足し完全版：準備完了");
 
                 const BARS = 8;
                 const BAR_STEPS = 16;
@@ -35,6 +35,7 @@
                 const [selectedInstrument, setSelectedInstrument] = React.useState("synth");
                 const [octaveShift, setOctaveShift] = React.useState(0);
 
+                const [rollMode, setRollMode] = React.useState(false);
                 const [liveRecordMode, setLiveRecordMode] = React.useState(false);
                 const [recordStepIndex, setRecordStepIndex] = React.useState(0);
 
@@ -57,14 +58,14 @@
                 const loopRef = React.useRef(null);
 
                 const DOREMI_KEYS = [
-                    { label: "ド (C)", baseNote: "C", color: "bg-white text-slate-900 hover:bg-slate-100" },
-                    { label: "レ (D)", baseNote: "D", color: "bg-white text-slate-900 hover:bg-slate-100" },
-                    { label: "ミ (E)", baseNote: "E", color: "bg-white text-slate-900 hover:bg-slate-100" },
-                    { label: "ファ (F)", baseNote: "F", color: "bg-white text-slate-900 hover:bg-slate-100" },
-                    { label: "ソ (G)", baseNote: "G", color: "bg-white text-slate-900 hover:bg-slate-100" },
-                    { label: "ラ (A)", baseNote: "A", color: "bg-white text-slate-900 hover:bg-slate-100" },
-                    { label: "シ (B)", baseNote: "B", color: "bg-white text-slate-900 hover:bg-slate-100" },
-                    { label: "高ド (C+)", baseNote: "C+", color: "bg-amber-200 text-slate-900 hover:bg-amber-100" }
+                    { label: "C (ド)", baseNote: "C", color: "bg-white text-slate-900" },
+                    { label: "D (レ)", baseNote: "D", color: "bg-white text-slate-900" },
+                    { label: "E (ミ)", baseNote: "E", color: "bg-white text-slate-900" },
+                    { label: "F (ファ)", baseNote: "F", color: "bg-white text-slate-900" },
+                    { label: "G (ソ)", baseNote: "G", color: "bg-white text-slate-900" },
+                    { label: "A (ラ)", baseNote: "A", color: "bg-white text-slate-900" },
+                    { label: "B (シ)", baseNote: "B", color: "bg-white text-slate-900" },
+                    { label: "C+ (高ド)", baseNote: "C+", color: "bg-amber-100 text-slate-900" }
                 ];
 
                 const INSTRUMENTS = [
@@ -191,39 +192,36 @@
                     return `${cleanNote}${Math.max(1, Math.min(6, oct))}`;
                 };
 
-                const playLiveKeyboard = (baseNote, labelName) => {
+                const playLiveButton = (partId, labelName, defaultNote) => {
                     const syns = synthsRef.current;
                     if (!syns) return;
 
-                    const noteValue = getAdjustedNote(baseNote);
-
                     if (selectedInstrument === "drums") {
-                        const partId = baseNote === "C" ? "kick" : baseNote === "D" ? "clap" : baseNote === "E" ? "snare" : "hihat";
                         if (syns.drums && syns.drums[partId]) {
-                            syns.drums[partId].triggerAttackRelease(partId === "hihat" ? "F#1" : "C1", "8n");
+                            syns.drums[partId].triggerAttackRelease(defaultNote, "8n");
                         }
                     } else if (selectedInstrument === "subBass") {
                         if (syns.subBass && syns.subBass.sub808) {
-                            syns.subBass.sub808.triggerAttackRelease(noteValue, "8n");
+                            syns.subBass.sub808.triggerAttackRelease("C2", "8n");
                         }
                     } else if (syns[selectedInstrument]) {
+                        const noteValue = getAdjustedNote(defaultNote);
                         syns[selectedInstrument].triggerAttackRelease(noteValue, "8n");
                     }
 
-                    setStatus(`🎵 鍵盤演奏: [${labelName}] (${noteValue})`);
+                    setStatus(`🎵 手動演奏: [${labelName}]`);
 
                     if (liveRecordMode) {
                         setInstrumentSteps(prev => {
                             const currentArr = [...prev[selectedInstrument]];
                             if (selectedInstrument === "drums") {
-                                const partId = baseNote === "C" ? "kick" : baseNote === "D" ? "clap" : baseNote === "E" ? "snare" : "hihat";
                                 const currentObj = currentArr[recordStepIndex] || {};
                                 currentArr[recordStepIndex] = { ...currentObj, [partId]: true };
                             } else if (selectedInstrument === "subBass") {
                                 const currentObj = currentArr[recordStepIndex] || {};
                                 currentArr[recordStepIndex] = { ...currentObj, sub808: true };
                             } else {
-                                currentArr[recordStepIndex] = noteValue;
+                                currentArr[recordStepIndex] = getAdjustedNote(defaultNote);
                             }
                             return { ...prev, [selectedInstrument]: currentArr };
                         });
@@ -241,10 +239,10 @@
                     });
                 };
 
-                const toggleStep = (instKey, idx, noteOverride = "C3") => {
+                const toggleStep = (instKey, idx) => {
                     setInstrumentSteps(prev => {
                         const currentArr = [...prev[instKey]];
-                        const targetNote = getAdjustedNote(noteOverride);
+                        const targetNote = getAdjustedNote("C");
 
                         if (["subBass", "afroPerc", "rapVocals"].includes(instKey)) {
                             const currentObj = currentArr[idx] || {};
@@ -285,9 +283,8 @@
                                 clap: sInBar === 12
                             };
                         } else {
-                            const notes = ["C3", "E3", "G3", "B3", "C4"];
                             if (sInBar % 4 === 0 || sInBar % 4 === 2) {
-                                arr[s] = notes[(s + Math.floor(s/16)) % notes.length];
+                                arr[s] = "C3";
                             }
                         }
                     }
@@ -339,7 +336,7 @@
                     <div className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col text-xs font-sans select-none border-8 transition-all duration-75 ${flashColor}`}>
                         <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-50 shadow-lg">
                             <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 bg-clip-text text-transparent">
-                                MIC VICTORY <span className="text-[10px] text-orange-400 font-normal">v44.2 DOREMI KEYBOARD</span>
+                                MIC VICTORY <span className="text-[10px] text-orange-400 font-normal">v44.1 DRUM RESTORED</span>
                             </span>
 
                             <div className="flex items-center gap-1.5 flex-wrap">
@@ -358,7 +355,7 @@
 
                         <nav className="bg-slate-900/90 border-b border-slate-800 px-2 py-1.5 flex gap-1 overflow-x-auto">
                             {[
-                                { id: "STUDIO", label: "🎵 スタジオ & ドレミ鍵盤" },
+                                { id: "STUDIO", label: "🎵 スタジオ & グリッドつけ足し" },
                                 { id: "SAVED_LIST", label: "💾 安全つけ足し保存 & セッション" },
                             ].map(t => (
                                 <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-1 rounded text-center font-bold transition-all shrink-0 ${tab === t.id ? "bg-orange-600 text-white shadow" : "bg-slate-800/60 text-slate-400"}`}>
@@ -385,7 +382,7 @@
                                     {/* 楽器選択 */}
                                     <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3 shadow">
                                         <div className="flex justify-between items-center flex-wrap gap-2">
-                                            <span className="text-xs font-bold text-orange-400">① 楽器セレクト</span>
+                                            <span className="text-xs font-bold text-orange-400">① 楽器セレクト (ドラムマルチレーン完全復元)</span>
                                             <button onClick={() => clearSpecificInstrument(selectedInstrument)} className="px-2 py-0.5 bg-red-950 text-red-300 rounded text-[10px] border border-red-800">
                                                 🗑️ この楽器をクリア
                                             </button>
@@ -399,30 +396,31 @@
                                         </div>
                                     </div>
 
-                                    {/* ドレミファソラシド鍵盤 & 安全つけ足し録音 */}
+                                    {/* 手動ボタン演奏 & 安全つけ足し録音 */}
                                     <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3 shadow border-amber-900/50">
                                         <div className="flex justify-between items-center flex-wrap gap-2">
-                                            <span className="text-xs font-bold text-amber-400">② ドレミファソラシド鍵盤 ＆ リアルタイム安全つけ足し録音</span>
+                                            <span className="text-xs font-bold text-amber-400">② 手動ボタン演奏 ＆ リアルタイム安全つけ足し録音</span>
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <div className="flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                                                    <span className="text-[9px] text-slate-400">オクターブ: {octaveShift >= 0 ? `+${octaveShift}` : octaveShift}</span>
-                                                    <button onClick={() => setOctaveShift(Math.max(-2, octaveShift - 1))} className="px-1.5 bg-slate-800 text-white rounded font-bold">-</button>
-                                                    <button onClick={() => setOctaveShift(Math.min(2, octaveShift + 1))} className="px-1.5 bg-slate-800 text-white rounded font-bold">+</button>
-                                                </div>
                                                 <button onClick={() => setLiveRecordMode(!liveRecordMode)} className={`px-3 py-1 rounded font-bold text-xs border transition-all ${liveRecordMode ? "bg-red-600 text-white border-white animate-pulse" : "bg-slate-800 text-slate-400 border-slate-700"}`}>
                                                     {liveRecordMode ? "🔴 安全つけ足し録音: ON" : "⚪ 安全つけ足し録音: OFF"}
                                                 </button>
                                             </div>
                                         </div>
 
-                                        {/* ドレミ鍵盤ボタン */}
-                                        <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5 bg-slate-950 p-3 rounded border border-slate-800">
-                                            {DOREMI_KEYS.map(k => (
-                                                <button key={k.baseNote} onClick={() => playLiveKeyboard(k.baseNote, k.label)} className={`py-4 px-1 rounded font-black text-xs shadow-lg transition-transform active:scale-95 border border-slate-700 flex flex-col items-center justify-center gap-1 ${k.color}`}>
-                                                    <span className="text-sm">{k.label.split(" ")[0]}</span>
-                                                    <span className="text-[9px] text-slate-500">{k.label.split(" ")[1]}</span>
-                                                </button>
-                                            ))}
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-950 p-2.5 rounded border border-slate-800">
+                                            {selectedInstrument === "drums" ? (
+                                                DRUM_PARTS.map(part => (
+                                                    <button key={part.id} onClick={() => playLiveButton(part.id, part.label, part.note)} className="py-3 bg-red-950 text-orange-200 rounded font-bold border border-red-800 hover:scale-105 transition-all">
+                                                        🥁 {part.label}
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                DOREMI_KEYS.slice(0, 4).map(k => (
+                                                    <button key={k.baseNote} onClick={() => playLiveButton(null, k.label, k.baseNote)} className="py-3 bg-slate-900 text-slate-100 rounded font-bold border border-slate-700 hover:scale-105 transition-all">
+                                                        🎹 {k.label}
+                                                    </button>
+                                                ))
+                                            )}
                                         </div>
                                     </div>
 
@@ -473,9 +471,9 @@
                                                             let isActive = !!stepVal;
 
                                                             return (
-                                                                <button key={i} onClick={() => toggleStep(selectedInstrument, stepIdx, "C")} className={`aspect-[3/4] w-full rounded border flex flex-col items-center justify-center text-[9px] transition-all ${isActive ? "bg-gradient-to-t from-orange-700 to-amber-600 border-white text-white font-bold shadow-md scale-105" : "bg-slate-900 border-slate-800 text-slate-500"} ${isCurrentPlay ? "ring-2 ring-cyan-400" : ""}`}>
+                                                                <button key={i} onClick={() => toggleStep(selectedInstrument, stepIdx)} className={`aspect-[3/4] w-full rounded border flex flex-col items-center justify-center text-[9px] transition-all ${isActive ? "bg-gradient-to-t from-orange-700 to-amber-600 border-white text-white font-bold shadow-md scale-105" : "bg-slate-900 border-slate-800 text-slate-500"} ${isCurrentPlay ? "ring-2 ring-cyan-400" : ""}`}>
                                                                     <span className="font-bold text-[10px]">{i + 1}</span>
-                                                                    {isActive && <span className="text-[7px] text-amber-200">♪</span>}
+                                                                    {isActive && <span className="text-[7px] text-amber-200">●</span>}
                                                                 </button>
                                                             );
                                                         })}
