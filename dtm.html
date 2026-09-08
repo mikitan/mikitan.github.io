@@ -40,12 +40,12 @@
 
             // AI・ジャンル・自動切り替え用ステート
             const [autoSwitchSync, setAutoSwitchSync] = React.useState(false);
-            const [aiGenre, setAiGenre] = React.useState("soul"); // soul, disco, rock, pops, ballad, blackCon, rap
+            const [aiGenre, setAiGenre] = React.useState("soul");
 
             // 歌詞・情熱夢希望青春応援・季節テーマ用ステート
             const [lyricTheme, setLyricTheme] = React.useState("情熱・夢・希望・青春");
             const [lyricSeason, setLyricSeason] = React.useState("春 (桜・スタート)");
-            const [generatedLyrics, setGeneratedLyrics] = React.useState("");
+            const [generatedLyrics, setGeneratedLyrics] = React.useState("ここに情熱のアンセム歌詞が生成されます。［📝 情熱・夢希望・歌詞］タブからも作成可能です！");
 
             const [isVoiceRecording, setIsVoiceRecording] = React.useState(false);
             const [voiceAudioUrl, setVoiceAudioUrl] = React.useState(null);
@@ -59,7 +59,7 @@
             const [instrumentSteps, setInstrumentSteps] = React.useState({
                 drums: new Array(TOTAL_STEPS).fill(null),
                 subBass: new Array(TOTAL_STEPS).fill(null),
-                djembe: new Array(TOTAL_STEPS).fill(null), // 🪘 アフリカ楽器太鼓
+                djembe: new Array(TOTAL_STEPS).fill(null),
                 robot: new Array(TOTAL_STEPS).fill(null),
                 bass: new Array(TOTAL_STEPS).fill(null),
                 piano: new Array(TOTAL_STEPS).fill(null),
@@ -113,7 +113,6 @@
                 const delay = new Tone.FeedbackDelay({ delayTime: "8n.", feedback: 0.35, wet: 0.3 }).connect(reverb);
                 const distortion = new Tone.Distortion(0.25).connect(delay);
 
-                // ブラコン級 超重低音サブベース
                 const subBassSynth = new Tone.MonoSynth({
                     oscillator: { type: "triangle" },
                     envelope: { attack: 0.01, decay: 0.5, sustain: 0.5, release: 0.4 },
@@ -121,9 +120,7 @@
                 }).connect(distortion);
 
                 const djembeSynth = new Tone.MembraneSynth({
-                    pitchDecay: 0.02,
-                    octaves: 6,
-                    oscillator: { type: "sine" },
+                    pitchDecay: 0.02, octaves: 6, oscillator: { type: "sine" },
                     envelope: { attack: 0.001, decay: 0.35, sustain: 0.01, release: 0.2 }
                 }).connect(reverb);
 
@@ -202,7 +199,6 @@
                 };
             }, []);
 
-            // 運輸ループ ＆ テンポ・リズム自動切り替え
             React.useEffect(() => {
                 Tone.Transport.bpm.value = bpm;
                 Tone.Transport.cancel();
@@ -361,7 +357,6 @@
                 if (showMsg) setStatus(`🔊 ブラックコンテンポラリー級重低音パターン【No.${patternId}】に切り替えました！`);
             };
 
-            // AIメロディ自動生成 (ソウル、ディスコ、ロック、ポップス、バラード、ブラコン、ラップ対応)
             const generateAiMelody = (instKey) => {
                 const arr = new Array(TOTAL_STEPS).fill(null);
                 const scale = aiGenre === "blackCon" ? ["C1", "Eb1", "G1", "Bb1", "C2"] : instKey === "djembe" ? ["G2", "B2", "D3", "G3"] : ["C4", "D4", "E4", "G4", "A4", "C5"];
@@ -378,7 +373,6 @@
                 setStatus(`✨ 【${instKey}】のAIメロディ自動生成完了 (ジャンル: ${aiGenre})！`);
             };
 
-            // 情熱・夢・希望・青春応援・恋・季節を盛り込んだ歌詞自動生成機能
             const generatePassionLyrics = () => {
                 const text = `【${lyricSeason}のアンセム】\n` +
                     `Theme: ${lyricTheme}\n\n` +
@@ -393,7 +387,7 @@
                     `君と見る未来はどこまでも美しい\n` +
                     `Never give up! 走り抜けこの道を！`;
                 setGeneratedLyrics(text);
-                setStatus("📝 情熱・夢・希望・青春応援テーマの歌詞を生成しました！");
+                setStatus("📝 情熱・夢希望・青春応援テーマの歌詞を生成しました！");
             };
 
             const startVoiceRecording = async () => {
@@ -410,7 +404,7 @@
                     };
                     mediaRecorder.start();
                     setIsVoiceRecording(true);
-                    setStatus("🔴 ラップ・ボーカル録音中... (情熱的に歌おう！)");
+                    setStatus("🔴 ラップ・ボーカル録音中... (歌詞を見ながら歌おう！)");
                 } catch (err) {
                     setStatus("❌ マイクが利用できません。");
                 }
@@ -644,19 +638,31 @@
                             </div>
                         )}
 
-                        {/* タブ4: ラップ・ボーカル録音再生 */}
+                        {/* タブ4: ラップ・ボーカル録音再生 (自動生成された歌詞を表示しながら録音可能に統合) */}
                         {tab === "VOICE_STUDIO" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
-                                <span className="text-xs font-bold text-rose-400">🎤 ラップ重視 Vocal録音記録・再生スタジオ</span>
-                                <p className="text-[11px] text-slate-400">マイカースタジオで情熱のラップやボーカルを録音！リズムに合わせていつでも再生できます。</p>
-                                <div className="bg-slate-950 p-4 rounded border border-slate-800 flex flex-col gap-3 items-center">
-                                    <div className="flex gap-2">
-                                        {!isVoiceRecording ? (
-                                            <button onClick={startVoiceRecording} className="px-4 py-2 bg-red-600 text-white font-bold rounded text-xs animate-pulse">🔴 ラップ録音開始</button>
-                                        ) : (
-                                            <button onClick={stopVoiceRecording} className="px-4 py-2 bg-slate-200 text-slate-950 font-bold rounded text-xs">⏹️ 録音停止</button>
-                                        )}
-                                        {voiceAudioUrl && <button onClick={() => new Audio(voiceAudioUrl).play()} className="px-4 py-2 bg-cyan-600 text-white font-bold rounded text-xs">▶ 録音ボイス再生</button>}
+                                <span className="text-xs font-bold text-rose-400">🎤 ラップ重視 Vocal録音記録・再生スタジオ ＆ 歌詞モニター</span>
+                                <p className="text-[11px] text-slate-400">［情熱・夢希望・歌詞］タブで作成した歌詞を確認しながら、リズムに合せてラップやボーカルを録音できます！</p>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="bg-slate-950 p-3 rounded border border-slate-800 flex flex-col gap-2">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[11px] font-bold text-amber-400">📝 歌詞モニター (リリック)</span>
+                                            <button onClick={() => setTab("LYRICS_STUDIO")} className="text-[10px] text-cyan-400 underline">歌詞を編集・再生成する</button>
+                                        </div>
+                                        <textarea value={generatedLyrics} readOnly rows="7" className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-slate-200 font-mono text-[11px] leading-relaxed resize-none"></textarea>
+                                    </div>
+
+                                    <div className="bg-slate-950 p-4 rounded border border-slate-800 flex flex-col justify-center items-center gap-3">
+                                        <span className="text-[11px] text-slate-300">マイク録音・再生コントロール</span>
+                                        <div className="flex gap-2 flex-wrap justify-center">
+                                            {!isVoiceRecording ? (
+                                                <button onClick={startVoiceRecording} className="px-4 py-2.5 bg-red-600 text-white font-bold rounded text-xs animate-pulse shadow-lg">🔴 ラップ録音開始</button>
+                                            ) : (
+                                                <button onClick={stopVoiceRecording} className="px-4 py-2.5 bg-slate-200 text-slate-950 font-bold rounded text-xs shadow-lg">⏹️ 録音停止</button>
+                                            )}
+                                            {voiceAudioUrl && <button onClick={() => new Audio(voiceAudioUrl).play()} className="px-4 py-2.5 bg-cyan-600 text-white font-bold rounded text-xs shadow-lg">▶ 録音ボイス再生</button>}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -686,7 +692,7 @@
                                     </div>
                                 </div>
                                 <button onClick={generatePassionLyrics} className="py-2 bg-gradient-to-r from-amber-600 to-rose-600 text-white font-bold rounded text-xs shadow">✨ 情熱アンセム歌詞を自動作成</button>
-                                <textarea value={generatedLyrics} readOnly rows="7" className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded text-slate-200 font-mono text-[11px] leading-relaxed" placeholder="ここに生成された歌詞が表示されます..."></textarea>
+                                <textarea value={generatedLyrics} onChange={e => setGeneratedLyrics(e.target.value)} rows="7" className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded text-slate-200 font-mono text-[11px] leading-relaxed" placeholder="ここに生成された歌詞が表示されます... (直接編集も可能です)"></textarea>
                             </div>
                         )}
 
