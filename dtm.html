@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - MASTER SYNTHESIZER v38.8 (STABLE RAPID & RECORD EDIT)</title>
+    <title>MIC VICTORY - MASTER SYNTHESIZER v38.9 (ULTIMATE STABLE & PERSISTENT RECORD LIST)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -21,7 +21,7 @@
             const [bpm, setBpm] = React.useState(106);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("🚀 v38.8: 完全安定(崩れない)＆連打・録音記録・編集リスト強化版稼働中！");
+            const [status, setStatus] = React.useState("✨ v38.9: 崩れない完全安定仕様 ＆ 録音記録セーブ・ロード機能稼働中！");
 
             const BARS = 18;
             const BAR_STEPS = 16;
@@ -34,15 +34,24 @@
             const [selectedDrumPatternId, setSelectedDrumPatternId] = React.useState(1);
             const [selectedSubBassPatternId, setSelectedSubBassPatternId] = React.useState(1);
 
-            // 強化された連打＆記録機能
+            // 連打・記録関連
             const [rapidRecordMode, setRapidRecordMode] = React.useState(false);
             const [performanceLogs, setPerformanceLogs] = React.useState([]);
             const [hitFlashActive, setHitFlashActive] = React.useState(true);
 
-            // 全体録音（Master Record）＆クリア・編集リスト機能
+            // 全体録音（Master Record）＆永続保存リスト機能
             const [masterRecording, setMasterRecording] = React.useState(false);
             const [masterRecordBuffer, setMasterRecordBuffer] = React.useState([]);
-            const [recordedSessionsList, setRecordedSessionsList] = React.useState([]);
+            
+            // ローカルストレージ連動の安全な録音記録リスト
+            const [recordedSessionsList, setRecordedSessionsList] = React.useState(() => {
+                try {
+                    const saved = localStorage.getItem("MIC_VICTORY_RECORDED_SESSIONS");
+                    return saved ? JSON.parse(saved) : [];
+                } catch(e) {
+                    return [];
+                }
+            });
             const [playingSessionId, setPlayingSessionId] = React.useState(null);
 
             const [autoSwitchSync, setAutoSwitchSync] = React.useState(false);
@@ -54,8 +63,8 @@
             const mediaRecorderRef = React.useRef(null);
             const audioChunksRef = React.useRef([]);
 
-            const [jacketTitle, setJacketTitle] = React.useState("MIC VICTORY: ULTIMATE 18 BARS STABLE");
-            const [jacketGenre, setJacketGenre] = React.useState("BLACK CONTEMPORARY / STABLE MASTER REC");
+            const [jacketTitle, setJacketTitle] = React.useState("MIC VICTORY: ULTIMATE 18 BARS PERSISTENT");
+            const [jacketGenre, setJacketGenre] = React.useState("BLACK CONTEMPORARY / STABLE RECORD LIST");
             const [jacketColor, setJacketColor] = React.useState("from-indigo-950 via-purple-950 to-black");
 
             const [instrumentSteps, setInstrumentSteps] = React.useState({
@@ -73,7 +82,14 @@
                 voiceTrack: new Array(TOTAL_STEPS).fill(null),
             });
 
-            const [savedSlots, setSavedSlots] = React.useState({});
+            const [savedSlots, setSavedSlots] = React.useState(() => {
+                try {
+                    const saved = localStorage.getItem("MIC_VICTORY_SAVED_SLOTS");
+                    return saved ? JSON.parse(saved) : {};
+                } catch(e) {
+                    return {};
+                }
+            });
             const [slotName, setSlotName] = React.useState("MASTER_VICTORY_STABLE_SESSION");
 
             const synthsRef = React.useRef(null);
@@ -109,7 +125,20 @@
                 { id: "clap", label: "クラップ" },
             ];
 
-            // 安定化のためのオーディオ初期化
+            // 録音リスト変更時にローカルストレージへ自動保存（クラッシュ・リロード対策）
+            React.useEffect(() => {
+                try {
+                    localStorage.setItem("MIC_VICTORY_RECORDED_SESSIONS", JSON.stringify(recordedSessionsList));
+                } catch(e) {}
+            }, [recordedSessionsList]);
+
+            React.useEffect(() => {
+                try {
+                    localStorage.setItem("MIC_VICTORY_SAVED_SLOTS", JSON.stringify(savedSlots));
+                } catch(e) {}
+            }, [savedSlots]);
+
+            // オーディオの完全安全初期化
             React.useEffect(() => {
                 try {
                     const masterGain = new Tone.Gain(1.5).toDestination();
@@ -206,9 +235,7 @@
                         violin: violinSynth,
                         masterGain, reverb, delay, distortion
                     };
-                } catch(e) {
-                    console.error("Audio Init Error:", e);
-                }
+                } catch(e) {}
 
                 return () => {
                     try {
@@ -218,7 +245,7 @@
                 };
             }, []);
 
-            // 安定したトランスポート・ループ
+            // 安定稼働のトランスポート・ループ
             React.useEffect(() => {
                 Tone.Transport.bpm.value = bpm;
                 Tone.Transport.cancel();
@@ -289,7 +316,10 @@
             }, [playing, bpm, instrumentSteps, autoSwitchSync, masterRecording, hitFlashActive]);
 
             const togglePlay = async () => {
-                await Tone.start();
+                try {
+                    await Tone.start();
+                } catch(e) {}
+
                 if (playing && masterRecording) {
                     setMasterRecording(false);
                     if (masterRecordBuffer.length > 0) {
@@ -300,30 +330,28 @@
                             date: new Date().toLocaleString()
                         };
                         setRecordedSessionsList(prev => [newRecord, ...prev]);
-                        setStatus("💾 全体演奏の録音が完了し、編集リストに保存されました！");
+                        setStatus("💾 全体演奏の録音が完了し、永続保存リストに追加されました！");
                     }
                 }
                 setPlaying(!playing);
                 setStatus(playing ? "停止しました" : `▶ 再生中 (BPM: ${bpm})`);
             };
 
-            // 録音データの再生機能（安定版）
             const playRecordedSessionItem = (rec) => {
                 setPlayingSessionId(rec.id);
                 setPlaying(true);
                 setStatus(`▶ 録音データ「${rec.name}」の再生を開始しました！`);
             };
 
-            // 録音データの個別削除（クリア）
             const deleteRecordedSession = (id) => {
                 setRecordedSessionsList(prev => prev.filter(item => item.id !== id));
                 setStatus("🗑️ 指定した録音記録を削除しました。");
             };
 
-            // 録音記録全クリア
             const clearAllRecordedSessions = () => {
                 if (window.confirm("すべての録音記録リストをクリアしますか？")) {
                     setRecordedSessionsList([]);
+                    localStorage.removeItem("MIC_VICTORY_RECORDED_SESSIONS");
                     setStatus("🗑️ 録音記録リストをすべてクリアしました。");
                 }
             };
@@ -370,7 +398,6 @@
                 setStatus(`🗑️ 【${instKey}】の全18小節をクリアしました。`);
             };
 
-            // 高速連打（Rapid）＆記録の強化
             const playAndRecordRapidNote = (note) => {
                 setSelectedNote(note);
                 const syns = synthsRef.current;
@@ -495,7 +522,7 @@
             };
 
             const saveCurrentSession = () => {
-                setSavedSlots({ ...savedSlots, [slotName]: JSON.parse(JSON.stringify(instrumentSteps)) });
+                setSavedSlots(prev => ({ ...prev, [slotName]: JSON.parse(JSON.stringify(instrumentSteps)) }));
                 setStatus(`💾 セッション「${slotName}」保存完了！`);
             };
 
@@ -514,7 +541,7 @@
                     {/* ヘッダー */}
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-50 shadow-lg">
                         <span className="font-black text-sm bg-gradient-to-r from-cyan-400 via-purple-400 to-amber-500 bg-clip-text text-transparent truncate">
-                            MIC VICTORY <span className="text-[10px] text-cyan-300 font-normal">v38.8 STABLE</span>
+                            MIC VICTORY <span className="text-[10px] text-cyan-300 font-normal">v38.9 STABLE</span>
                         </span>
 
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -555,7 +582,7 @@
                             { id: "AI_AUTO_JAM", label: "🤖 AIメロディ" },
                             { id: "DRUM_SUBBASS_20", label: "🥁 ドラム&ベース20" },
                             { id: "VOICE_STUDIO", label: "🎙️ ボーカル録音" },
-                            { id: "MEMORY_LIST", label: "💾 録音記録・編集リスト" },
+                            { id: "MEMORY_LIST", label: "💾 録音記録リスト・保存" },
                             { id: "JACKET", label: "💿 ジャケット" },
                         ].map(t => (
                             <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-1 rounded text-center font-bold transition-all shrink-0 ${tab === t.id ? "bg-cyan-500 text-slate-950 shadow" : "bg-slate-800/60 text-slate-400"}`}>
@@ -586,7 +613,7 @@
                                         const barColors = ["bg-cyan-500", "bg-purple-500", "bg-amber-500", "bg-rose-500", "bg-emerald-500"];
                                         const colorClass = barColors[i % barColors.length];
                                         return (
-                                            <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end" key={i}>
+                                            <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
                                                 <div 
                                                     className={`w-full rounded-t transition-all duration-75 ${colorClass} ${playing ? "opacity-90 shadow-lg shadow-cyan-500/50" : "opacity-30"}`} 
                                                     style={{ height: `${heightFactor}%` }}
@@ -602,7 +629,7 @@
                             <div className="flex flex-col gap-3">
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-2.5 shadow">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className="text-xs font-bold text-cyan-400">① 楽器セレクト ＆ 🔥 連打記録・強化モード</span>
+                                        <span className="text-xs font-bold text-cyan-400">① 楽器セレクト ＆ 🔥 連打記録モード</span>
                                         <div className="flex gap-2 flex-wrap">
                                             <button
                                                 onClick={() => setRapidRecordMode(!rapidRecordMode)}
@@ -641,9 +668,9 @@
                                     <div className="bg-slate-950 border border-slate-800 rounded p-2.5 flex flex-col gap-2">
                                         <div className="flex justify-between items-center">
                                             <span className="text-[11px] font-bold text-cyan-400">
-                                                {selectedInstrument === "subBass" ? "🔊 システム重低音演奏" : selectedInstrument === "fx" ? "✨ FX効果音" : "🎹 鍵盤演奏エディタ (連打強化)"}
+                                                {selectedInstrument === "subBass" ? "🔊 システム重低音演奏" : selectedInstrument === "fx" ? "✨ FX効果音" : "🎹 鍵盤演奏エディタ"}
                                             </span>
-                                            <span className="text-[10px] text-slate-400">ボタン連打でダイレクトに高速発音！</span>
+                                            <span className="text-[10px] text-slate-400">ボタン連打でリアルタイム発音！</span>
                                         </div>
                                         <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
                                             {((selectedInstrument === "subBass" || selectedInstrument === "bass") ? SUBBASS_NOTES : selectedInstrument === "fx" ? FX_NOTES : selectedInstrument === "djembe" ? DJEMBE_NOTES : NOTES).map(note => (
@@ -750,7 +777,7 @@
                             </div>
                         )}
 
-                        {/* タブ: 録音記録・編集リスト（強化版・クリア機能付き） */}
+                        {/* タブ: 録音記録リスト・保存 */}
                         {tab === "MEMORY_LIST" && (
                             <div className="flex flex-col gap-4">
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3">
@@ -775,16 +802,16 @@
 
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-xs font-bold text-red-400">🔴 全体演奏の録音記録・編集リスト（再生・クリア対応）</span>
+                                        <span className="text-xs font-bold text-red-400">🔴 録音記録リスト（自動保存＆永続化・再生対応）</span>
                                         {recordedSessionsList.length > 0 && (
                                             <button onClick={clearAllRecordedSessions} className="px-2.5 py-1 bg-red-950 text-red-300 font-bold rounded text-[10px] border border-red-800">
-                                                🗑️ すべてクリア
+                                                🗑️ リストをすべてクリア
                                             </button>
                                         )}
                                     </div>
                                     <div className="max-h-56 overflow-y-auto bg-slate-950 p-2 rounded border border-slate-800 flex flex-col gap-2">
                                         {recordedSessionsList.length === 0 ? (
-                                            <span className="text-[11px] text-slate-500 text-center py-6">録音データがありません。「全体録音」ボタンを押して演奏し、停止するとここにリスト保存されます。</span>
+                                            <span className="text-[11px] text-slate-500 text-center py-6">録音データがありません。上の「全体録音」ボタンを押して演奏し、停止するとここに永続保存されます。</span>
                                         ) : (
                                             recordedSessionsList.map(rec => (
                                                 <div key={rec.id} className="flex justify-between items-center bg-slate-900 p-2.5 rounded border border-slate-800 gap-2">
