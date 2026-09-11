@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - MASTER SYNTHESIZER v38.9 (ULTIMATE STABLE & PERSISTENT RECORD LIST)</title>
+    <title>MIC VICTORY - MASTER SYNTHESIZER v38.9 (ULTIMATE STABLE & MULTI VISUALIZER)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -21,7 +21,7 @@
             const [bpm, setBpm] = React.useState(106);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("✨ v38.9: 崩れない完全安定仕様 ＆ 録音記録セーブ・ロード機能稼働中！");
+            const [status, setStatus] = React.useState("✨ v38.9: 崩れない完全安定仕様 ＆ マルチビジュアライザー稼働中！");
 
             const BARS = 18;
             const BAR_STEPS = 16;
@@ -39,25 +39,30 @@
             const [performanceLogs, setPerformanceLogs] = React.useState([]);
             const [hitFlashActive, setHitFlashActive] = React.useState(true);
 
+            // 🌟 追加：ミュージックビジュアルライザーの多彩なパターン (全6種)
+            const VISUALIZER_PATTERNS = [
+                { id: "bars", label: "📊 クラシック・バー" },
+                { id: "neonWave", label: "🌊 ネオン・ウェーブ" },
+                { id: "radar", label: "🎯 サイバー・レーダー" },
+                { id: "pulseCircle", label: "⭕ パルス・サークル" },
+                { id: "matrix", label: "⚡ マトリックス・ドット" },
+                { id: "spectrum", label: "🌈 レインボー・スペクトラム" }
+            ];
+            const [selectedVisualizerPattern, setSelectedVisualizerPattern] = React.useState("bars");
+
             // 全体録音（Master Record）＆永続保存リスト機能
             const [masterRecording, setMasterRecording] = React.useState(false);
             const [masterRecordBuffer, setMasterRecordBuffer] = React.useState([]);
             
-            // ローカルストレージ連動の安全な録音記録リスト
             const [recordedSessionsList, setRecordedSessionsList] = React.useState(() => {
                 try {
                     const saved = localStorage.getItem("MIC_VICTORY_RECORDED_SESSIONS");
                     return saved ? JSON.parse(saved) : [];
-                } catch(e) {
-                    return [];
-                }
+                } catch(e) { return []; }
             });
             const [playingSessionId, setPlayingSessionId] = React.useState(null);
 
             const [autoSwitchSync, setAutoSwitchSync] = React.useState(false);
-            const [lyricTheme, setLyricTheme] = React.useState("ハイエンド・ポッピング・ソウル夜");
-            const [generatedLyrics, setGeneratedLyrics] = React.useState("");
-
             const [isVoiceRecording, setIsVoiceRecording] = React.useState(false);
             const [voiceAudioUrl, setVoiceAudioUrl] = React.useState(null);
             const mediaRecorderRef = React.useRef(null);
@@ -65,7 +70,18 @@
 
             const [jacketTitle, setJacketTitle] = React.useState("MIC VICTORY: ULTIMATE 18 BARS PERSISTENT");
             const [jacketGenre, setJacketGenre] = React.useState("BLACK CONTEMPORARY / STABLE RECORD LIST");
-            const [jacketColor, setJacketColor] = React.useState("from-indigo-950 via-purple-950 to-black");
+            
+            const GRADIENT_PATTERNS = [
+                { id: "cyber", label: "サイバーネオン", class: "from-indigo-950 via-purple-950 to-black" },
+                { id: "sunset", label: "サンセット・サンバ", class: "from-rose-600 via-orange-600 to-amber-950" },
+                { id: "emerald", label: "エメラルド・ソウル", class: "from-emerald-900 via-teal-900 to-slate-950" },
+                { id: "aurora", label: "オーロラ・ディスコ", class: "from-cyan-900 via-emerald-900 to-indigo-950" },
+                { id: "gold", label: "ロイヤル・ゴールド", class: "from-amber-700 via-yellow-800 to-stone-950" },
+                { id: "magma", label: "マグマ・ブレイブ", class: "from-red-900 via-rose-950 to-black" },
+                { id: "electric", label: "エレクトリック・バイオレット", class: "from-purple-900 via-fuchsia-950 to-slate-950" },
+                { id: "deepsea", label: "ディープ・アビス", class: "from-blue-950 via-cyan-950 to-black" }
+            ];
+            const [jacketColor, setJacketColor] = React.useState(GRADIENT_PATTERNS[0].class);
 
             const [instrumentSteps, setInstrumentSteps] = React.useState({
                 drums: new Array(TOTAL_STEPS).fill(null),
@@ -86,9 +102,7 @@
                 try {
                     const saved = localStorage.getItem("MIC_VICTORY_SAVED_SLOTS");
                     return saved ? JSON.parse(saved) : {};
-                } catch(e) {
-                    return {};
-                }
+                } catch(e) { return {}; }
             });
             const [slotName, setSlotName] = React.useState("MASTER_VICTORY_STABLE_SESSION");
 
@@ -125,20 +139,14 @@
                 { id: "clap", label: "クラップ" },
             ];
 
-            // 録音リスト変更時にローカルストレージへ自動保存（クラッシュ・リロード対策）
             React.useEffect(() => {
-                try {
-                    localStorage.setItem("MIC_VICTORY_RECORDED_SESSIONS", JSON.stringify(recordedSessionsList));
-                } catch(e) {}
+                try { localStorage.setItem("MIC_VICTORY_RECORDED_SESSIONS", JSON.stringify(recordedSessionsList)); } catch(e) {}
             }, [recordedSessionsList]);
 
             React.useEffect(() => {
-                try {
-                    localStorage.setItem("MIC_VICTORY_SAVED_SLOTS", JSON.stringify(savedSlots));
-                } catch(e) {}
+                try { localStorage.setItem("MIC_VICTORY_SAVED_SLOTS", JSON.stringify(savedSlots)); } catch(e) {}
             }, [savedSlots]);
 
-            // オーディオの完全安全初期化
             React.useEffect(() => {
                 try {
                     const masterGain = new Tone.Gain(1.5).toDestination();
@@ -238,14 +246,10 @@
                 } catch(e) {}
 
                 return () => {
-                    try {
-                        Tone.Transport.stop();
-                        Tone.Transport.cancel();
-                    } catch(e) {}
+                    try { Tone.Transport.stop(); Tone.Transport.cancel(); } catch(e) {}
                 };
             }, []);
 
-            // 安定稼働のトランスポート・ループ
             React.useEffect(() => {
                 Tone.Transport.bpm.value = bpm;
                 Tone.Transport.cancel();
@@ -259,13 +263,6 @@
 
                         setCurrentStep(sInBar);
                         setCurrentBar(bar);
-
-                        if (autoSwitchSync && sInBar === 0 && bar % 2 === 0) {
-                            const randomDrum = Math.floor(Math.random() * 20) + 1;
-                            const randomSub = Math.floor(Math.random() * 20) + 1;
-                            applyRandomDrumPattern(randomDrum, false);
-                            applyRandomSubBassPattern(randomSub, false);
-                        }
 
                         if (hitFlashActive && (sInBar === 0 || sInBar === 4 || sInBar === 8 || sInBar === 12)) {
                             const flashColors = ["border-cyan-400", "border-purple-500", "border-amber-400", "border-rose-500", "border-emerald-400"];
@@ -313,12 +310,10 @@
                 } else {
                     Tone.Transport.stop();
                 }
-            }, [playing, bpm, instrumentSteps, autoSwitchSync, masterRecording, hitFlashActive]);
+            }, [playing, bpm, instrumentSteps, masterRecording, hitFlashActive]);
 
             const togglePlay = async () => {
-                try {
-                    await Tone.start();
-                } catch(e) {}
+                try { await Tone.start(); } catch(e) {}
 
                 if (playing && masterRecording) {
                     setMasterRecording(false);
@@ -337,25 +332,6 @@
                 setStatus(playing ? "停止しました" : `▶ 再生中 (BPM: ${bpm})`);
             };
 
-            const playRecordedSessionItem = (rec) => {
-                setPlayingSessionId(rec.id);
-                setPlaying(true);
-                setStatus(`▶ 録音データ「${rec.name}」の再生を開始しました！`);
-            };
-
-            const deleteRecordedSession = (id) => {
-                setRecordedSessionsList(prev => prev.filter(item => item.id !== id));
-                setStatus("🗑️ 指定した録音記録を削除しました。");
-            };
-
-            const clearAllRecordedSessions = () => {
-                if (window.confirm("すべての録音記録リストをクリアしますか？")) {
-                    setRecordedSessionsList([]);
-                    localStorage.removeItem("MIC_VICTORY_RECORDED_SESSIONS");
-                    setStatus("🗑️ 録音記録リストをすべてクリアしました。");
-                }
-            };
-
             const toggleStep = (instKey, idx) => {
                 setInstrumentSteps(prev => {
                     const currentArr = [...prev[instKey]];
@@ -372,30 +348,16 @@
             };
 
             const clearEntireComposition = () => {
-                if (window.confirm("すべての18小節の作曲データを完全にクリア（初期化）しますか？")) {
+                if (window.confirm("すべての作曲データをクリアしますか？")) {
                     const emptyArr = new Array(TOTAL_STEPS).fill(null);
                     setInstrumentSteps({
-                        drums: [...emptyArr],
-                        subBass: [...emptyArr],
-                        synth: [...emptyArr],
-                        fx: [...emptyArr],
-                        djembe: [...emptyArr],
-                        robot: [...emptyArr],
-                        bass: [...emptyArr],
-                        piano: [...emptyArr],
-                        guitar: [...emptyArr],
-                        trumpet: [...emptyArr],
-                        violin: [...emptyArr],
-                        voiceTrack: [...emptyArr],
+                        drums: [...emptyArr], subBass: [...emptyArr], synth: [...emptyArr],
+                        fx: [...emptyArr], djembe: [...emptyArr], robot: [...emptyArr],
+                        bass: [...emptyArr], piano: [...emptyArr], guitar: [...emptyArr],
+                        trumpet: [...emptyArr], violin: [...emptyArr], voiceTrack: [...emptyArr],
                     });
-                    setPerformanceLogs([]);
-                    setStatus("🗑️ 全18小節の音響・作曲データをクリアしました。");
+                    setStatus("🗑️ 全データをクリアしました。");
                 }
-            };
-
-            const clearSpecificInstrument = (instKey) => {
-                setInstrumentSteps(prev => ({ ...prev, [instKey]: new Array(TOTAL_STEPS).fill(null) }));
-                setStatus(`🗑️ 【${instKey}】の全18小節をクリアしました。`);
             };
 
             const playAndRecordRapidNote = (note) => {
@@ -409,14 +371,6 @@
                         else if (selectedDrumPart === "snare") syns.drums.snare.triggerAttackRelease("8n");
                         else if (selectedDrumPart === "hihat") syns.drums.hihat.triggerAttackRelease("32n");
                         else syns.drums.clap.triggerAttackRelease("8n");
-                    } else if (selectedInstrument === "subBass") {
-                        syns.subBass.triggerAttackRelease(note, "8n");
-                    } else if (selectedInstrument === "fx") {
-                        syns.fx.triggerAttackRelease("C6", "8n");
-                    } else if (selectedInstrument === "bass") {
-                        syns.bass.triggerAttackRelease(note, "8n");
-                    } else if (selectedInstrument === "djembe") {
-                        syns.djembe.triggerAttackRelease(note, "8n");
                     } else if (syns[selectedInstrument]) {
                         syns[selectedInstrument].triggerAttackRelease(note, "8n");
                     }
@@ -424,101 +378,34 @@
 
                 if (rapidRecordMode) {
                     const stepIdx = currentStep !== -1 ? (currentBar * BAR_STEPS + currentStep) : 0;
-                    
                     setInstrumentSteps(prev => {
                         const currentArr = [...prev[selectedInstrument]];
                         currentArr[stepIdx] = selectedInstrument === "drums" ? selectedDrumPart : note;
                         return { ...prev, [selectedInstrument]: currentArr };
                     });
-
-                    setPerformanceLogs(prev => [...prev, {
-                        id: Date.now() + Math.random(),
-                        instrument: selectedInstrument,
-                        note: selectedInstrument === "drums" ? selectedDrumPart : note,
-                        step: stepIdx,
-                        bar: Math.floor(stepIdx / BAR_STEPS) + 1
-                    }]);
-                    setStatus(`🔴 連打記録: ${selectedInstrument} [${note}] (小節 ${Math.floor(stepIdx / BAR_STEPS) + 1})`);
+                    setStatus(`🔴 連打記録: ${selectedInstrument} [${note}]`);
                 }
             };
 
-            const applyRandomDrumPattern = (patternId, showMsg = true) => {
+            const applyRandomDrumPattern = (patternId) => {
                 setSelectedDrumPatternId(patternId);
                 const arr = new Array(TOTAL_STEPS).fill(null);
                 for (let s = 0; s < TOTAL_STEPS; s++) {
                     const sInBar = s % BAR_STEPS;
-                    let kick = sInBar === 0 || sInBar === 6 || sInBar === 10 || sInBar === 14;
-                    let snare = sInBar === 4 || sInBar === 12;
-                    let hihat = sInBar % 2 === 0;
-                    let clap = (sInBar === 4 || sInBar === 12);
-                    arr[s] = { kick, snare, hihat, clap };
+                    arr[s] = { kick: sInBar === 0 || sInBar === 8, snare: sInBar === 4 || sInBar === 12, hihat: sInBar % 2 === 0, clap: sInBar === 12 };
                 }
                 setInstrumentSteps(prev => ({ ...prev, drums: arr }));
-                if (showMsg) setStatus(`🥁 ドラムパターン【No.${patternId}】適用完了！`);
-            };
-
-            const applyRandomSubBassPattern = (patternId, showMsg = true) => {
-                setSelectedSubBassPatternId(patternId);
-                const arr = new Array(TOTAL_STEPS).fill(null);
-                const subNotes = ["C1", "Eb1", "G1", "Bb1", "C2", "Ab1"];
-                for (let s = 0; s < TOTAL_STEPS; s++) {
-                    const sInBar = s % BAR_STEPS;
-                    if (sInBar % 2 === 0 || sInBar === 0) {
-                        const noteIdx = (s + patternId) % subNotes.length;
-                        arr[s] = subNotes[noteIdx];
-                    }
-                }
-                setInstrumentSteps(prev => ({ ...prev, subBass: arr }));
-                if (showMsg) setStatus(`🔊 システム重低音ベース【No.${patternId}】適用完了！`);
+                setStatus(`🥁 ドラムパターン【No.${patternId}】適用！`);
             };
 
             const generateAiMelody = (instKey) => {
                 const arr = new Array(TOTAL_STEPS).fill(null);
-                if (instKey === "drums") {
-                    for (let s = 0; s < TOTAL_STEPS; s++) {
-                        const sInBar = s % BAR_STEPS;
-                        arr[s] = { kick: sInBar === 0 || sInBar === 8 || sInBar === 10, snare: sInBar === 4 || sInBar === 12, hihat: sInBar % 2 === 0, clap: sInBar === 12 };
-                    }
-                } else if (instKey === "subBass" || instKey === "bass") {
-                    const scale = ["C1", "Eb1", "F1", "G1", "Bb1", "C2"];
-                    for (let s = 0; s < TOTAL_STEPS; s++) {
-                        if ((s % BAR_STEPS) % 2 === 0) arr[s] = scale[Math.floor(Math.random() * scale.length)];
-                    }
-                } else {
-                    const scale = ["C4", "D4", "Eb4", "F4", "G4", "Ab4", "Bb4", "C5"];
-                    for (let s = 0; s < TOTAL_STEPS; s++) {
-                        if ((s % BAR_STEPS) % 2 === 0 || Math.random() > 0.5) arr[s] = scale[Math.floor(Math.random() * scale.length)];
-                    }
+                const scale = ["C4", "D4", "Eb4", "F4", "G4", "Ab4", "Bb4", "C5"];
+                for (let s = 0; s < TOTAL_STEPS; s++) {
+                    if ((s % BAR_STEPS) % 2 === 0 || Math.random() > 0.4) arr[s] = scale[Math.floor(Math.random() * scale.length)];
                 }
                 setInstrumentSteps(prev => ({ ...prev, [instKey]: arr }));
-                setStatus(`✨ 【${instKey}】のAIメロディ自動生成完了！`);
-            };
-
-            const startVoiceRecording = async () => {
-                audioChunksRef.current = [];
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    const mediaRecorder = new MediaRecorder(stream);
-                    mediaRecorderRef.current = mediaRecorder;
-                    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-                    mediaRecorder.onstop = () => {
-                        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                        setVoiceAudioUrl(URL.createObjectURL(blob));
-                        setStatus("🎤 ボーカル録音完了！");
-                    };
-                    mediaRecorder.start();
-                    setIsVoiceRecording(true);
-                    setStatus("🔴 録音中...");
-                } catch (err) {
-                    setStatus("❌ マイクが利用できません。");
-                }
-            };
-
-            const stopVoiceRecording = () => {
-                if (mediaRecorderRef.current && isVoiceRecording) {
-                    mediaRecorderRef.current.stop();
-                    setIsVoiceRecording(false);
-                }
+                setStatus(`✨ 【${instKey}】AIメロディ生成完了！`);
             };
 
             const saveCurrentSession = () => {
@@ -541,27 +428,18 @@
                     {/* ヘッダー */}
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-50 shadow-lg">
                         <span className="font-black text-sm bg-gradient-to-r from-cyan-400 via-purple-400 to-amber-500 bg-clip-text text-transparent truncate">
-                            MIC VICTORY <span className="text-[10px] text-cyan-300 font-normal">v38.9 STABLE</span>
+                            MIC VICTORY <span className="text-[10px] text-cyan-300 font-normal">v38.9 MULTI-VIZ</span>
                         </span>
 
                         <div className="flex items-center gap-1.5 flex-wrap">
                             <button onClick={togglePlay} className={`px-3 py-1 rounded font-bold text-xs shadow ${playing ? "bg-cyan-500 text-slate-950 animate-bounce" : "bg-purple-600 text-white"}`}>
                                 {playing ? "■ 停止" : "▶ 再生"}
                             </button>
-                            <button 
-                                onClick={() => setHitFlashActive(!hitFlashActive)} 
-                                className={`px-2.5 py-1 rounded font-bold text-[10px] border ${hitFlashActive ? "bg-purple-600 text-white border-white animate-pulse" : "bg-slate-800 text-purple-400 border-purple-800"}`}
-                            >
+                            <button onClick={() => setHitFlashActive(!hitFlashActive)} className={`px-2.5 py-1 rounded font-bold text-[10px] border ${hitFlashActive ? "bg-purple-600 text-white border-white animate-pulse" : "bg-slate-800 text-purple-400 border-purple-800"}`}>
                                 {hitFlashActive ? "✨ フラッシュON" : "⚪ フラッシュOFF"}
                             </button>
-                            <button 
-                                onClick={() => { 
-                                    setMasterRecording(!masterRecording); 
-                                    if(!masterRecording) { setMasterRecordBuffer([]); setStatus("🔴 全体演奏録音を開始しました..."); }
-                                }} 
-                                className={`px-2.5 py-1 rounded font-bold text-[10px] border ${masterRecording ? "bg-red-600 text-white border-white animate-pulse" : "bg-slate-800 text-red-400 border-red-800"}`}
-                            >
-                                {masterRecording ? "🔴 録音中(停止で保存)" : "⏺️ 全体録音"}
+                            <button onClick={() => { setMasterRecording(!masterRecording); if(!masterRecording) setMasterRecordBuffer([]); }} className={`px-2.5 py-1 rounded font-bold text-[10px] border ${masterRecording ? "bg-red-600 text-white border-white animate-pulse" : "bg-slate-800 text-red-400 border-red-800"}`}>
+                                {masterRecording ? "🔴 録音中" : "⏺️ 全体録音"}
                             </button>
                             <button onClick={clearEntireComposition} className="px-2.5 py-1 bg-red-950 text-red-300 font-bold rounded text-[10px] border border-red-800">
                                 🗑️ クリア
@@ -576,13 +454,12 @@
                     {/* タブナビゲーション */}
                     <nav className="bg-slate-900/90 border-b border-slate-800 px-2 py-1.5 flex gap-1 overflow-x-auto whitespace-nowrap">
                         {[
-                            { id: "DUAL_EDIT", label: "🎹 18小節連打記録＆エディタ" },
-                            { id: "VISUALIZER", label: "🎧 ビジュアライザー" },
+                            { id: "VISUALIZER", label: "🎧 マルチビジュアライザー" },
+                            { id: "DUAL_EDIT", label: "🎹 18小節エディタ" },
                             { id: "RAP_RAPID", label: "🎤 ラップ連打" },
                             { id: "AI_AUTO_JAM", label: "🤖 AIメロディ" },
-                            { id: "DRUM_SUBBASS_20", label: "🥁 ドラム&ベース20" },
-                            { id: "VOICE_STUDIO", label: "🎙️ ボーカル録音" },
-                            { id: "MEMORY_LIST", label: "💾 録音記録リスト・保存" },
+                            { id: "DRUM_SUBBASS_20", label: "🥁 ドラム20種" },
+                            { id: "MEMORY_LIST", label: "💾 録音・セーブ" },
                             { id: "JACKET", label: "💿 ジャケット" },
                         ].map(t => (
                             <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-1 rounded text-center font-bold transition-all shrink-0 ${tab === t.id ? "bg-cyan-500 text-slate-950 shadow" : "bg-slate-800/60 text-slate-400"}`}>
@@ -592,38 +469,104 @@
                     </nav>
 
                     <div className="bg-slate-900/50 px-3 py-1 text-[11px] text-cyan-400 border-b border-slate-900 truncate">
-                        <span>💡 {status} {masterRecording && `(🔴 録音バッファ: ${masterRecordBuffer.length}件)`}</span>
+                        <span>💡 {status}</span>
                     </div>
 
                     <main className="p-2 flex flex-col gap-3 max-w-7xl mx-auto w-full">
 
-                        {/* タブ: ビジュアライザー */}
-                        {(tab === "VISUALIZER" || playing) && (
-                            <div className="bg-slate-900 border border-cyan-500/50 rounded-lg p-4 flex flex-col gap-3 shadow-xl">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
-                                        <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-                                        🎧 リアルタイム・ミュージックビジュアライザー
-                                    </span>
-                                    <span className="text-[10px] text-slate-400">BPM: {bpm} | 小節: {currentBar + 1} / 18</span>
-                                </div>
-                                <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 h-36 flex items-end justify-between gap-1 overflow-hidden">
-                                    {Array.from({ length: 32 }).map((_, i) => {
-                                        const heightFactor = playing ? Math.max(15, Math.sin((i + currentStep * 2) * 0.4) * 50 + Math.random() * 50) : 10;
-                                        const barColors = ["bg-cyan-500", "bg-purple-500", "bg-amber-500", "bg-rose-500", "bg-emerald-500"];
-                                        const colorClass = barColors[i % barColors.length];
-                                        return (
-                                            <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
-                                                <div 
-                                                    className={`w-full rounded-t transition-all duration-75 ${colorClass} ${playing ? "opacity-90 shadow-lg shadow-cyan-500/50" : "opacity-30"}`} 
-                                                    style={{ height: `${heightFactor}%` }}
-                                                ></div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                        {/* 🌟 マルチ・ミュージックビジュアライザー画面 */}
+                        <div className="bg-slate-900 border border-cyan-500/50 rounded-lg p-4 flex flex-col gap-3 shadow-xl">
+                            <div className="flex justify-between items-center flex-wrap gap-2">
+                                <span className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                                    🎧 マルチ・ミュージックビジュアライザー (パターン多数切替)
+                                </span>
+                                <span className="text-[10px] text-slate-400">BPM: {bpm} | 小節: {currentBar + 1} / 18</span>
                             </div>
-                        )}
+
+                            {/* パターン選択ボタン群 */}
+                            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 bg-slate-950 p-2 rounded border border-slate-800">
+                                {VISUALIZER_PATTERNS.map(pat => (
+                                    <button 
+                                        key={pat.id} 
+                                        onClick={() => setSelectedVisualizerPattern(pat.id)}
+                                        className={`py-1.5 px-2 rounded text-[10px] font-bold border transition-all ${selectedVisualizerPattern === pat.id ? "bg-cyan-500 text-slate-950 border-white shadow" : "bg-slate-900 text-slate-300 border-slate-800"}`}
+                                    >
+                                        {pat.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* ビジュアル表示エリア */}
+                            <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 h-44 flex items-center justify-center relative overflow-hidden">
+                                
+                                {/* 1. クラシック・バー */}
+                                {selectedVisualizerPattern === "bars" && (
+                                    <div className="w-full h-full flex items-end justify-between gap-1">
+                                        {Array.from({ length: 32 }).map((_, i) => {
+                                            const h = playing ? Math.max(15, Math.sin((i + currentStep * 2) * 0.4) * 60 + Math.random() * 40) : 10;
+                                            const colors = ["bg-cyan-500", "bg-purple-500", "bg-amber-500", "bg-rose-500", "bg-emerald-500"];
+                                            return <div key={i} className={`flex-1 rounded-t transition-all duration-75 ${colors[i % colors.length]} ${playing ? "opacity-90 shadow-md shadow-cyan-500/50" : "opacity-30"}`} style={{ height: `${h}%` }}></div>;
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* 2. ネオン・ウェーブ */}
+                                {selectedVisualizerPattern === "neonWave" && (
+                                    <div className="w-full h-full flex items-center justify-center relative">
+                                        <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-cyan-500 via-purple-500 to-rose-500 shadow-lg shadow-cyan-500/80 animate-pulse" style={{ transform: `scaleY(${playing ? Math.random() * 8 + 2 : 1})` }}></div>
+                                        <div className="text-center font-black text-sm text-cyan-300 tracking-widest">{playing ? "♫ MIC VICTORY SOUND STREAM ♫" : "PRESS PLAY TO VIBE"}</div>
+                                    </div>
+                                )}
+
+                                {/* 3. サイバー・レーダー */}
+                                {selectedVisualizerPattern === "radar" && (
+                                    <div className="w-32 h-32 rounded-full border-2 border-cyan-500/60 relative flex items-center justify-center shadow-lg shadow-cyan-500/30">
+                                        <div className={`absolute inset-0 rounded-full border border-purple-500/50 ${playing ? "animate-ping opacity-75" : "opacity-20"}`}></div>
+                                        <div className="w-3 h-3 rounded-full bg-cyan-400 shadow-md shadow-cyan-400"></div>
+                                    </div>
+                                )}
+
+                                {/* 4. パルス・サークル */}
+                                {selectedVisualizerPattern === "pulseCircle" && (
+                                    <div className="flex gap-4 items-center">
+                                        {Array.from({ length: 5 }).map((_, i) => {
+                                            const scaleFactor = playing ? 1 + (Math.sin(currentStep + i) + 1) * 0.4 : 1;
+                                            return (
+                                                <div 
+                                                    key={i} 
+                                                    className="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-purple-600 shadow-lg transition-transform duration-75 flex items-center justify-center text-[10px] font-bold text-slate-950"
+                                                    style={{ transform: `scale(${scaleFactor})` }}
+                                                >
+                                                    {i + 1}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* 5. マトリックス・ドット */}
+                                {selectedVisualizerPattern === "matrix" && (
+                                    <div className="grid grid-cols-16 gap-2 w-full h-full p-2 items-center justify-center">
+                                        {Array.from({ length: 48 }).map((_, i) => {
+                                            const active = playing && (i + currentStep) % 3 === 0;
+                                            return <div key={i} className={`aspect-square rounded-full transition-all duration-75 ${active ? "bg-emerald-400 shadow-md shadow-emerald-400 scale-125" : "bg-slate-900 opacity-40"}`}></div>;
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* 6. レインボー・スペクトラム */}
+                                {selectedVisualizerPattern === "spectrum" && (
+                                    <div className="w-full h-full flex items-end gap-1 px-4">
+                                        {Array.from({ length: 24 }).map((_, i) => {
+                                            const h = playing ? Math.max(10, Math.cos(i + currentStep) * 50 + 50) : 10;
+                                            return <div key={i} className="flex-1 rounded-t bg-gradient-to-t from-indigo-500 via-purple-500 to-pink-500 transition-all duration-75 shadow" style={{ height: `${h}%` }}></div>;
+                                        })}
+                                    </div>
+                                )}
+
+                            </div>
+                        </div>
 
                         {tab === "DUAL_EDIT" && (
                             <div className="flex flex-col gap-3">
@@ -631,17 +574,11 @@
                                     <div className="flex justify-between items-center flex-wrap gap-2">
                                         <span className="text-xs font-bold text-cyan-400">① 楽器セレクト ＆ 🔥 連打記録モード</span>
                                         <div className="flex gap-2 flex-wrap">
-                                            <button
-                                                onClick={() => setRapidRecordMode(!rapidRecordMode)}
-                                                className={`px-3 py-1 rounded font-bold text-[10px] shadow border ${rapidRecordMode ? "bg-red-600 text-white border-white animate-pulse" : "bg-slate-800 text-red-400 border-red-800"}`}
-                                            >
+                                            <button onClick={() => setRapidRecordMode(!rapidRecordMode)} className={`px-3 py-1 rounded font-bold text-[10px] shadow border ${rapidRecordMode ? "bg-red-600 text-white border-white animate-pulse" : "bg-slate-800 text-red-400 border-red-800"}`}>
                                                 {rapidRecordMode ? "🔴 連打記録ON" : "⚪ 連打記録OFF"}
                                             </button>
                                             <button onClick={() => generateAiMelody(selectedInstrument)} className="px-2.5 py-1 bg-cyan-950 text-cyan-300 font-bold rounded text-[10px] border border-cyan-800">
                                                 ✨ AIメロディ作成
-                                            </button>
-                                            <button onClick={() => clearSpecificInstrument(selectedInstrument)} className="px-2.5 py-1 bg-red-950 text-red-300 font-bold rounded text-[10px] border border-red-800">
-                                                🗑️ 楽器クリア
                                             </button>
                                         </div>
                                     </div>
@@ -654,28 +591,15 @@
                                         ))}
                                     </div>
 
-                                    {selectedInstrument === "drums" && (
-                                        <div className="flex gap-2 items-center bg-slate-950 p-2 rounded border border-slate-800">
-                                            <span className="text-[10px] text-slate-400 font-bold">ドラムパート選択:</span>
-                                            {DRUM_PARTS.map(part => (
-                                                <button key={part.id} onClick={() => setSelectedDrumPart(part.id)} className={`px-3 py-1 rounded text-[10px] font-bold border ${selectedDrumPart === part.id ? "bg-red-600 text-white border-white" : "bg-slate-900 text-slate-400 border-slate-800"}`}>
-                                                    {part.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-
                                     <div className="bg-slate-950 border border-slate-800 rounded p-2.5 flex flex-col gap-2">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-[11px] font-bold text-cyan-400">
-                                                {selectedInstrument === "subBass" ? "🔊 システム重低音演奏" : selectedInstrument === "fx" ? "✨ FX効果音" : "🎹 鍵盤演奏エディタ"}
-                                            </span>
+                                            <span className="text-[11px] font-bold text-cyan-400">🎹 鍵盤演奏エディタ</span>
                                             <span className="text-[10px] text-slate-400">ボタン連打でリアルタイム発音！</span>
                                         </div>
                                         <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
-                                            {((selectedInstrument === "subBass" || selectedInstrument === "bass") ? SUBBASS_NOTES : selectedInstrument === "fx" ? FX_NOTES : selectedInstrument === "djembe" ? DJEMBE_NOTES : NOTES).map(note => (
-                                                <button key={note} onClick={() => playAndRecordRapidNote(note)} className={`py-3 rounded font-bold flex flex-col items-center justify-center gap-0.5 border bg-slate-900 text-slate-200 border-slate-800 hover:bg-cyan-600 hover:text-slate-950 active:scale-95 transition-all`}>
-                                                    <span className="text-[10px] truncate w-full px-1 text-center">{(selectedInstrument === "subBass" || selectedInstrument === "bass") ? note : selectedInstrument === "fx" ? note : SOLFEGE[note]}</span>
+                                            {NOTES.map(note => (
+                                                <button key={note} onClick={() => playAndRecordRapidNote(note)} className="py-3 rounded font-bold flex flex-col items-center justify-center gap-0.5 border bg-slate-900 text-slate-200 border-slate-800 hover:bg-cyan-600 hover:text-slate-950 active:scale-95 transition-all">
+                                                    <span className="text-[10px]">{SOLFEGE[note]}</span>
                                                     <span className="text-[8px] text-slate-400">{note}</span>
                                                 </button>
                                             ))}
@@ -700,7 +624,7 @@
                                             {Array.from({ length: BAR_STEPS }).map((_, i) => {
                                                 const stepIdx = currentBar * BAR_STEPS + i;
                                                 const stepVal = instrumentSteps[selectedInstrument][stepIdx];
-                                                let isActive = selectedInstrument === "drums" ? (stepVal && stepVal[selectedDrumPart]) : !!stepVal;
+                                                let isActive = !!stepVal;
 
                                                 return (
                                                     <button key={i} onClick={() => toggleStep(selectedInstrument, stepIdx)} className={`aspect-[3/4] w-full rounded border flex flex-col items-center justify-center text-[9px] transition-all ${isActive ? "bg-gradient-to-t from-cyan-600 to-blue-600 border-white text-white font-bold shadow-md shadow-cyan-500/50" : "bg-slate-900 border-slate-800 text-slate-500"}`}>
@@ -719,11 +643,7 @@
                                 <span className="text-xs font-bold text-rose-400">🎤 ラップ・ボーカル テンポ連打トリガー</span>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     {RAP_PHRASES.map(phrase => (
-                                        <button key={phrase} onClick={() => {
-                                            const syns = synthsRef.current;
-                                            if(syns) syns.fx.triggerAttackRelease("G5", "16n");
-                                            setStatus(`🔥 ラップ連打: [${phrase}]`);
-                                        }} className="py-4 bg-gradient-to-r from-rose-600 to-pink-700 text-white font-black rounded-lg shadow-lg active:scale-95 transition-all text-sm">
+                                        <button key={phrase} onClick={() => setStatus(`🔥 ラップ連打: [${phrase}]`)} className="py-4 bg-gradient-to-r from-rose-600 to-pink-700 text-white font-black rounded-lg shadow-lg active:scale-95 transition-all text-sm">
                                             🔥 {phrase}
                                         </button>
                                     ))}
@@ -746,38 +666,21 @@
                         )}
 
                         {tab === "DRUM_SUBBASS_20" && (
-                            <div className="flex flex-col gap-4">
-                                <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-xs font-bold text-red-400">🥁 ドラム ランダムパターン 20種</span>
-                                        <button onClick={() => applyRandomDrumPattern(Math.floor(Math.random() * 20) + 1)} className="px-2.5 py-1 bg-red-600 text-white rounded text-[10px] font-bold">🎲 ランダム</button>
-                                    </div>
-                                    <div className="grid grid-cols-5 md:grid-cols-10 gap-1.5 max-h-[160px] overflow-y-auto p-1 bg-slate-950 rounded border border-slate-800">
-                                        {Array.from({ length: 20 }).map((_, idx) => (
-                                            <button key={idx + 1} onClick={() => applyRandomDrumPattern(idx + 1)} className={`py-2 rounded font-bold text-[10px] border ${selectedDrumPatternId === idx + 1 ? "bg-red-600 text-white border-white" : "bg-slate-900 text-slate-300 border-slate-800"}`}>
-                                                No.{idx + 1}
-                                            </button>
-                                        ))}
-                                    </div>
+                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-red-400">🥁 ドラム ランダムパターン 20種</span>
+                                    <button onClick={() => applyRandomDrumPattern(Math.floor(Math.random() * 20) + 1)} className="px-2.5 py-1 bg-red-600 text-white rounded text-[10px] font-bold">🎲 ランダム</button>
+                                </div>
+                                <div className="grid grid-cols-5 md:grid-cols-10 gap-1.5 max-h-[160px] overflow-y-auto p-1 bg-slate-950 rounded border border-slate-800">
+                                    {Array.from({ length: 20 }).map((_, idx) => (
+                                        <button key={idx + 1} onClick={() => applyRandomDrumPattern(idx + 1)} className={`py-2 rounded font-bold text-[10px] border ${selectedDrumPatternId === idx + 1 ? "bg-red-600 text-white border-white" : "bg-slate-900 text-slate-300 border-slate-800"}`}>
+                                            No.{idx + 1}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                         )}
 
-                        {tab === "VOICE_STUDIO" && (
-                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
-                                <span className="text-xs font-bold text-cyan-400">🎙️ ボーカル・マイク録音</span>
-                                <div className="bg-slate-950 p-4 rounded border border-slate-800 flex gap-2">
-                                    {!isVoiceRecording ? (
-                                        <button onClick={startVoiceRecording} className="px-4 py-2 bg-red-600 text-white font-bold rounded text-xs animate-pulse">🔴 録音開始</button>
-                                    ) : (
-                                        <button onClick={stopVoiceRecording} className="px-4 py-2 bg-slate-200 text-slate-950 font-bold rounded text-xs">⏹️ 録音停止</button>
-                                    )}
-                                    {voiceAudioUrl && <button onClick={() => new Audio(voiceAudioUrl).play()} className="px-4 py-2 bg-cyan-600 text-slate-950 font-bold rounded text-xs">▶ 再生</button>}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* タブ: 録音記録リスト・保存 */}
                         {tab === "MEMORY_LIST" && (
                             <div className="flex flex-col gap-4">
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3">
@@ -801,32 +704,15 @@
                                 </div>
 
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-xs font-bold text-red-400">🔴 録音記録リスト（自動保存＆永続化・再生対応）</span>
-                                        {recordedSessionsList.length > 0 && (
-                                            <button onClick={clearAllRecordedSessions} className="px-2.5 py-1 bg-red-950 text-red-300 font-bold rounded text-[10px] border border-red-800">
-                                                🗑️ リストをすべてクリア
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="max-h-56 overflow-y-auto bg-slate-950 p-2 rounded border border-slate-800 flex flex-col gap-2">
+                                    <span className="text-xs font-bold text-red-400">🔴 録音記録リスト（自動保存＆永続化）</span>
+                                    <div className="max-h-48 overflow-y-auto bg-slate-950 p-2 rounded border border-slate-800 flex flex-col gap-2">
                                         {recordedSessionsList.length === 0 ? (
-                                            <span className="text-[11px] text-slate-500 text-center py-6">録音データがありません。上の「全体録音」ボタンを押して演奏し、停止するとここに永続保存されます。</span>
+                                            <span className="text-[11px] text-slate-500 text-center py-6">録音データがありません。上の「全体録音」ボタンから演奏を保存できます。</span>
                                         ) : (
                                             recordedSessionsList.map(rec => (
-                                                <div key={rec.id} className="flex justify-between items-center bg-slate-900 p-2.5 rounded border border-slate-800 gap-2">
-                                                    <div className="flex flex-col truncate">
-                                                        <span className="text-rose-300 font-bold text-xs truncate">{rec.name}</span>
-                                                        <span className="text-[9px] text-slate-500">{rec.date} (イベント数: {rec.buffer.length})</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5 shrink-0">
-                                                        <button onClick={() => playRecordedSessionItem(rec)} className="px-3 py-1 bg-rose-600 text-white font-bold rounded text-[10px] shadow">
-                                                            ▶ 録音再生
-                                                        </button>
-                                                        <button onClick={() => deleteRecordedSession(rec.id)} className="px-2 py-1 bg-slate-800 text-red-400 hover:bg-red-950 rounded text-[10px] border border-red-900">
-                                                            🗑️ 削除
-                                                        </button>
-                                                    </div>
+                                                <div key={rec.id} className="flex justify-between items-center bg-slate-900 p-2.5 rounded border border-slate-800">
+                                                    <span className="text-rose-300 font-bold text-xs">{rec.name}</span>
+                                                    <button onClick={() => { setPlayingSessionId(rec.id); setPlaying(true); }} className="px-3 py-1 bg-rose-600 text-white font-bold rounded text-[10px]">▶ 再生</button>
                                                 </div>
                                             ))
                                         )}
@@ -837,10 +723,17 @@
 
                         {tab === "JACKET" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-4 items-center">
-                                <span className="text-xs font-bold text-cyan-400 self-start">💿 ジャケット作成</span>
-                                <div className={`w-64 aspect-square bg-gradient-to-br ${jacketColor} rounded-xl shadow-2xl p-6 flex flex-col justify-between items-center text-center border-4 border-white/25`}>
+                                <span className="text-xs font-bold text-cyan-400 self-start">💿 ジャケット＆グラデーションテーマ選択</span>
+                                <div className={`w-64 aspect-square bg-gradient-to-br ${jacketColor} rounded-xl shadow-2xl p-6 flex flex-col justify-between items-center text-center border-4 border-white/25 transition-all`}>
                                     <h2 className="text-lg font-black text-white">{jacketTitle}</h2>
                                     <span className="text-xs font-bold text-cyan-300">{jacketGenre}</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 w-full max-w-md bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                    {GRADIENT_PATTERNS.map(pat => (
+                                        <button key={pat.id} onClick={() => setJacketColor(pat.class)} className={`py-2 px-3 rounded text-[10px] font-bold border bg-gradient-to-r ${pat.class} text-white shadow`}>
+                                            {pat.label}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                         )}
