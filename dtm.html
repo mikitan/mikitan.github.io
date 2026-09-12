@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MIC VICTORY v51.0 DEEP BASS</title>
+    <title>MIC VICTORY v52.0 HEAVY CLUB</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -18,10 +18,10 @@
             const [tab, setTab] = React.useState("SWITCH");
             const [playing, setPlaying] = React.useState(false);
             const [flashColor, setFlashColor] = React.useState("border-yellow-500");
-            const [bpm, setBpm] = React.useState(110);
+            const [bpm, setBpm] = React.useState(100);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [totalBars, setTotalBars] = React.useState(18);
-            const [status, setStatus] = React.useState("🔊 v51.0 全音源を重低音へ特化・レイアウト完全固定");
+            const [status, setStatus] = React.useState("🔊 v52.0 おもちゃ音完全排除・極太重低音リズム特化");
 
             const BAR_STEPS = 16;
             const getMaxSteps = () => totalBars * BAR_STEPS;
@@ -32,30 +32,29 @@
             const [visualPattern, setVisualPattern] = React.useState(1);
 
             const [volumes, setVolumes] = React.useState({
-                subBass: 6, bass: 6, drums20: 4, violin: 0,
-                guitar: 0, piano: 0, robot: 0, djembe: 4, synth: 0, fx: 0
+                subBass: 8, bass: 6, heavyDrums: 6, darkAfro: 6,
+                heavySynth: 4, subLead: 2, heavyRobot: 4, deepPerc: 6, analogSynth: 4, fx: 0
             });
 
             const METAL_FLASHES = [
-                "border-yellow-400", "border-slate-300", "border-amber-500", 
-                "border-zinc-400", "border-yellow-200", "border-slate-100", "border-rose-500", "border-cyan-400"
+                "border-yellow-400", "border-amber-500", "border-rose-500", "border-orange-500"
             ];
 
             const [modes, setModes] = React.useState({
-                subBass: "ai", bass: "ai", drums20: "ai", violin: "ai",
-                guitar: "ai", piano: "ai", robot: "manual", djembe: "ai", synth: "ai", fx: "manual"
+                subBass: "ai", bass: "ai", heavyDrums: "ai", darkAfro: "ai",
+                heavySynth: "ai", subLead: "ai", heavyRobot: "manual", deepPerc: "ai", analogSynth: "ai", fx: "manual"
             });
 
             const [steps, setSteps] = React.useState({
                 subBass: new Array(18 * BAR_STEPS).fill(null),
                 bass: new Array(18 * BAR_STEPS).fill(null),
-                drums20: new Array(18 * BAR_STEPS).fill(null),
-                violin: new Array(18 * BAR_STEPS).fill(null),
-                guitar: new Array(18 * BAR_STEPS).fill(null),
-                piano: new Array(18 * BAR_STEPS).fill(null),
-                robot: new Array(18 * BAR_STEPS).fill(null),
-                djembe: new Array(18 * BAR_STEPS).fill(null),
-                synth: new Array(18 * BAR_STEPS).fill(null),
+                heavyDrums: new Array(18 * BAR_STEPS).fill(null),
+                darkAfro: new Array(18 * BAR_STEPS).fill(null),
+                heavySynth: new Array(18 * BAR_STEPS).fill(null),
+                subLead: new Array(18 * BAR_STEPS).fill(null),
+                heavyRobot: new Array(18 * BAR_STEPS).fill(null),
+                deepPerc: new Array(18 * BAR_STEPS).fill(null),
+                analogSynth: new Array(18 * BAR_STEPS).fill(null),
                 fx: new Array(18 * BAR_STEPS).fill(null),
             });
 
@@ -66,24 +65,22 @@
             const analyserRef = React.useRef(null);
             const channelVolumesRef = React.useRef({});
 
+            // おもちゃ感を排除した重量級・肉厚ドラムパーツ
             const DRUM_PARTS = [
-                { id: "kick1", label: "超重キック1" }, { id: "kick2", label: "超重キック2" },
-                { id: "subBassHit", label: "サブベース打" }, { id: "deepFloor", label: "フロアタム" },
-                { id: "snare1", label: "重スネア1" }, { id: "snare2", label: "重スネア2" },
-                { id: "clap", label: "クラップ" }, { id: "hihatClosed", label: "HH閉" },
-                { id: "hihatOpen", label: "HH開" }, { id: "tomHigh", label: "Hタム" },
-                { id: "tomMid", label: "Mタム" }, { id: "tomLow", label: "Lタム" },
-                { id: "rimshot", label: "リム" }, { id: "cowbell", label: "カウベル" },
-                { id: "shaker", label: "シェイカー" }, { id: "tambourine", label: "タンバリン" }
+                { id: "subKick", label: "超重サブキック" }, { id: "punchKick", label: "パンチキック" },
+                { id: "heavySnare", label: "重スネア" }, { id: "subFloor", label: "フロアタム" },
+                { id: "darkClap", label: "ダーククラップ" }, { id: "deepRim", label: "ディープリム" },
+                { id: "heavyTom", label: "ヘヴィタム" }, { id: "subBassHit", label: "ベースヒット" }
             ];
-            const [selectedDrumPart, setSelectedDrumPart] = React.useState("kick1");
+            const [selectedDrumPart, setSelectedDrumPart] = React.useState("subKick");
 
+            // 全て重低音・リズム主体に再構築された本格楽器リスト
             const INSTRUMENTS = [
-                { id: "subBass", label: "🔊 超重低音サブベース" }, { id: "bass", label: "🎸 重低音ベース" },
-                { id: "drums20", label: "🥁 ステレオ重低音ドラム" }, { id: "violin", label: "🎻 低音バイオリン" },
-                { id: "guitar", label: "🎸 重低音ギター" }, { id: "piano", label: "🎹 低音ピアノ" },
-                { id: "robot", label: "🤖 低音電子ロボット" }, { id: "djembe", label: "🪘 アフリカ重低音太鼓" },
-                { id: "synth", label: "🎹 重低音シンセ" }, { id: "fx", label: "✨ FX効果音" },
+                { id: "subBass", label: "🔊 极太サブベース" }, { id: "bass", label: "🎸 アナログベース" },
+                { id: "heavyDrums", label: "🥁 ヘヴィ・クラブドラム" }, { id: "darkAfro", label: "🪘 ダークアフロリズム" },
+                { id: "heavySynth", label: "🎹 ダークシンセ" }, { id: "subLead", label: "🎸 ローシークエンス" },
+                { id: "heavyRobot", label: "🤖 メカニカル低音" }, { id: "deepPerc", label: "🪘 ディープパーカッション" },
+                { id: "analogSynth", label: "🎹 モジュラー低音" }, { id: "fx", label: "✨ 重低音FX" },
             ];
 
             const synthsRef = React.useRef(null);
@@ -95,58 +92,53 @@
                     const dest = Tone.context.createMediaStreamDestination();
                     destinationRef.current = dest;
 
-                    const masterGain = new Tone.Gain(2.2).toDestination();
+                    const masterGain = new Tone.Gain(2.5).toDestination();
                     masterGain.connect(dest);
 
                     const analyser = new Tone.Analyser("waveform", 64);
                     masterGain.connect(analyser);
                     analyserRef.current = analyser;
 
-                    const dist = new Tone.Distortion({ distortion: 0.5, wet: 0.4 });
-                    const rev = new Tone.Reverb({ decay: 2.5, wet: 0.2 });
+                    // 重低音に厚みを持たせる歪みとリバーブ
+                    const heavyDist = new Tone.Distortion({ distortion: 0.6, wet: 0.5 });
+                    const deepRev = new Tone.Reverb({ decay: 2.0, wet: 0.15 });
 
                     const channels = {};
                     const syns = {};
-                    const d20 = {};
+                    const drumSyns = {};
 
                     INSTRUMENTS.forEach((inst, idx) => {
                         const channel = new Tone.Channel(0, 0).connect(masterGain);
                         channels[inst.id] = channel;
 
-                        if (inst.id === "subBass" || inst.id === "bass") {
+                        if (inst.id === "heavyDrums") {
+                            const panner = new Tone.Panner(0).connect(channel);
+                            drumSyns.subKick = new Tone.MembraneSynth({ pitchDecay: 0.1, octaves: 8, oscillator: { type: "sine" } }).connect(heavyDist).connect(panner);
+                            drumSyns.punchKick = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 6, oscillator: { type: "triangle" } }).connect(heavyDist).connect(panner);
+                            drumSyns.heavySnare = new Tone.NoiseSynth({ noise: { type: "brown" }, envelope: { attack: 0.005, decay: 0.2, sustain: 0 } }).connect(deepRev).connect(panner);
+                            drumSyns.subFloor = new Tone.MembraneSynth({ pitchDecay: 0.08, octaves: 5 }).connect(heavyDist).connect(panner);
+                            drumSyns.darkClap = new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.01, decay: 0.15, sustain: 0 } }).connect(deepRev).connect(panner);
+                            drumSyns.deepRim = new Tone.MembraneSynth({ pitchDecay: 0.02, octaves: 3 }).connect(panner);
+                            drumSyns.heavyTom = new Tone.MembraneSynth({ pitchDecay: 0.06, octaves: 4 }).connect(heavyDist).connect(panner);
+                            drumSyns.subBassHit = new Tone.MonoSynth({ oscillator: { type: "sawtooth" } }).connect(heavyDist).connect(panner);
+                            syns.heavyDrums = drumSyns;
+                        } else if (inst.id === "subBass" || inst.id === "bass") {
                             syns[inst.id] = new Tone.MonoSynth({
                                 oscillator: { type: "sawtooth" },
-                                filter: { Q: 2, type: "lowpass", rolloff: -24 },
-                                envelope: { attack: 0.05, decay: 0.3, sustain: 0.4, release: 0.8 }
-                            }).connect(dist).connect(channel);
-                        } else if (inst.id === "drums20") {
-                            const stereoPanner = new Tone.Panner((idx % 2 === 0 ? -0.3 : 0.3)).connect(channel);
-                            d20.kick1 = new Tone.MembraneSynth({ pitchDecay: 0.08, octaves: 6, oscillator: { type: "sine" } }).connect(dist).connect(stereoPanner);
-                            d20.kick2 = new Tone.MembraneSynth({ pitchDecay: 0.06, octaves: 5, oscillator: { type: "triangle" } }).connect(dist).connect(stereoPanner);
-                            d20.subBassHit = new Tone.MembraneSynth({ pitchDecay: 0.1, octaves: 7 }).connect(dist).connect(stereoPanner);
-                            d20.deepFloor = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4 }).connect(dist).connect(stereoPanner);
-                            d20.snare1 = new Tone.NoiseSynth().connect(rev).connect(stereoPanner);
-                            d20.snare2 = new Tone.NoiseSynth().connect(rev).connect(stereoPanner);
-                            d20.hihatClosed = new Tone.MetalSynth().connect(rev).connect(stereoPanner);
-                            d20.hihatOpen = new Tone.MetalSynth().connect(rev).connect(stereoPanner);
-                            syns.drums20 = d20;
-                        } else if (inst.id === "djembe") {
-                            syns[inst.id] = new Tone.MembraneSynth({
-                                pitchDecay: 0.08,
-                                octaves: 5,
-                                oscillator: { type: "sine" }
-                            }).connect(dist).connect(channel);
+                                filter: { Q: 3, type: "lowpass", rolloff: -24, cutoffFrequency: 400 },
+                                envelope: { attack: 0.02, decay: 0.3, sustain: 0.6, release: 0.8 }
+                            }).connect(heavyDist).connect(channel);
                         } else {
-                            // 全ての一般楽器も低音域専用シンセサイザーとして構築
+                            // チープな高音を出さない、太いローミッド専用シンセ
                             syns[inst.id] = new Tone.Synth({
                                 oscillator: { type: "triangle" },
-                                envelope: { attack: 0.02, decay: 0.4, sustain: 0.3, release: 0.5 }
-                            }).connect(rev).connect(channel);
+                                envelope: { attack: 0.03, decay: 0.4, sustain: 0.4, release: 0.5 }
+                            }).connect(deepRev).connect(channel);
                         }
                     });
 
-                    dist.connect(masterGain);
-                    rev.connect(masterGain);
+                    heavyDist.connect(masterGain);
+                    deepRev.connect(masterGain);
 
                     channelVolumesRef.current = channels;
                     synthsRef.current = syns;
@@ -160,27 +152,30 @@
                 if (channel) channel.volume.value = val;
             };
 
+            // おもちゃ感を完全排除したプロ仕様の重低音・リズムAIパターン生成
             const generateAiMelodyForInstrument = (instKey, maxS) => {
                 const arr = new Array(maxS).fill(null);
-                // すべてのAI生成を「C0〜C2」の超重低音・低音域に固定
-                const deepNotes = ["C0", "G0", "C1", "D1", "F1", "G1", "A1", "C2"];
-                const afroDeepNotes = ["C1", "E1", "G1", "C2"];
+                const heavyNotes = ["C0", "C1", "D1", "F1", "G1", "A1", "C2"];
+                const afroGrooveNotes = ["C1", "E1", "G1", "C2", "G0"];
 
                 for (let s = 0; s < maxS; s++) {
                     const sInBar = s % BAR_STEPS;
-                    if (instKey === "drums20") {
-                        if (sInBar === 0 || sInBar === 8) arr[s] = { kick1: true, subBassHit: true };
-                        if (sInBar === 4 || sInBar === 12) arr[s] = { snare1: true, deepFloor: true };
-                        if (sInBar % 2 === 0) arr[s] = { ...(arr[s] || {}), hihatClosed: true };
-                    } else if (instKey === "djembe") {
-                        if (sInBar % 3 === 0 || sInBar % 4 === 0) {
-                            arr[s] = afroDeepNotes[s % afroDeepNotes.length];
+                    if (instKey === "heavyDrums") {
+                        if (sInBar === 0 || sInBar === 8 || sInBar === 10) arr[s] = { subKick: true, punchKick: true };
+                        if (sInBar === 4 || sInBar === 12) arr[s] = { heavySnare: true, darkClap: true };
+                        if (sInBar % 2 === 0) arr[s] = { ...(arr[s] || {}), subFloor: true };
+                        if (sInBar % 4 === 2) arr[s] = { ...(arr[s] || {}), deepRim: true };
+                    } else if (instKey === "darkAfro") {
+                        if (sInBar % 3 === 0 || sInBar % 5 === 0) {
+                            arr[s] = afroGrooveNotes[s % afroGrooveNotes.length];
                         }
                     } else if (instKey === "subBass" || instKey === "bass") {
-                        if (sInBar % 2 === 0) arr[s] = deepNotes[s % deepNotes.length];
+                        if (sInBar % 2 === 0 || sInBar === 14) {
+                            arr[s] = heavyNotes[s % heavyNotes.length];
+                        }
                     } else {
-                        if (sInBar % 4 === 0 || sInBar % 6 === 0) {
-                            arr[s] = deepNotes[(s + Math.floor(s / BAR_STEPS)) % deepNotes.length];
+                        if (sInBar % 4 === 0) {
+                            arr[s] = heavyNotes[(s + Math.floor(s / BAR_STEPS)) % heavyNotes.length];
                         }
                     }
                 }
@@ -194,24 +189,24 @@
                     if (modes[k] === "ai") newSteps[k] = generateAiMelodyForInstrument(k, maxS);
                 });
                 setSteps(newSteps);
-                setStatus("🚀 全音源の重低音AIパターンを生成しました！");
+                setStatus("🚀 極太重低音・リズムパターンをAI構築しました！");
             };
 
             const randomizePattern = (instKey) => {
                 const maxS = getMaxSteps();
                 const arr = new Array(maxS).fill(null);
-                const deepNotes = ["C0", "G0", "C1", "E1", "G1", "C2"];
+                const heavyNotes = ["C0", "G0", "C1", "E1", "G1", "C2"];
                 for (let s = 0; s < maxS; s++) {
                     if (Math.random() > 0.6) {
-                        if (instKey === "drums20") {
-                            arr[s] = { kick1: true, subBassHit: Math.random() > 0.5 };
+                        if (instKey === "heavyDrums") {
+                            arr[s] = { subKick: true, punchKick: Math.random() > 0.4, heavySnare: Math.random() > 0.5 };
                         } else {
-                            arr[s] = deepNotes[Math.floor(Math.random() * deepNotes.length)];
+                            arr[s] = heavyNotes[Math.floor(Math.random() * heavyNotes.length)];
                         }
                     }
                 }
                 setSteps(prev => ({ ...prev, [instKey]: arr }));
-                setStatus(`🎲 ${INSTRUMENTS.find(i => i.id === instKey)?.label} の重低音ランダム生成完了！`);
+                setStatus(`🎲 ${INSTRUMENTS.find(i => i.id === instKey)?.label} の重低音パターンをシャッフル！`);
             };
 
             const addNew18Bars = () => {
@@ -247,8 +242,8 @@
             const playScratch = async () => {
                 try {
                     await Tone.start();
-                    synthsRef.current?.drums20?.kick1?.triggerAttackRelease("C1", "16n");
-                    setStatus("💿 重低音スクラッチ発動！");
+                    synthsRef.current?.heavyDrums?.subKick?.triggerAttackRelease("C0", "16n");
+                    setStatus("💿 ヘヴィ・サブベース・スクラッチ発動！");
                 } catch(e) {}
             };
 
@@ -261,13 +256,13 @@
                         recorder.onstop = () => {
                             const blob = new Blob(liveAudioChunks.current, { type: 'audio/webm' });
                             const url = URL.createObjectURL(blob);
-                            setRecordings(prev => [...prev, { id: Date.now(), url, title: `重低音録音 #${prev.length + 1}` }]);
-                            setStatus("💾 録音の保存が完了しました！");
+                            setRecordings(prev => [...prev, { id: Date.now(), url, title: `重低音トラック #${prev.length + 1}` }]);
+                            setStatus("💾 トラックの保存が完了しました！");
                         };
                         recorder.start();
                         mediaRecorderRef.current = recorder;
                         setIsRecordingLive(true);
-                        setStatus("🔴 重低音ライブ録音中...");
+                        setStatus("🔴 ライブ録音中...");
                     } catch(e) {
                         setStatus("⚠️ 録音非対応ブラウザです");
                     }
@@ -304,10 +299,10 @@
                         Object.keys(modes).forEach(k => {
                             const val = steps[k][step];
                             if (val) {
-                                if (k === "drums20") {
+                                if (k === "heavyDrums") {
                                     Object.keys(val).forEach(pk => {
-                                        if (val[pk] && syns.drums20[pk]) {
-                                            syns.drums20[pk].triggerAttackRelease("8n", time);
+                                        if (val[pk] && syns.heavyDrums[pk]) {
+                                            syns.heavyDrums[pk].triggerAttackRelease("8n", time);
                                         }
                                     });
                                 } else if (syns[k]) {
@@ -333,7 +328,7 @@
             const toggleStep = (instKey, idx) => {
                 setSteps(prev => {
                     const arr = [...prev[instKey]];
-                    if (instKey === "drums20") {
+                    if (instKey === "heavyDrums") {
                         const obj = arr[idx] || {};
                         const upd = { ...obj, [selectedDrumPart]: !obj[selectedDrumPart] };
                         arr[idx] = Object.values(upd).some(Boolean) ? upd : null;
@@ -349,8 +344,8 @@
                     
                     {/* ヘッダー */}
                     <header className="bg-gradient-to-r from-slate-900 via-zinc-900 to-slate-900 border-b border-yellow-500/30 p-2 flex flex-wrap items-center justify-between gap-1.5 sticky top-0 z-50 shadow-lg">
-                        <span className="font-black text-xs bg-gradient-to-r from-yellow-300 via-slate-200 to-yellow-500 bg-clip-text text-transparent">
-                            MIC VICTORY <span className="text-[9px] text-yellow-400">v51.0 DEEP</span>
+                        <span className="font-black text-xs bg-gradient-to-r from-yellow-300 via-amber-200 to-orange-500 bg-clip-text text-transparent">
+                            MIC VICTORY <span className="text-[9px] text-yellow-400">v52.0 HEAVY</span>
                         </span>
                         <div className="flex items-center gap-1 flex-wrap">
                             <button onClick={togglePlay} className={`px-2.5 py-1 rounded-lg font-bold text-[11px] shadow ${playing ? "bg-yellow-400 text-slate-950 animate-bounce" : "bg-gradient-to-r from-yellow-600 to-amber-700 text-white"}`}>
@@ -372,7 +367,7 @@
                         {[
                             { id: "SWITCH", label: "🎛️ 重低音・AI" },
                             { id: "MIXER", label: "🎚️ ミキサー" },
-                            { id: "EDIT", label: "🎹 鍵盤・18小節" },
+                            { id: "EDIT", label: "🎹 鍵盤・リズム" },
                             { id: "VISUAL", label: "🌈 ビジュアル" },
                             { id: "REC", label: "💾 録音" },
                         ].map(t => (
@@ -392,7 +387,7 @@
                         {tab === "SWITCH" && (
                             <div className="bg-slate-900 border border-yellow-500/20 rounded-2xl p-3 flex flex-col gap-2.5 shadow-xl">
                                 <div className="flex justify-between items-center flex-wrap gap-1.5">
-                                    <span className="text-[11px] font-bold text-yellow-400">🎛️ 全音源重低音モード＆AIコントロール</span>
+                                    <span className="text-[11px] font-bold text-yellow-400">🎛️ ヘヴィビート＆重低音AI一括コントロール</span>
                                     <div className="flex gap-1.5">
                                         <button onClick={generateAllAi} className="px-2.5 py-1 bg-yellow-500 text-slate-950 rounded-lg font-bold text-[11px] shadow">重低音AI生成</button>
                                         <button onClick={clearAllInstruments} className="px-2.5 py-1 bg-red-600 text-white rounded-lg font-bold text-[11px] shadow hover:bg-red-700">全体Clear</button>
@@ -426,7 +421,7 @@
 
                         {tab === "MIXER" && (
                             <div className="bg-slate-900 border border-yellow-500/20 rounded-2xl p-3 flex flex-col gap-2.5 shadow-xl">
-                                <span className="text-[11px] font-bold text-yellow-400">🎚️ 重低音・音響ミキサー微調整</span>
+                                <span className="text-[11px] font-bold text-yellow-400">🎚️ 圧倒的重低音・ミキサー調整</span>
                                 <div className="grid grid-cols-1 gap-2">
                                     {INSTRUMENTS.map(inst => (
                                         <div key={inst.id} className="bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
@@ -453,7 +448,7 @@
                             <div className="flex flex-col gap-2.5">
                                 <div className="bg-slate-900 border border-yellow-500/20 rounded-2xl p-3 flex flex-col gap-2.5 shadow-xl">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-[11px] font-bold text-yellow-400">🎹 重低音・鍵盤エディタ（C0〜C2）</span>
+                                        <span className="text-[11px] font-bold text-yellow-400">🎹 重低音リズム・シーケンサー（C0〜C2）</span>
                                         <button onClick={addNew18Bars} className="px-2.5 py-1 bg-gradient-to-r from-yellow-500 to-amber-600 text-slate-950 font-bold rounded-lg text-[11px] shadow">
                                             + 18小節追加
                                         </button>
@@ -466,8 +461,8 @@
                                         ))}
                                     </div>
 
-                                    {selectedInst === "drums20" && (
-                                        <div className="grid grid-cols-4 gap-1.5 bg-slate-950 p-2 rounded-xl border border-slate-800 max-h-36 overflow-y-auto">
+                                    {selectedInst === "heavyDrums" && (
+                                        <div className="grid grid-cols-4 gap-1.5 bg-slate-950 p-2 rounded-xl border border-slate-800">
                                             {DRUM_PARTS.map(d => (
                                                 <button key={d.id} onClick={() => setSelectedDrumPart(d.id)} className={`py-1.5 px-1 rounded-lg text-[10px] font-bold border truncate ${selectedDrumPart === d.id ? "bg-rose-600 text-white border-white" : "bg-slate-900 text-slate-300 border-slate-800"}`}>
                                                     {d.label}
@@ -476,7 +471,7 @@
                                         </div>
                                     )}
 
-                                    {selectedInst !== "drums20" && (
+                                    {selectedInst !== "heavyDrums" && (
                                         <div className="flex flex-wrap gap-1 bg-slate-950 p-2 rounded-xl border border-slate-800">
                                             {["C0","D0","E0","F0","G0","A0","B0","C1","D1","E1","F1","G1","A1","B1","C2"].map(n => (
                                                 <button key={n} onClick={async () => {
@@ -509,11 +504,11 @@
                                         {Array.from({ length: BAR_STEPS }).map((_, i) => {
                                             const idx = currentBar * BAR_STEPS + i;
                                             const val = steps[selectedInst][idx];
-                                            const active = selectedInst === "drums20" ? !!(val && val[selectedDrumPart]) : !!val;
+                                            const active = selectedInst === "heavyDrums" ? !!(val && val[selectedDrumPart]) : !!val;
                                             return (
                                                 <button key={i} onClick={() => toggleStep(selectedInst, idx)} className={`h-14 rounded-xl border flex flex-col items-center justify-center text-xs font-bold shadow transition-all ${active ? "bg-yellow-400 border-white text-slate-950 scale-105" : "bg-slate-900 border-slate-800 text-slate-400"}`}>
                                                     <span>{i + 1}</span>
-                                                    {active && <span className="text-[9px] font-black text-slate-950 bg-yellow-200 px-1 rounded mt-0.5">{typeof val === "string" ? val : "REC"}</span>}
+                                                    {active && <span className="text-[9px] font-black text-slate-950 bg-yellow-200 px-1 rounded mt-0.5">{typeof val === "string" ? val : "HIT"}</span>}
                                                 </button>
                                             );
                                         })}
@@ -525,7 +520,7 @@
                         {tab === "VISUAL" && (
                             <div className="bg-slate-900 border border-yellow-500/20 rounded-2xl p-3 flex flex-col gap-2.5 shadow-xl">
                                 <div className="flex justify-between items-center flex-wrap gap-1.5">
-                                    <span className="text-[11px] font-bold text-yellow-400">🌈 ビジュアルライザー</span>
+                                    <span className="text-[11px] font-bold text-yellow-400">🌈 重低音ビジュアルライザー</span>
                                     <div className="flex gap-1 overflow-x-auto">
                                         {[1, 2, 3, 4, 5, 6].map(p => (
                                             <button key={p} onClick={() => setVisualPattern(p)} className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${visualPattern === p ? "bg-yellow-400 text-slate-950" : "bg-slate-800 text-slate-300"}`}>
@@ -537,39 +532,39 @@
 
                                 <div className="bg-slate-950 h-56 rounded-2xl border border-slate-800 flex items-center justify-center relative overflow-hidden p-3">
                                     {visualPattern === 1 && (
-                                        <div style={{transform: `scale(${1 + audioLevel/25})`}} className="w-32 h-32 rounded-full bg-gradient-to-r from-yellow-500 via-amber-600 to-rose-600 flex flex-col items-center justify-center font-black text-slate-950 text-sm shadow-2xl transition-all duration-75">
-                                            <span>DEEP BASS</span>
+                                        <div style={{transform: `scale(${1 + audioLevel/20})`}} className="w-32 h-32 rounded-full bg-gradient-to-r from-yellow-500 via-orange-600 to-red-700 flex flex-col items-center justify-center font-black text-slate-950 text-sm shadow-2xl transition-all duration-75">
+                                            <span>HEAVY BASS</span>
                                             <span className="text-[10px]">{audioLevel}%</span>
                                         </div>
                                     )}
                                     {visualPattern === 2 && (
                                         <div className="flex items-center gap-2">
                                             {Array.from({ length: 8 }).map((_, i) => (
-                                                <div key={i} style={{height: `${Math.max(15, (audioLevel * (i + 1)) % 160)}px`}} className="w-5 bg-gradient-to-t from-yellow-600 to-amber-400 rounded-t-lg transition-all duration-75"></div>
+                                                <div key={i} style={{height: `${Math.max(15, (audioLevel * (i + 1)) % 160)}px`}} className="w-5 bg-gradient-to-t from-yellow-600 to-orange-500 rounded-t-lg transition-all duration-75"></div>
                                             ))}
                                         </div>
                                     )}
                                     {visualPattern === 3 && (
-                                        <div style={{transform: `rotate(${audioLevel * 3.6}deg) scale(${1 + audioLevel/40})`}} className="w-36 h-36 border-4 border-dashed border-yellow-500 rounded-3xl flex items-center justify-center font-bold text-yellow-400 shadow-xl transition-all duration-75">
-                                            ★ SUB-BASS ★
+                                        <div style={{transform: `rotate(${audioLevel * 3.6}deg) scale(${1 + audioLevel/35})`}} className="w-36 h-36 border-4 border-dashed border-orange-500 rounded-3xl flex items-center justify-center font-bold text-yellow-400 shadow-xl transition-all duration-75">
+                                            ★ CLUB GROOVE ★
                                         </div>
                                     )}
                                     {visualPattern === 4 && (
-                                        <div style={{opacity: Math.max(0.4, audioLevel/40)}} className="text-center font-black text-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-orange-500 bg-clip-text text-transparent animate-pulse">
-                                            🔊 ULTRA LOW 🔊
+                                        <div style={{opacity: Math.max(0.4, audioLevel/35)}} className="text-center font-black text-2xl bg-gradient-to-r from-orange-500 via-yellow-400 to-red-600 bg-clip-text text-transparent animate-pulse">
+                                            🔊 SUB-BASS MASTER 🔊
                                         </div>
                                     )}
                                     {visualPattern === 5 && (
                                         <div className="flex gap-3 items-center">
                                             {Array.from({ length: 5 }).map((_, i) => (
-                                                <div key={i} style={{width: `${20 + (audioLevel * i) % 60}px`, height: `${20 + (audioLevel * i) % 60}px`}} className="rounded-full border-2 border-yellow-500 animate-ping absolute"></div>
+                                                <div key={i} style={{width: `${20 + (audioLevel * i) % 60}px`, height: `${20 + (audioLevel * i) % 60}px`}} className="rounded-full border-2 border-orange-500 animate-ping absolute"></div>
                                             ))}
-                                            <span className="font-bold text-yellow-400 text-sm z-10">BASS LEVEL: {audioLevel}</span>
+                                            <span className="font-bold text-yellow-400 text-sm z-10">BASS POWER: {audioLevel}</span>
                                         </div>
                                     )}
                                     {visualPattern === 6 && (
-                                        <div style={{transform: `scale(${1 + audioLevel/35})`}} className="w-40 h-20 bg-gradient-to-r from-amber-600 via-yellow-600 to-red-600 rounded-2xl flex items-center justify-center font-black text-white text-base shadow-2xl transition-all duration-75">
-                                            ✨ HEAVY SUB ✨
+                                        <div style={{transform: `scale(${1 + audioLevel/30})`}} className="w-40 h-20 bg-gradient-to-r from-yellow-600 via-orange-600 to-red-700 rounded-2xl flex items-center justify-center font-black text-white text-base shadow-2xl transition-all duration-75">
+                                            ✨ HEAVY BEAT ✨
                                         </div>
                                     )}
                                 </div>
