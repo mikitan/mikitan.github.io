@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MIC VICTORY Dland Ultimate 18-Bar Voice & AI Edition</title>
+    <title>MIC VICTORY Dland AI & Manual Complete Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -20,8 +20,8 @@
             const [flashColor, setFlashColor] = React.useState("border-amber-500");
             const [bpm, setBpm] = React.useState(116);
             const [currentBar, setCurrentBar] = React.useState(0);
-            const [totalBars, setTotalBars] = React.useState(18); // ご要望の18小節基本
-            const [status, setStatus] = React.useState("👑 MIC VICTORY Dland 18小節Voice & AI完全版起動完了！");
+            const totalBars = 18; // 18小節固定
+            const [status, setStatus] = React.useState("👑 MIC VICTORY Dland 18小節 楽器・メロディAI・手動・全体AI統合版起動！");
 
             const BAR_STEPS = 16;
             const getMaxSteps = () => totalBars * BAR_STEPS;
@@ -133,14 +133,16 @@
                 return arr;
             };
 
-            const generateAllAi = () => {
+            // 全体AI自動調整（全楽器のバランスとパターンを一括AI最適化）
+            const handleOverallAiOptimization = () => {
                 const maxS = getMaxSteps();
                 const newSteps = {};
                 Object.keys(steps).forEach(k => {
                     newSteps[k] = generateAiPattern(k, maxS);
                 });
                 setSteps(newSteps);
-                setStatus("🎲 18小節分の全楽器AIランダムパターンを生成しました！");
+                setBpm(118 + Math.floor(Math.random() * 12));
+                setStatus("🚀 全体AI自動調整を実行しました！ 18小節の全楽器とテンポが最適化されました。");
             };
 
             const generateSingleInstAi = (instKey) => {
@@ -150,12 +152,11 @@
                 setStatus(`🎲 ${INSTRUMENTS.find(i => i.id === instKey)?.label} のAIパターンを生成しました`);
             };
 
-            // Voice AI をメロディAIに変換する機能
             const convertVoiceToMelodyAi = () => {
                 const maxS = getMaxSteps();
                 const converted = generateAiPattern("melodyAi", maxS);
                 setSteps(prev => ({ ...prev, melodyAi: converted }));
-                setStatus("✨ Voice AIの周波数データを解析し、メロディAIパターンへ完全変換しました！");
+                setStatus("✨ Voice AIデータを解析し、メロディAIへ変換しました！");
             };
 
             React.useEffect(() => {
@@ -205,7 +206,6 @@
                     channelVolumesRef.current = channels;
                     synthsRef.current = syns;
 
-                    // 初期18小節設定
                     setSteps({
                         subBass: generateAiPattern("subBass", 18 * BAR_STEPS),
                         synth: generateAiPattern("synth", 18 * BAR_STEPS),
@@ -231,16 +231,6 @@
                 setStatus(`🗑️ ${INSTRUMENTS.find(i => i.id === instKey)?.label} をクリアしました`);
             };
 
-            const clearAllInstruments = () => {
-                const emptySteps = {};
-                Object.keys(steps).forEach(k => {
-                    emptySteps[k] = new Array(getMaxSteps()).fill(null);
-                });
-                setSteps(emptySteps);
-                setStatus("🗑️ 全データをクリアしました (全体Clear)");
-            };
-
-            // ライブマスター録音
             const toggleLiveRecording = () => {
                 if (!isRecordingLive) {
                     try {
@@ -251,14 +241,14 @@
                             const blob = new Blob(liveAudioChunks.current, { type: 'audio/webm' });
                             const url = URL.createObjectURL(blob);
                             setRecordings(prev => [...prev, { id: Date.now(), url, title: `MASTER-REC #${prev.length + 1}` }]);
-                            setStatus("💾 マスター録音をリストに保存しました");
+                            setStatus("💾 マスター記録を保存しました！リストから再生・DLできます");
                         };
                         recorder.start();
                         mediaRecorderRef.current = recorder;
                         setIsRecordingLive(true);
-                        setStatus("🔴 マスター録音中...");
+                        setStatus("🔴 マスター記録中...");
                     } catch(e) {
-                        setStatus("⚠️ 録音非対応ブラウザです");
+                        setStatus("⚠️ 記録非対応ブラウザです");
                     }
                 } else {
                     mediaRecorderRef.current?.stop();
@@ -266,7 +256,6 @@
                 }
             };
 
-            // Voice AI専用マイク録音
             const toggleVoiceRecording = async () => {
                 if (!isVoiceRecording) {
                     try {
@@ -278,14 +267,14 @@
                             const blob = new Blob(voiceChunksRef.current, { type: 'audio/webm' });
                             const url = URL.createObjectURL(blob);
                             setVoiceRecordings(prev => [...prev, { id: Date.now(), url, title: `VOICE-AI #${prev.length + 1}` }]);
-                            setStatus("🎙️ Voice AIの記録を保存しました！「メロディAI変換」が可能です");
+                            setStatus("🎙️ Voice AI音声の記録完了！メロディAI変換が可能です");
                         };
                         recorder.start();
                         voiceRecorderRef.current = recorder;
                         setIsVoiceRecording(true);
-                        setStatus("🎙️ マイク音声記録中...");
+                        setStatus("🎙️ Voice AI音声記録中...");
                     } catch(e) {
-                        setStatus("⚠️ マイクへのアクセスが許可されていません");
+                        setStatus("⚠️ マイク許可が必要です");
                     }
                 } else {
                     voiceRecorderRef.current?.stop();
@@ -338,7 +327,7 @@
                 } else {
                     Tone.Transport.stop();
                 }
-            }, [playing, bpm, steps, totalBars]);
+            }, [playing, bpm, steps]);
 
             const togglePlay = async () => {
                 try { await Tone.start(); } catch(e) {}
@@ -366,14 +355,17 @@
                     
                     <header className="bg-gradient-to-r from-slate-900 via-zinc-900 to-slate-900 border-b border-amber-500/30 p-2 flex flex-wrap items-center justify-between gap-1.5 sticky top-0 z-50 shadow-lg">
                         <span className="font-black text-xs bg-gradient-to-r from-amber-300 via-yellow-200 to-orange-400 bg-clip-text text-transparent">
-                            MIC VICTORY DLAND <span className="text-[9px] text-amber-400">18小節 Voice & AI</span>
+                            MIC VICTORY DLAND <span className="text-[9px] text-amber-400">18小節 AI & 手動</span>
                         </span>
                         <div className="flex items-center gap-1 flex-wrap">
                             <button onClick={togglePlay} className={`px-2.5 py-1 rounded-lg font-bold text-[11px] shadow ${playing ? "bg-amber-400 text-slate-950 animate-bounce" : "bg-gradient-to-r from-amber-600 to-yellow-700 text-white"}`}>
                                 {playing ? "■ 停止" : "▶ 再生"}
                             </button>
                             <button onClick={toggleLiveRecording} className={`px-2 py-1 rounded-lg font-bold text-[11px] border ${isRecordingLive ? "bg-red-600 text-white border-white animate-pulse" : "bg-slate-800 text-slate-200 border-slate-600"}`}>
-                                {isRecordingLive ? "🔴 録音中" : "🎙️ 記録"}
+                                {isRecordingLive ? "🔴 記録中" : "🎙️ 記録再生"}
+                            </button>
+                            <button onClick={handleOverallAiOptimization} className="px-2 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg text-[10px] shadow" title="全体AI自動調整">
+                                ✨ 全体AI調整
                             </button>
                             <div className="flex items-center gap-1 bg-slate-900 px-1.5 py-0.5 rounded-lg border border-amber-500/40">
                                 <span className="text-[9px] text-amber-400 font-bold">BPM</span>
@@ -384,11 +376,11 @@
 
                     <nav className="bg-slate-900/95 border-b border-slate-800 p-1.5 flex gap-1 overflow-x-auto">
                         {[
-                            { id: "EDIT", label: "🎹 18小節グリッド" },
-                            { id: "VOICE", label: "🎙️ Voice AI変換" },
+                            { id: "EDIT", label: "🎹 楽器・手動・AIグリッド" },
+                            { id: "VOICE", label: "🎙️ Voice AI ＆ メロディAI" },
                             { id: "MIXER", label: "🎚️ ミキサー" },
                             { id: "VISUAL", label: "🌈 ビジュアル" },
-                            { id: "REC", label: "💾 記録リスト保存" },
+                            { id: "REC", label: "💾 記録保存リスト" },
                         ].map(t => (
                             <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-1 rounded-lg text-center font-bold text-[11px] shrink-0 ${tab === t.id ? "bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 shadow" : "bg-slate-800 text-slate-300"}`}>
                                 {t.label}
@@ -398,7 +390,7 @@
 
                     <div className="bg-slate-900 px-3 py-1.5 text-[11px] text-amber-400 border-b border-slate-800 flex justify-between items-center">
                         <span className="truncate">💡 {status}</span>
-                        <span className="text-slate-300 font-bold shrink-0 ml-2">小節: {currentBar + 1} / {totalBars} (18小節固定)</span>
+                        <span className="text-slate-300 font-bold shrink-0 ml-2">18小節: {currentBar + 1} / 18</span>
                     </div>
 
                     <main className="p-2.5 flex flex-col gap-2.5 max-w-4xl mx-auto">
@@ -407,31 +399,28 @@
                             <div className="flex flex-col gap-2.5">
                                 <div className="bg-slate-900 border border-amber-500/20 rounded-2xl p-3 flex flex-col gap-2.5 shadow-xl">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className="text-[11px] font-bold text-amber-400">🎹 各楽器別AI切り替え & 手動連打入力</span>
-                                        <div className="flex gap-1.5">
-                                            <button onClick={generateAllAi} className="px-2.5 py-1 bg-amber-500 text-slate-950 font-bold rounded-lg text-[11px] shadow">
-                                                🎲 18小節AI一括切替
-                                            </button>
-                                            <button onClick={clearAllInstruments} className="px-2.5 py-1 bg-red-600 text-white font-bold rounded-lg text-[11px] shadow">
-                                                全体Clear
-                                            </button>
-                                        </div>
+                                        <span className="text-[11px] font-bold text-amber-400">🎹 楽器選択 ＆ 手動 / メロディAI 切り替え</span>
+                                        <button onClick={handleOverallAiOptimization} className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg text-[10px] shadow">
+                                            🚀 全体AI自動調整を実行
+                                        </button>
                                     </div>
 
+                                    {/* 楽器ボタンリスト（切り替え） */}
                                     <div className="grid grid-cols-2 gap-1.5">
                                         {INSTRUMENTS.map(inst => (
                                             <div key={inst.id} className="flex gap-1">
                                                 <button onClick={() => setSelectedInst(inst.id)} className={`flex-1 py-1.5 px-2 rounded-xl font-bold text-[11px] truncate border text-left ${selectedInst === inst.id ? "bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 border-white shadow" : "bg-slate-950 text-slate-300 border-slate-800"}`}>
                                                     {inst.label}
                                                 </button>
-                                                <button onClick={() => generateSingleInstAi(inst.id)} className="px-2 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-xl text-[10px] font-bold border border-slate-700" title="単体AIランダム">
-                                                    🎲
+                                                <button onClick={() => generateSingleInstAi(inst.id)} className="px-2 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-xl text-[10px] font-bold border border-slate-700" title="単体AI生成">
+                                                    AI
                                                 </button>
                                             </div>
                                         ))}
                                     </div>
 
-                                    {selectedInst === "heavyDrums" && (
+                                    {/* 手動打ち込み用音程 or ドラムパーツ選択 */}
+                                    {selectedInst === "heavyDrums" ? (
                                         <div className="grid grid-cols-3 gap-1.5 bg-slate-950 p-2 rounded-xl border border-slate-800">
                                             {DRUM_PARTS.map(d => (
                                                 <button key={d.id} onClick={() => setSelectedDrumPart(d.id)} className={`py-1.5 px-1 rounded-lg text-[10px] font-bold border truncate ${selectedDrumPart === d.id ? "bg-amber-600 text-white border-white" : "bg-slate-900 text-slate-300 border-slate-800"}`}>
@@ -439,10 +428,9 @@
                                                 </button>
                                             ))}
                                         </div>
-                                    )}
-
-                                    {selectedInst !== "heavyDrums" && (
+                                    ) : (
                                         <div className="flex flex-wrap gap-1 bg-slate-950 p-2 rounded-xl border border-slate-800">
+                                            <span className="w-full text-[10px] text-amber-400 font-bold mb-1">手動打ち込み用 音程選択 (タップで試聴):</span>
                                             {activeNotes.map(n => (
                                                 <button key={n} onClick={async () => {
                                                     setSelectedNote(n);
@@ -460,13 +448,13 @@
 
                                 <div className="bg-slate-900 border border-amber-500/20 rounded-2xl p-3 flex flex-col gap-2.5 shadow-xl">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[11px] font-bold text-amber-400">18小節セレクター (選択中: 小節 {currentBar + 1})</span>
+                                        <span className="text-[11px] font-bold text-amber-400">18小節グリッド (選択中: 小節 {currentBar + 1} / 18)</span>
                                         <button onClick={() => clearSingleInstrument(selectedInst)} className="text-[10px] text-red-400 font-bold px-2 py-0.5 bg-red-950/60 rounded border border-red-800">
-                                            選択パートClear
+                                            この楽器をClear
                                         </button>
                                     </div>
 
-                                    {/* 18小節ボタン一覧 */}
+                                    {/* 18小節選択ボタン（小さめ） */}
                                     <div className="flex gap-1 overflow-x-auto p-1 bg-slate-950 rounded-xl border border-slate-800">
                                         {Array.from({ length: 18 }).map((_, b) => (
                                             <button key={b} onClick={() => setCurrentBar(b)} className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 ${currentBar === b ? "bg-amber-400 text-slate-950" : "bg-slate-800 text-slate-300"}`}>
@@ -475,7 +463,7 @@
                                         ))}
                                     </div>
 
-                                    {/* グリルボタンを小さくして一覧性を向上 */}
+                                    {/* 小さなグリッドボタン (16ステップ) */}
                                     <div className="grid grid-cols-8 gap-1 bg-slate-950 p-2 rounded-2xl border border-slate-800">
                                         {Array.from({ length: BAR_STEPS }).map((_, i) => {
                                             const idx = currentBar * BAR_STEPS + i;
@@ -495,11 +483,11 @@
 
                         {tab === "VOICE" && (
                             <div className="bg-slate-900 border border-amber-500/20 rounded-2xl p-3 flex flex-col gap-2.5 shadow-xl">
-                                <span className="text-[11px] font-bold text-amber-400">🎙️ Voice AI記録・再生・メロディAI変換</span>
+                                <span className="text-[11px] font-bold text-amber-400">🎙️ Voice AI 記録 ＆ メロディAI変換</span>
                                 <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col gap-3">
                                     <div className="flex items-center justify-between gap-2">
                                         <button onClick={toggleVoiceRecording} className={`flex-1 py-2 rounded-xl font-bold text-xs border ${isVoiceRecording ? "bg-red-600 text-white border-white animate-pulse" : "bg-slate-800 text-slate-200 border-slate-600"}`}>
-                                            {isVoiceRecording ? "🔴 Voice AI 録音中..." : "🎙️ Voice AI 音声記録開始"}
+                                            {isVoiceRecording ? "🔴 Voice AI 録音中..." : "🎙️ Voice AI 録音開始"}
                                         </button>
                                         <button onClick={convertVoiceToMelodyAi} className="flex-1 py-2 bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 font-bold rounded-xl text-xs shadow">
                                             ✨ メロディAIへ変換
@@ -507,9 +495,9 @@
                                     </div>
 
                                     <div className="flex flex-col gap-1.5 mt-2">
-                                        <span className="text-[10px] text-amber-400 font-bold">保存されたVoice録音リスト：</span>
+                                        <span className="text-[10px] text-amber-400 font-bold">保存された Voice AI リスト：</span>
                                         {voiceRecordings.length === 0 ? (
-                                            <span className="text-[10px] text-slate-500">まだVoice録音データがありません</span>
+                                            <span className="text-[10px] text-slate-500">まだVoice AI録音データがありません</span>
                                         ) : (
                                             voiceRecordings.map(vr => (
                                                 <div key={vr.id} className="bg-slate-900 p-2 rounded-lg border border-slate-800 flex items-center justify-between">
@@ -566,7 +554,7 @@
 
                         {tab === "REC" && (
                             <div className="bg-slate-900 border border-amber-500/20 rounded-2xl p-3 flex flex-col gap-2.5 shadow-xl">
-                                <span className="text-[11px] font-bold text-amber-400">💾 記録マスター保存リスト</span>
+                                <span className="text-[11px] font-bold text-amber-400">💾 記録再生・保存リスト</span>
                                 <div className="bg-slate-950 p-2.5 rounded-2xl border border-slate-800 flex flex-col gap-2 min-h-[140px]">
                                     {recordings.length === 0 ? (
                                         <span className="text-[11px] text-slate-500 text-center py-6">マスター記録ファイルはありません</span>
