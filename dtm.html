@@ -60,7 +60,6 @@
                 voiceTrack: new Array(TOTAL_STEPS).fill(null),
             });
 
-            // v51.0: 個別ボリュームコントロール
             const [volumes, setVolumes] = React.useState({
                 drums: 0,
                 subBass: 0,
@@ -125,7 +124,6 @@
                 { id: "clap", label: "クラップ" },
             ];
 
-            // 音響・シンセ初期化 (v51.0: コーラス＆個別チャンネルゲイン追加)
             React.useEffect(() => {
                 const masterGain = new Tone.Gain(1.2).toDestination();
                 const panner = new Tone.Panner(0).connect(masterGain);
@@ -136,10 +134,8 @@
                 const chorus = new Tone.Chorus({ frequency: 1.5, delayTime: 3.5, depth: 0.7, wet: fxSettings.chorusWet }).connect(delay);
                 const distortion = new Tone.Distortion(fxSettings.distortion).connect(chorus);
 
-                // チャンネルゲインの作成
                 const cGains = {};
-                const instKeys = Object.keys(instrumentSteps);
-                instKeys.forEach(key => {
+                Object.keys(instrumentSteps).forEach(key => {
                     if (key !== "voiceTrack") {
                         const cg = new Tone.Gain(Tone.dbToGain(volumes[key] || 0)).connect(distortion);
                         cGains[key] = cg;
@@ -207,13 +203,11 @@
                     envelope: { attack: 0.15, decay: 0.4, sustain: 0.8, release: 0.5 }
                 }).connect(cGains.violin);
 
-                // 🪈 新規フルート用シンセ
                 const fluteSynth = new Tone.Synth({
                     oscillator: { type: "sine" },
                     envelope: { attack: 0.08, decay: 0.3, sustain: 0.7, release: 0.4 }
                 }).connect(cGains.flute);
 
-                // 🎹 新規オルガン用シンセ
                 const organSynth = new Tone.Synth({
                     oscillator: { type: "square8" },
                     envelope: { attack: 0.01, decay: 0.1, sustain: 0.9, release: 0.1 }
@@ -240,7 +234,6 @@
                 };
             }, []);
 
-            // ボリューム・FX変更の反映
             React.useEffect(() => {
                 const syns = synthsRef.current;
                 if (!syns) return;
@@ -472,7 +465,12 @@
                 for (let s = 0; s < TOTAL_STEPS; s++) {
                     const sInBar = s % BAR_STEPS;
                     if (instKey === "drums") {
-                        instArr[s] = { kick: sInBar % 4 === 0, snare: sInBar === 4 || sInBar === 12, hihat: sInBar % 2 === 0, clap: sInBar === 12 };
+                        instArr[s] = { 
+                            kick: sInBar % 4 === 0, 
+                            snare: sInBar === 4 || sInBar === 12, 
+                            hihat: sInBar % 2 === 0, 
+                            clap: sInBar === 12 || (genreId === "disco" && sInBar % 4 === 2) 
+                        };
                     } else if (instKey === "subBass") {
                         if (sInBar % 4 === 0) instArr[s] = "C1";
                     } else {
@@ -482,7 +480,7 @@
                     }
                 }
                 setInstrumentSteps(prev => ({ ...prev, [instKey]: instArr }));
-                setStatus(`✨ 【${instKey}】にAIメロディを生成しました！`);
+                setStatus(`✨ 【${instKey}】にAIメロディ・ドラムAIを生成しました！`);
             };
 
             const generateAllAI = (genreId = "soul") => {
@@ -509,7 +507,6 @@
             return (
                 <div className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col text-xs font-sans select-none border-8 transition-all duration-75 ${flashColor}`}>
                     
-                    {/* ヘッダー */}
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-50 shadow-lg">
                         <div className="flex items-center gap-2">
                             <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
@@ -548,7 +545,6 @@
                         </div>
                     </header>
 
-                    {/* タブナビゲーション */}
                     <nav className="bg-slate-900/90 border-b border-slate-800 px-2 py-1.5 flex gap-1 overflow-x-auto">
                         {[
                             { id: "DUAL_EDIT", label: "🎛️ 2画面デュアル編集" },
@@ -577,18 +573,25 @@
 
                     <main className="p-2 flex flex-col gap-3">
 
-                        {/* タブ1: 2画面デュアル編集 */}
                         {tab === "DUAL_EDIT" && (
                             <div className="flex flex-col gap-3">
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-2.5 shadow">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
                                         <span className="text-xs font-bold text-pink-400">① 楽器セレクト (フルート・オルガン追加)</span>
-                                        <button
-                                            onClick={() => clearSpecificInstrument(selectedInstrument)}
-                                            className="px-2.5 py-1 bg-red-950 hover:bg-red-900 text-red-300 font-bold rounded text-[10px] border border-red-800"
-                                        >
-                                            🗑️ 選択楽器をClear
-                                        </button>
+                                        <div className="flex gap-1.5">
+                                            <button
+                                                onClick={() => generateInstrumentAI(selectedInstrument)}
+                                                className="px-2.5 py-1 bg-pink-900 hover:bg-pink-800 text-pink-200 font-bold rounded text-[10px] border border-pink-700 shadow"
+                                            >
+                                                ✨ ドラムAI / AI生成
+                                            </button>
+                                            <button
+                                                onClick={() => clearSpecificInstrument(selectedInstrument)}
+                                                className="px-2.5 py-1 bg-red-950 hover:bg-red-900 text-red-300 font-bold rounded text-[10px] border border-red-800"
+                                            >
+                                                🗑️ 選択楽器をClear
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-1.5">
@@ -677,7 +680,6 @@
                             </div>
                         )}
 
-                        {/* タブ2: ミキサー＆ボリューム */}
                         {tab === "MIXER" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
                                 <span className="text-xs font-bold text-amber-400">🎚️ 各楽器個別ボリュームミキサー (dB) ＆ エフェクト</span>
@@ -703,7 +705,6 @@
                             </div>
                         )}
 
-                        {/* タブ3: ドラム20 & 重低音ベース20 */}
                         {tab === "DRUM_SUBBASS_20" && (
                             <div className="flex flex-col gap-4">
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3">
@@ -731,7 +732,6 @@
                             </div>
                         )}
 
-                        {/* タブ4: ボイス */}
                         {tab === "VOICE_STUDIO" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
                                 <span className="text-xs font-bold text-rose-400">🎤 ボイス録音・再生スタジオ</span>
@@ -749,25 +749,23 @@
                             </div>
                         )}
 
-                        {/* タブ5: 全楽器一括AI */}
                         {tab === "ALL_STUDIO" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-4">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xs font-bold text-pink-400">✨ 全楽器一括AI自動作曲</span>
+                                    <span className="text-xs font-bold text-pink-400">✨ 全楽器一括AI自動作曲 ＆ ドラムAI</span>
                                     <button onClick={clearAllSteps} className="px-3 py-1 bg-red-950 text-red-300 font-bold rounded text-[10px] border border-red-800">🧹 すべてClear</button>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-950 p-3 rounded border border-slate-800">
                                     {GENRES.map(g => (
                                         <button key={g.id} onClick={() => generateAllAI(g.id)} className="p-3 bg-slate-900 hover:bg-pink-950/40 border border-slate-800 rounded text-left flex flex-col gap-1 shadow">
                                             <span className="font-bold text-slate-200 text-xs">{g.label}</span>
-                                            <span className="text-[9px] text-pink-400 font-bold mt-2">▶ 一括AI生成</span>
+                                            <span className="text-[9px] text-pink-400 font-bold mt-2">▶ ドラムAI込 一括生成</span>
                                         </button>
                                     ))}
                                 </div>
                             </div>
                         )}
 
-                        {/* タブ6: メモリリスト */}
                         {tab === "MEMORY_LIST" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3">
                                 <span className="text-xs font-bold text-emerald-400">💾 プロジェクトリスト保存</span>
@@ -792,7 +790,6 @@
                             </div>
                         )}
 
-                        {/* タブ7: ジャケット */}
                         {tab === "JACKET" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-4 items-center">
                                 <span className="text-xs font-bold text-cyan-400 self-start">💿 アルバムジャケット作成</span>
@@ -817,4 +814,3 @@
     </script>
 </body>
 </html>
-
