@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - MASTER SYNTHESIZER v51.0</title>
+    <title>MIC VICTORY - MASTER SYNTHESIZER v51.4</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -22,7 +22,7 @@
             const [bpm, setBpm] = React.useState(116);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("✨ フルート・オルガン・ミキサー追加！MIC VICTORY v51.0 スタジオ起動！");
+            const [status, setStatus] = React.useState("✨ 全体一括AIを削除しました！ MIC VICTORY v51.4 起動中");
 
             const BARS = 8;
             const BAR_STEPS = 16;
@@ -42,7 +42,6 @@
             const audioChunksRef = React.useRef([]);
 
             const [jacketTitle, setJacketTitle] = React.useState("MIC VICTORY ULTIMATE v51");
-            const [jacketGenre, setJacketGenre] = React.useState("ELECTRO / SOUL / SYMPHONY");
             const [jacketColor, setJacketColor] = React.useState("from-purple-600 via-pink-600 to-amber-600");
 
             const [instrumentSteps, setInstrumentSteps] = React.useState({
@@ -60,7 +59,6 @@
                 voiceTrack: new Array(TOTAL_STEPS).fill(null),
             });
 
-            // v51.0: 個別ボリュームコントロール
             const [volumes, setVolumes] = React.useState({
                 drums: 0,
                 subBass: 0,
@@ -109,15 +107,6 @@
                 { id: "voiceTrack", label: "🎤 ボイス", color: "from-rose-600 to-pink-700" },
             ];
 
-            const GENRES = [
-                { id: "soul", label: "✨ Soul (ソウル)" },
-                { id: "disco", label: "🕺 Disco (ディスコ)" },
-                { id: "pops", label: "🎵 Pops (ポップス)" },
-                { id: "rook", label: "🎸 Rook (ロック)" },
-                { id: "ballad", label: "🎹 Ballad (バラード)" },
-                { id: "popingdance", label: "💃 Poping Dance (ポッピング)" }
-            ];
-
             const DRUM_PARTS = [
                 { id: "kick", label: "キック" },
                 { id: "snare", label: "スネア" },
@@ -125,7 +114,6 @@
                 { id: "clap", label: "クラップ" },
             ];
 
-            // 音響・シンセ初期化 (v51.0: コーラス＆個別チャンネルゲイン追加)
             React.useEffect(() => {
                 const masterGain = new Tone.Gain(1.2).toDestination();
                 const panner = new Tone.Panner(0).connect(masterGain);
@@ -136,7 +124,6 @@
                 const chorus = new Tone.Chorus({ frequency: 1.5, delayTime: 3.5, depth: 0.7, wet: fxSettings.chorusWet }).connect(delay);
                 const distortion = new Tone.Distortion(fxSettings.distortion).connect(chorus);
 
-                // チャンネルゲインの作成
                 const cGains = {};
                 const instKeys = Object.keys(instrumentSteps);
                 instKeys.forEach(key => {
@@ -207,13 +194,11 @@
                     envelope: { attack: 0.15, decay: 0.4, sustain: 0.8, release: 0.5 }
                 }).connect(cGains.violin);
 
-                // 🪈 新規フルート用シンセ
                 const fluteSynth = new Tone.Synth({
                     oscillator: { type: "sine" },
                     envelope: { attack: 0.08, decay: 0.3, sustain: 0.7, release: 0.4 }
                 }).connect(cGains.flute);
 
-                // 🎹 新規オルガン用シンセ
                 const organSynth = new Tone.Synth({
                     oscillator: { type: "square8" },
                     envelope: { attack: 0.01, decay: 0.1, sustain: 0.9, release: 0.1 }
@@ -240,7 +225,6 @@
                 };
             }, []);
 
-            // ボリューム・FX変更の反映
             React.useEffect(() => {
                 const syns = synthsRef.current;
                 if (!syns) return;
@@ -436,13 +420,6 @@
                 setStatus(`🗑️ 【${instKey}】をClearしました。`);
             };
 
-            const clearAllSteps = () => {
-                const cleared = {};
-                Object.keys(instrumentSteps).forEach(k => cleared[k] = new Array(TOTAL_STEPS).fill(null));
-                setInstrumentSteps(cleared);
-                setStatus("🧹 すべての楽器を完全Clearしました。");
-            };
-
             const playNoteKeyboard = (note) => {
                 setSelectedNote(note);
                 const syns = synthsRef.current;
@@ -463,33 +440,6 @@
                     const stepIdx = currentBar * BAR_STEPS + currentStep;
                     toggleStep(selectedInstrument, stepIdx);
                 }
-            };
-
-            const generateInstrumentAI = (instKey, genreId = "soul") => {
-                const scales = ["C4", "D#4", "F4", "G4", "A#4", "C5"];
-                const instArr = new Array(TOTAL_STEPS).fill(null);
-
-                for (let s = 0; s < TOTAL_STEPS; s++) {
-                    const sInBar = s % BAR_STEPS;
-                    if (instKey === "drums") {
-                        instArr[s] = { kick: sInBar % 4 === 0, snare: sInBar === 4 || sInBar === 12, hihat: sInBar % 2 === 0, clap: sInBar === 12 };
-                    } else if (instKey === "subBass") {
-                        if (sInBar % 4 === 0) instArr[s] = "C1";
-                    } else {
-                        if (sInBar === 0 || sInBar === 3 || sInBar === 6 || sInBar === 10 || sInBar === 14) {
-                            instArr[s] = scales[Math.floor(Math.random() * scales.length)];
-                        }
-                    }
-                }
-                setInstrumentSteps(prev => ({ ...prev, [instKey]: instArr }));
-                setStatus(`✨ 【${instKey}】にAIメロディを生成しました！`);
-            };
-
-            const generateAllAI = (genreId = "soul") => {
-                INSTRUMENTS.forEach(inst => {
-                    if (inst.id !== "voiceTrack") generateInstrumentAI(inst.id, genreId);
-                });
-                setStatus(`✨ 全楽器一括AI編成完了 (${genreId})！`);
             };
 
             const saveCurrentSession = () => {
@@ -513,7 +463,7 @@
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-50 shadow-lg">
                         <div className="flex items-center gap-2">
                             <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                MIC VICTORY <span className="text-[10px] text-amber-400 font-normal">v51.0 ULTIMATE</span>
+                                MIC VICTORY <span className="text-[10px] text-amber-400 font-normal">v51.4 ULTIMATE</span>
                             </span>
                         </div>
 
@@ -548,14 +498,13 @@
                         </div>
                     </header>
 
-                    {/* タブナビゲーション */}
+                    {/* タブナビゲーション（全楽器一括AIを削除） */}
                     <nav className="bg-slate-900/90 border-b border-slate-800 px-2 py-1.5 flex gap-1 overflow-x-auto">
                         {[
                             { id: "DUAL_EDIT", label: "🎛️ 2画面デュアル編集" },
                             { id: "MIXER", label: "🎚️ ミキサー＆ボリューム" },
                             { id: "DRUM_SUBBASS_20", label: "🥁ドラム&重低音(各20)" },
                             { id: "VOICE_STUDIO", label: "🎤 ボイス録音" },
-                            { id: "ALL_STUDIO", label: "🎵 全楽器一括AI" },
                             { id: "MEMORY_LIST", label: "💾 リスト保存" },
                             { id: "JACKET", label: "💿 ジャケット" },
                         ].map(t => (
@@ -582,7 +531,7 @@
                             <div className="flex flex-col gap-3">
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-2.5 shadow">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className="text-xs font-bold text-pink-400">① 楽器セレクト (フルート・オルガン追加)</span>
+                                        <span className="text-xs font-bold text-pink-400">① 楽器セレクト</span>
                                         <button
                                             onClick={() => clearSpecificInstrument(selectedInstrument)}
                                             className="px-2.5 py-1 bg-red-950 hover:bg-red-900 text-red-300 font-bold rounded text-[10px] border border-red-800"
@@ -749,25 +698,7 @@
                             </div>
                         )}
 
-                        {/* タブ5: 全楽器一括AI */}
-                        {tab === "ALL_STUDIO" && (
-                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-4">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs font-bold text-pink-400">✨ 全楽器一括AI自動作曲</span>
-                                    <button onClick={clearAllSteps} className="px-3 py-1 bg-red-950 text-red-300 font-bold rounded text-[10px] border border-red-800">🧹 すべてClear</button>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-950 p-3 rounded border border-slate-800">
-                                    {GENRES.map(g => (
-                                        <button key={g.id} onClick={() => generateAllAI(g.id)} className="p-3 bg-slate-900 hover:bg-pink-950/40 border border-slate-800 rounded text-left flex flex-col gap-1 shadow">
-                                            <span className="font-bold text-slate-200 text-xs">{g.label}</span>
-                                            <span className="text-[9px] text-pink-400 font-bold mt-2">▶ 一括AI生成</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* タブ6: メモリリスト */}
+                        {/* タブ5: メモリリスト */}
                         {tab === "MEMORY_LIST" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3">
                                 <span className="text-xs font-bold text-emerald-400">💾 プロジェクトリスト保存</span>
@@ -792,7 +723,7 @@
                             </div>
                         )}
 
-                        {/* タブ7: ジャケット */}
+                        {/* タブ6: ジャケット */}
                         {tab === "JACKET" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-4 items-center">
                                 <span className="text-xs font-bold text-cyan-400 self-start">💿 アルバムジャケット作成</span>
@@ -817,4 +748,3 @@
     </script>
 </body>
 </html>
-
