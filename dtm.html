@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ultimate Afro-Beat & Groove DAW (18 Bars Stable)</title>
+    <title>Afro-Beat & Groove DAW (Per-Instrument AI / 18 Bars)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -23,14 +23,13 @@
             const totalBars = 18;
             const BAR_STEPS = 16;
             const getMaxSteps = () => totalBars * BAR_STEPS; // 288ステップ
-            const [status, setStatus] = React.useState("✨ 崩れない安定版・18小節アフリカ＆グルーブDAW起動完了");
+            const [status, setStatus] = React.useState("✨ 各楽器AI対応・18小節アフリカ＆グルーブDAW起動完了");
 
             const [selectedInst, setSelectedInst] = React.useState("djembe");
 
-            // 楽器定義（アフリカ太鼓、ドラム、ベース、コード、アルペジオ、メロディ系）
             const INSTRUMENTS = [
                 { id: "djembe", label: "🪘 アフリカ太鼓 (ジャンベ)" },
-                { id: "talkingDrum", label: "🪘 トーキングドラム (変調太鼓)" },
+                { id: "talkingDrum", label: "🪘 トーキングドラム" },
                 { id: "punchyKick", label: "🥁 ドラム・キック(BD)" },
                 { id: "tightSnare", label: "💥 ドラム・スネア(SD)" },
                 { id: "afroBass", label: "🎸 アフロ・重低音ベース" },
@@ -39,7 +38,6 @@
                 { id: "kalimba", label: "🎶 カリンバ (親指ピアノ)" }
             ];
 
-            // 18小節分（288ステップ）のステップデータ
             const [steps, setSteps] = React.useState({
                 djembe: new Array(18 * BAR_STEPS).fill(null),
                 talkingDrum: new Array(18 * BAR_STEPS).fill(null),
@@ -51,7 +49,7 @@
                 kalimba: new Array(18 * BAR_STEPS).fill(null),
             });
 
-            // 鍵盤・演奏・FX用の記録・再生バッファ
+            // 鍵盤・メロディ記録用
             const [keyboardHistory, setKeyboardHistory] = React.useState([]);
             const [isRecordingKeyboard, setIsRecordingKeyboard] = React.useState(false);
             const [playingKeyboard, setPlayingKeyboard] = React.useState(false);
@@ -65,59 +63,46 @@
             const [repeatActive, setRepeatActive] = React.useState(false);
 
             const synthsRef = React.useRef(null);
-            const eqRef = React.useRef(null);
             const loopRef = React.useRef(null);
 
-            // AIメロディ・リズム自動生成（崩れないロジック）
-            const generateAiPatternForInst = (instKey, maxS) => {
+            // 💡 選択中の楽器だけにAIパターンを適用する関数（各楽器AI）
+            const handleSingleInstrumentAi = () => {
+                const maxS = getMaxSteps();
                 const arr = new Array(maxS).fill(null);
-                const djembeNotes = ["C2", "G2", "C3", "D3"];
-                const bassNotes = ["C1", "G0", "Bb0", "F1"];
-                const kalimbaNotes = ["C4", "E4", "G4", "B4", "C5"];
+                const notesMap = {
+                    djembe: ["C2", "G2", "C3", "D3"],
+                    talkingDrum: ["G3", "C4"],
+                    punchyKick: ["C1"],
+                    tightSnare: ["D1"],
+                    afroBass: ["C1", "G0", "Bb0", "F1"],
+                    chordKeys: ["C3", "Eb3", "G3"],
+                    arpeggioSynth: ["C4", "E4", "G4", "B4"],
+                    kalimba: ["C4", "G4", "C5", "E5"]
+                };
+                const notes = notesMap[selectedInst] || ["C3"];
 
                 for (let s = 0; s < maxS; s++) {
                     const sInBar = s % BAR_STEPS;
-                    if (instKey === "djembe") {
-                        if (sInBar % 2 === 0 || sInBar === 3 || sInBar === 11) arr[s] = djembeNotes[s % djembeNotes.length];
-                    } else if (instKey === "talkingDrum") {
-                        if (sInBar === 4 || sInBar === 12 || sInBar === 7) arr[s] = "G3";
-                    } else if (instKey === "punchyKick") {
+                    if (selectedInst === "punchyKick") {
                         if (sInBar % 4 === 0) arr[s] = "C1";
-                    } else if (instKey === "tightSnare") {
+                    } else if (selectedInst === "tightSnare") {
                         if (sInBar === 4 || sInBar === 12) arr[s] = "D1";
-                    } else if (instKey === "afroBass") {
-                        if (sInBar % 4 === 0 || sInBar === 6) arr[s] = bassNotes[(s / 4) % bassNotes.length];
-                    } else if (instKey === "chordKeys") {
-                        if (sInBar % 8 === 0) arr[s] = "C3";
-                    } else if (instKey === "arpeggioSynth") {
-                        if (sInBar % 2 === 0) arr[s] = kalimbaNotes[(s / 2) % kalimbaNotes.length];
-                    } else if (instKey === "kalimba") {
-                        if (sInBar % 4 === 2 || sInBar % 4 === 3) arr[s] = kalimbaNotes[s % kalimbaNotes.length];
+                    } else {
+                        if (sInBar % 2 === 0 || sInBar % 3 === 0) {
+                            arr[s] = notes[(s / 2) % notes.length];
+                        }
                     }
                 }
-                return arr;
+
+                setSteps(prev => ({ ...prev, [selectedInst]: arr }));
+                setStatus(`✨ ${INSTRUMENTS.find(i=>i.id===selectedInst)?.label} のAIメロディ・リズムを作成しました！`);
             };
 
-            const handleAllAiGeneration = () => {
+            // 選択中の楽器だけをクリア
+            const handleSingleInstrumentClear = () => {
                 const maxS = getMaxSteps();
-                const newSteps = {};
-                Object.keys(steps).forEach(k => {
-                    newSteps[k] = generateAiPatternForInst(k, maxS);
-                });
-                setSteps(newSteps);
-                setStatus("✨ 18小節のアフリカ太鼓・ドラム・ベースAIメロディを構築しました！");
-            };
-
-            const handleClearAll = () => {
-                const maxS = getMaxSteps();
-                const cleared = {};
-                Object.keys(steps).forEach(k => {
-                    cleared[k] = new Array(maxS).fill(null);
-                });
-                setSteps(cleared);
-                setKeyboardHistory([]);
-                setMelodyHistory([]);
-                setStatus("🗑️ すべてのグリッド・記録データをクリアしました。");
+                setSteps(prev => ({ ...prev, [selectedInst]: new Array(maxS).fill(null) }));
+                setStatus(`🗑️ ${INSTRUMENTS.find(i=>i.id===selectedInst)?.label} のグリッドをクリアしました。`);
             };
 
             const toggleStep = (instKey, stepIndex) => {
@@ -131,7 +116,6 @@
                 try {
                     const masterGain = new Tone.Gain(2.0).toDestination();
                     const eq = new Tone.EQ3({ low: 4, mid: 1, high: 2 }).connect(masterGain);
-                    eqRef.current = eq;
                     const reverb = new Tone.Reverb({ decay: 1.8, wet: 0.2 }).connect(eq);
 
                     const syns = {};
@@ -145,18 +129,6 @@
                     syns.kalimba = new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.005, decay: 0.4 } }).connect(reverb);
 
                     synthsRef.current = syns;
-
-                    const maxS = 18 * BAR_STEPS;
-                    setSteps({
-                        djembe: generateAiPatternForInst("djembe", maxS),
-                        talkingDrum: generateAiPatternForInst("talkingDrum", maxS),
-                        punchyKick: generateAiPatternForInst("punchyKick", maxS),
-                        tightSnare: generateAiPatternForInst("tightSnare", maxS),
-                        afroBass: generateAiPatternForInst("afroBass", maxS),
-                        chordKeys: generateAiPatternForInst("chordKeys", maxS),
-                        arpeggioSynth: generateAiPatternForInst("arpeggioSynth", maxS),
-                        kalimba: generateAiPatternForInst("kalimba", maxS),
-                    });
                 } catch(e) {}
 
                 return () => { try { Tone.Transport.stop(); Tone.Transport.cancel(); } catch(e){} };
@@ -201,14 +173,12 @@
                 setPlaying(!playing);
             };
 
-            // 鍵盤ボタン演奏・記録・再生
+            // 鍵盤演奏・記録・再生
             const playKeyboardNote = async (note) => {
                 try {
                     await Tone.start();
                     const syn = synthsRef.current?.[selectedInst];
-                    if (syn) {
-                        syn.triggerAttackRelease(note, "8n");
-                    }
+                    if (syn) syn.triggerAttackRelease(note, "8n");
                     if (isRecordingKeyboard) {
                         setKeyboardHistory(prev => [...prev, { note, time: Date.now() }]);
                     }
@@ -233,7 +203,7 @@
                     }
                 } catch(e){}
                 setPlayingKeyboard(false);
-                setStatus("✨ 鍵盤記録の再生が終了しました。");
+                setStatus("✨ 鍵盤記録の再生終了");
             };
 
             // メロディ記録・再生
@@ -269,7 +239,7 @@
                 setStatus("✨ メロディ再生終了");
             };
 
-            // FX: 連打・スクラッチ・リピート
+            // FX: 連打・スクラッチ
             const triggerRapidFire = async () => {
                 try {
                     await Tone.start();
@@ -294,7 +264,7 @@
                         await new Promise(r => setTimeout(r, 50));
                     }
                     setScratchActive(false);
-                    setStatus("💿 ターンテーブル・スクラッチFX発動！");
+                    setStatus("💿 スクラッチFX発動！");
                 } catch(e){}
             };
 
@@ -311,21 +281,13 @@
                     {/* ヘッダー */}
                     <header className="bg-gradient-to-r from-zinc-900 via-amber-950/50 to-zinc-900 border-b-2 border-amber-600 p-4 sticky top-0 z-50 shadow-2xl">
                         <div className="flex flex-wrap items-center justify-between gap-3 max-w-5xl mx-auto">
-                            <div className="flex items-center gap-3">
-                                <span className="font-black text-sm sm:text-lg bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500 bg-clip-text text-transparent">
-                                    🪘 AFRO-BEAT & GROOVE DAW (18 Bars)
-                                </span>
-                            </div>
+                            <span className="font-black text-sm sm:text-lg bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500 bg-clip-text text-transparent">
+                                🪘 AFRO-BEAT & GROOVE DAW (18 Bars)
+                            </span>
 
                             <div className="flex items-center gap-2 flex-wrap">
                                 <button onClick={togglePlay} className={`px-5 py-2 rounded-xl font-black text-xs sm:text-sm shadow-xl transition-all ${playing ? "bg-yellow-300 text-black animate-bounce" : "bg-gradient-to-r from-amber-500 to-yellow-400 text-black"}`}>
                                     {playing ? "■ 停止" : "▶ 全体再生"}
-                                </button>
-                                <button onClick={handleAllAiGeneration} className="px-3.5 py-2 bg-gradient-to-r from-amber-700 to-yellow-600 text-white font-bold rounded-xl text-xs shadow">
-                                    ✨ AI自動生成
-                                </button>
-                                <button onClick={handleClearAll} className="px-3.5 py-2 bg-zinc-900 border border-amber-600 text-amber-300 font-bold rounded-xl text-xs shadow">
-                                    🗑️ 全クリア
                                 </button>
                                 <div className="flex items-center gap-1.5 bg-black/80 px-2.5 py-1.5 rounded-xl border border-amber-500">
                                     <span className="text-[11px] text-amber-400 font-bold">BPM</span>
@@ -338,10 +300,10 @@
                     {/* タブ */}
                     <nav className="bg-zinc-900/90 border-b border-amber-500/30 p-2.5 flex gap-2 overflow-x-auto max-w-5xl mx-auto mt-2 rounded-2xl shadow-lg">
                         {[
-                            { id: "EDIT", label: "🪘 18小節グリッド＆太鼓AI" },
+                            { id: "EDIT", label: "🪘 18小節グリッド ＆ 各楽器AI" },
                             { id: "KEYBOARD_REC", label: "🎹 ドレミ鍵盤記録・再生" },
                             { id: "MELODY_REC", label: "🎶 メロディ記録・再生" },
-                            { id: "FX_PANEL", label: "🔥 連打・リピート・スクラッチFX" },
+                            { id: "FX_PANEL", label: "🔥 FX (連打・スクラッチ)" },
                         ].map(t => (
                             <button key={t.id} onClick={() => setTab(t.id)} className={`px-4 py-2 rounded-xl text-center font-bold text-xs shrink-0 transition-all ${tab === t.id ? "bg-gradient-to-r from-amber-500 to-yellow-400 text-black shadow-lg scale-105" : "bg-zinc-950 text-amber-300 border border-amber-900/50"}`}>
                                 {t.label}
@@ -357,8 +319,18 @@
                     <main className="p-3 flex flex-col gap-3 max-w-5xl mx-auto">
                         {tab === "EDIT" && (
                             <div className="flex flex-col gap-3">
-                                <div className="bg-zinc-900/90 border border-amber-500/40 rounded-2xl p-4 shadow-xl">
-                                    <span className="text-xs sm:text-sm font-bold text-yellow-300 mb-2 block">🪘 楽器・アフリカ太鼓 セレクター</span>
+                                <div className="bg-zinc-900/90 border border-amber-500/40 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
+                                    <div className="flex justify-between items-center flex-wrap gap-2">
+                                        <span className="text-xs sm:text-sm font-bold text-yellow-300">🪘 楽器選択 ＆ 「各楽器AI・Clear」</span>
+                                        <div className="flex gap-2">
+                                            <button onClick={handleSingleInstrumentAi} className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-bold rounded-xl text-xs shadow">
+                                                ✨ 選択楽器のAI作成
+                                            </button>
+                                            <button onClick={handleSingleInstrumentClear} className="px-3 py-2 bg-zinc-950 text-amber-300 border border-amber-600 font-bold rounded-xl text-xs">
+                                                Clear
+                                            </button>
+                                        </div>
+                                    </div>
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                         {INSTRUMENTS.map(inst => (
                                             <button key={inst.id} onClick={() => setSelectedInst(inst.id)} className={`py-2 px-3 rounded-xl font-bold text-xs truncate border text-left transition-all ${selectedInst === inst.id ? "bg-gradient-to-r from-amber-500 to-yellow-400 text-black border-white shadow-lg" : "bg-black text-amber-300 border-amber-900/60"}`}>
@@ -374,7 +346,7 @@
                                         <span className="text-xs sm:text-sm text-yellow-300 font-bold">
                                             🪘 18小節ステップグリッド ({INSTRUMENTS.find(i=>i.id===selectedInst)?.label})
                                         </span>
-                                        <span className="text-[11px] text-amber-400">クリックでノートON/OFF</span>
+                                        <span className="text-[11px] text-amber-400">クリックでON/OFF</span>
                                     </div>
                                     
                                     <div className="overflow-x-auto pb-2">
@@ -432,7 +404,7 @@
                                         </button>
                                     ))}
                                 </div>
-                                <div className="text-xs text-amber-400">記録されたノート数: {keyboardHistory.length} 音</div>
+                                <div className="text-xs text-amber-400">記録音数: {keyboardHistory.length} 音</div>
                             </div>
                         )}
 
@@ -442,7 +414,7 @@
                                     <span className="text-sm font-bold text-yellow-300">🎶 カリンバ・メロディ記録・再生・Clear</span>
                                     <div className="flex gap-2">
                                         <button onClick={() => setIsRecordingMelody(!isRecordingMelody)} className={`px-4 py-2 rounded-xl font-bold text-xs border ${isRecordingMelody ? "bg-red-600 text-white animate-pulse border-white" : "bg-black text-amber-300 border-amber-600"}`}>
-                                            {isRecordingMelody ? "🔴 メロディ記録中..." : "⏺️ メロディ記録"}
+                                            {isRecordingMelody ? "🔴 記録中..." : "⏺️ メロディ記録"}
                                         </button>
                                         <button onClick={playbackMelodyHistory} disabled={playingMelody} className="px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-bold rounded-xl text-xs shadow">
                                             {playingMelody ? "再生中..." : "▶ メロディ再生"}
@@ -459,22 +431,19 @@
                                         </button>
                                     ))}
                                 </div>
-                                <div className="text-xs text-amber-400">記録されたメロディ音数: {melodyHistory.length} 音</div>
+                                <div className="text-xs text-amber-400">記録音数: {melodyHistory.length} 音</div>
                             </div>
                         )}
 
                         {tab === "FX_PANEL" && (
                             <div className="bg-zinc-900/90 border border-amber-500/40 rounded-2xl p-5 flex flex-col gap-4 shadow-xl">
-                                <span className="text-sm font-bold text-yellow-300">🔥 連打・ランダムリピート・スクラッチFX</span>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-black p-4 rounded-xl border border-amber-500/30">
+                                <span className="text-sm font-bold text-yellow-300">🔥 連打・リピート・スクラッチFX</span>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-black p-4 rounded-xl border border-amber-500/30">
                                     <button onClick={triggerRapidFire} className={`py-4 px-4 rounded-xl font-black text-xs sm:text-sm border shadow-lg transition-all ${repeatActive ? "bg-red-600 text-white animate-pulse border-white" : "bg-gradient-to-r from-amber-500 to-yellow-400 text-black border-transparent"}`}>
                                         ⚡ 太鼓・高速連打リピート
                                     </button>
                                     <button onClick={triggerScratchFx} className={`py-4 px-4 rounded-xl font-black text-xs sm:text-sm border shadow-lg transition-all ${scratchActive ? "bg-amber-600 text-white animate-pulse border-white" : "bg-gradient-to-r from-yellow-600 to-amber-700 text-white border-transparent"}`}>
-                                        💿 ターンテーブル・スクラッチFX
-                                    </button>
-                                    <button onClick={() => { handleAllAiGeneration(); setStatus("🎲 ランダム・AIメロディ＆リズムを再構築しました！"); }} className="py-4 px-4 bg-zinc-900 border border-amber-500 text-amber-300 font-bold rounded-xl text-xs sm:text-sm shadow">
-                                        🎲 ランダム自動生成FX
+                                        💿 スクラッチFX発動
                                     </button>
                                 </div>
                             </div>
