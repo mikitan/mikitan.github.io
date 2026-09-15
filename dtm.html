@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - MASTER SYNTHESIZER v51.0</title>
+    <title>MIC VICTORY - MASTER SYNTHESIZER v52.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -22,7 +22,7 @@
             const [bpm, setBpm] = React.useState(116);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("✨ フルート・オルガン・ミキサー追加！MIC VICTORY v51.0 スタジオ起動！");
+            const [status, setStatus] = React.useState("✨ 個別AI・スクラッチ・ラップ歌詞AI追加！MIC VICTORY v52.0 スタジオ起動！");
 
             const BARS = 8;
             const BAR_STEPS = 16;
@@ -36,13 +36,22 @@
             const [selectedDrumPatternId, setSelectedDrumPatternId] = React.useState(1);
             const [selectedSubBassPatternId, setSelectedSubBassPatternId] = React.useState(1);
 
+            // ラップ歌詞AI用ステート
+            const [rapGenre, setRapGenre] = React.useState("HIPHOP");
+            const [rapLyrics, setRapLyrics] = React.useState([
+                "Yo! MIC VICTORY 止まらない Beat",
+                "刻むリズム 16小節の Street",
+                "AIのFLOWで 塗り替える History",
+                "掴み取る栄光 This is my Victory!"
+            ]);
+
             const [isVoiceRecording, setIsVoiceRecording] = React.useState(false);
             const [voiceAudioUrl, setVoiceAudioUrl] = React.useState(null);
             const mediaRecorderRef = React.useRef(null);
             const audioChunksRef = React.useRef([]);
 
-            const [jacketTitle, setJacketTitle] = React.useState("MIC VICTORY ULTIMATE v51");
-            const [jacketGenre, setJacketGenre] = React.useState("ELECTRO / SOUL / SYMPHONY");
+            const [jacketTitle, setJacketTitle] = React.useState("MIC VICTORY ULTIMATE v52");
+            const [jacketGenre, setJacketGenre] = React.useState("RAP / ELECTRO / SOUL");
             const [jacketColor, setJacketColor] = React.useState("from-purple-600 via-pink-600 to-amber-600");
 
             const [instrumentSteps, setInstrumentSteps] = React.useState({
@@ -60,7 +69,6 @@
                 voiceTrack: new Array(TOTAL_STEPS).fill(null),
             });
 
-            // v51.0: 個別ボリュームコントロール
             const [volumes, setVolumes] = React.useState({
                 drums: 0,
                 subBass: 0,
@@ -84,7 +92,7 @@
             });
 
             const [savedSlots, setSavedSlots] = React.useState({});
-            const [slotName, setSlotName] = React.useState("MIC_VICTORY_ALBUM_51");
+            const [slotName, setSlotName] = React.useState("MIC_VICTORY_ALBUM_52");
 
             const synthsRef = React.useRef(null);
             const loopRef = React.useRef(null);
@@ -95,8 +103,8 @@
             const SOLFEGE = { "C4": "ド", "D4": "レ", "E4": "ミ", "F4": "ファ", "G4": "ソ", "A4": "ラ", "B4": "シ", "C5": "ド" };
 
             const INSTRUMENTS = [
-                { id: "drums", label: "🥁 ドラム(20種)", color: "from-red-600 to-amber-600" },
-                { id: "subBass", label: "🔊 重低音ベース(20種)", color: "from-amber-600 to-orange-700" },
+                { id: "drums", label: "🥁 ドラム", color: "from-red-600 to-amber-600" },
+                { id: "subBass", label: "🔊 重低音ベース", color: "from-amber-600 to-orange-700" },
                 { id: "bass", label: "🎸 ベース", color: "from-emerald-600 to-teal-600" },
                 { id: "synth", label: "🎹 シンセ", color: "from-cyan-600 to-blue-700" },
                 { id: "piano", label: "🎹 ピアノ", color: "from-blue-600 to-indigo-600" },
@@ -125,7 +133,7 @@
                 { id: "clap", label: "クラップ" },
             ];
 
-            // 音響・シンセ初期化 (v51.0: コーラス＆個別チャンネルゲイン追加)
+            // 音響・シンセ初期化
             React.useEffect(() => {
                 const masterGain = new Tone.Gain(1.2).toDestination();
                 const panner = new Tone.Panner(0).connect(masterGain);
@@ -136,10 +144,8 @@
                 const chorus = new Tone.Chorus({ frequency: 1.5, delayTime: 3.5, depth: 0.7, wet: fxSettings.chorusWet }).connect(delay);
                 const distortion = new Tone.Distortion(fxSettings.distortion).connect(chorus);
 
-                // チャンネルゲインの作成
                 const cGains = {};
-                const instKeys = Object.keys(instrumentSteps);
-                instKeys.forEach(key => {
+                Object.keys(instrumentSteps).forEach(key => {
                     if (key !== "voiceTrack") {
                         const cg = new Tone.Gain(Tone.dbToGain(volumes[key] || 0)).connect(distortion);
                         cGains[key] = cg;
@@ -207,17 +213,21 @@
                     envelope: { attack: 0.15, decay: 0.4, sustain: 0.8, release: 0.5 }
                 }).connect(cGains.violin);
 
-                // 🪈 新規フルート用シンセ
                 const fluteSynth = new Tone.Synth({
                     oscillator: { type: "sine" },
                     envelope: { attack: 0.08, decay: 0.3, sustain: 0.7, release: 0.4 }
                 }).connect(cGains.flute);
 
-                // 🎹 新規オルガン用シンセ
                 const organSynth = new Tone.Synth({
                     oscillator: { type: "square8" },
                     envelope: { attack: 0.01, decay: 0.1, sustain: 0.9, release: 0.1 }
                 }).connect(cGains.organ);
+
+                // スクラッチFX用ノイズシンセ
+                const scratchSynth = new Tone.NoiseSynth({
+                    noise: { type: "white" },
+                    envelope: { attack: 0.005, decay: 0.08, sustain: 0 }
+                }).connect(masterGain);
 
                 synthsRef.current = {
                     drums: { kick: kickSynth, snare: snareSynth, hihat: hihatSynth, clap: clapSynth },
@@ -231,6 +241,7 @@
                     violin: violinSynth,
                     flute: fluteSynth,
                     organ: organSynth,
+                    scratch: scratchSynth,
                     masterGain, reverb, delay, chorus, distortion
                 };
 
@@ -240,7 +251,7 @@
                 };
             }, []);
 
-            // ボリューム・FX変更の反映
+            // ボリューム・FX反映
             React.useEffect(() => {
                 const syns = synthsRef.current;
                 if (!syns) return;
@@ -259,6 +270,7 @@
                 });
             }, [fxSettings, volumes]);
 
+            // トランスポート・再生ループ
             React.useEffect(() => {
                 Tone.Transport.bpm.value = bpm;
                 Tone.Transport.cancel();
@@ -312,18 +324,71 @@
             const togglePlay = async () => {
                 await Tone.start();
                 setPlaying(!playing);
-                setStatus(playing ? "停止しました" : `▶ MIC VICTORY 再生中 (BPM: ${bpm})`);
+                setStatus(playing ? "停止しました" : `▶ 再生中 (BPM: ${bpm})`);
             };
 
             const toggleRecord = async () => {
                 await Tone.start();
                 setIsRecording(!isRecording);
-                if (!isRecording) {
-                    setPlaying(true);
-                    setStatus("🔴 リアルタイム演奏録音中！");
-                } else {
-                    setStatus("⏹️ 録音停止しました");
+                setStatus(!isRecording ? "🔴 リアルタイム演奏録音中！" : "⏹️ 録音停止");
+            };
+
+            // 🎛️ 連打リピート機能 (指定音を短く4回連打)
+            const playRepeatRoll = async (note) => {
+                await Tone.start();
+                const syns = synthsRef.current;
+                if (!syns) return;
+                const targetSynth = syns[selectedInstrument] || syns.synth;
+                if (selectedInstrument === "drums") return;
+
+                for (let i = 0; i < 4; i++) {
+                    setTimeout(() => {
+                        targetSynth.triggerAttackRelease(note, "32n");
+                    }, i * 70);
                 }
+                setStatus(`🥁 ロール連打！ (${note})`);
+            };
+
+            // 💿 スクラッチ機能 (DJ風ノイズとピッチ変動)
+            const triggerScratch = async () => {
+                await Tone.start();
+                const syns = synthsRef.current;
+                if (!syns) return;
+                syns.scratch.triggerAttackRelease("16n");
+                setStatus("💿 キュイッ！スクラッチ発動！");
+            };
+
+            // 各楽器別AIメロディ自動生成
+            const generateInstrumentAI = (instKey) => {
+                const scales = ["C4", "D4", "E4", "G4", "A4", "C5"];
+                const instArr = new Array(TOTAL_STEPS).fill(null);
+
+                for (let s = 0; s < TOTAL_STEPS; s++) {
+                    const sInBar = s % BAR_STEPS;
+                    if (instKey === "drums") {
+                        instArr[s] = { kick: sInBar % 4 === 0, snare: sInBar === 4 || sInBar === 12, hihat: sInBar % 2 === 0, clap: sInBar === 12 };
+                    } else if (instKey === "subBass") {
+                        if (sInBar % 4 === 0) instArr[s] = "C1";
+                    } else {
+                        if (sInBar === 0 || sInBar === 2 || sInBar === 6 || sInBar === 10 || sInBar === 14) {
+                            instArr[s] = scales[Math.floor(Math.random() * scales.length)];
+                        }
+                    }
+                }
+                setInstrumentSteps(prev => ({ ...prev, [instKey]: instArr }));
+                setStatus(`✨ 【${instKey}】の個別AIメロディを生成しました！`);
+            };
+
+            // ラップ歌詞AI生成
+            const generateRapAI = () => {
+                const rapTemplates = [
+                    ["🎤 Check one two MIC VICTORY! / 揺らすぜフロアからストリート！ / 止まらないRhyme溢れるEnergy / 掴むぜ頂点 勝利のDestiny!"],
+                    ["🎤 Hey yo! 刻むBeatに乗せて / 限界突破のステージへ連れて / 誰も真似できないこのFlow / 鳴り響かすぜ Sound & Soul!"],
+                    ["🎤 1, 2, 3 and 4! / 準備はいいか? 扉を開けろ Door! / 最高の仲間と奏でるHarmony / これが噂のMIC VICTORY!"]
+                ];
+                const selected = rapTemplates[Math.floor(Math.random() * rapTemplates.length)];
+                setRapLyrics(selected);
+                setStatus("🎤 ラップ歌詞AI生成完了！");
             };
 
             const startVoiceRecording = async () => {
@@ -332,23 +397,17 @@
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     const mediaRecorder = new MediaRecorder(stream);
                     mediaRecorderRef.current = mediaRecorder;
-
-                    mediaRecorder.ondataavailable = (event) => {
-                        if (event.data.size > 0) audioChunksRef.current.push(event.data);
-                    };
-
+                    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
                     mediaRecorder.onstop = () => {
-                        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                        const audioUrl = URL.createObjectURL(audioBlob);
-                        setVoiceAudioUrl(audioUrl);
-                        setStatus("🎤 ボイス録音が完了しました！");
+                        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                        setVoiceAudioUrl(URL.createObjectURL(blob));
+                        setStatus("🎤 ボイス録音完了！");
                     };
-
                     mediaRecorder.start();
                     setIsVoiceRecording(true);
                     setStatus("🔴 ボイス録音中...");
                 } catch (err) {
-                    setStatus("❌ マイクアクセスが許可されていません。");
+                    setStatus("❌ マイクアクセスエラー");
                 }
             };
 
@@ -361,57 +420,9 @@
 
             const playVoiceAudio = () => {
                 if (voiceAudioUrl) {
-                    const audio = new Audio(voiceAudioUrl);
-                    audio.play();
+                    new Audio(voiceAudioUrl).play();
                     setStatus("▶ 録音ボイス再生中...");
-                } else {
-                    setStatus("⚠️ 再生する音声がありません。");
                 }
-            };
-
-            const applyDrumPattern20 = (patternId) => {
-                setSelectedDrumPatternId(patternId);
-                const arr = new Array(TOTAL_STEPS).fill(null);
-                for (let s = 0; s < TOTAL_STEPS; s++) {
-                    const sInBar = s % BAR_STEPS;
-                    let kick = false, snare = false, hihat = false, clap = false;
-
-                    if (patternId === 1) {
-                        kick = sInBar % 4 === 0;
-                        snare = sInBar === 4 || sInBar === 12;
-                        hihat = true;
-                    } else if (patternId === 2) {
-                        kick = sInBar === 0 || sInBar === 6 || sInBar === 10;
-                        snare = sInBar === 4 || sInBar === 12;
-                        hihat = sInBar % 2 === 0;
-                    } else if (patternId === 3) {
-                        kick = sInBar % 4 === 0;
-                        hihat = sInBar % 2 === 1;
-                        clap = sInBar === 4 || sInBar === 12;
-                    } else {
-                        kick = sInBar % (patternId % 4 + 1) === 0;
-                        snare = sInBar === 4 || sInBar === 12;
-                        hihat = sInBar % 2 === 0;
-                    }
-                    arr[s] = { kick, snare, hihat, clap };
-                }
-                setInstrumentSteps(prev => ({ ...prev, drums: arr }));
-                setStatus(`🥁 ドラムパターン【No.${patternId}】適用！`);
-            };
-
-            const applySubBassPattern20 = (patternId) => {
-                setSelectedSubBassPatternId(patternId);
-                const arr = new Array(TOTAL_STEPS).fill(null);
-                const notes = ["C1", "G1", "D1", "F1", "A#0"];
-                const rootNote = notes[patternId % notes.length];
-
-                for (let s = 0; s < TOTAL_STEPS; s++) {
-                    const sInBar = s % BAR_STEPS;
-                    let active = (sInBar % (patternId % 3 + 1) === 0) || sInBar === 0;
-                    if (active) arr[s] = rootNote;
-                }
-                setInstrumentSteps(prev => ({ ...prev, subBass: arr }));
-                setStatus(`🔊 重低音ベースパターン【No.${patternId}】適用！`);
             };
 
             const toggleStep = (instKey, idx) => {
@@ -465,33 +476,6 @@
                 }
             };
 
-            const generateInstrumentAI = (instKey, genreId = "soul") => {
-                const scales = ["C4", "D#4", "F4", "G4", "A#4", "C5"];
-                const instArr = new Array(TOTAL_STEPS).fill(null);
-
-                for (let s = 0; s < TOTAL_STEPS; s++) {
-                    const sInBar = s % BAR_STEPS;
-                    if (instKey === "drums") {
-                        instArr[s] = { kick: sInBar % 4 === 0, snare: sInBar === 4 || sInBar === 12, hihat: sInBar % 2 === 0, clap: sInBar === 12 };
-                    } else if (instKey === "subBass") {
-                        if (sInBar % 4 === 0) instArr[s] = "C1";
-                    } else {
-                        if (sInBar === 0 || sInBar === 3 || sInBar === 6 || sInBar === 10 || sInBar === 14) {
-                            instArr[s] = scales[Math.floor(Math.random() * scales.length)];
-                        }
-                    }
-                }
-                setInstrumentSteps(prev => ({ ...prev, [instKey]: instArr }));
-                setStatus(`✨ 【${instKey}】にAIメロディを生成しました！`);
-            };
-
-            const generateAllAI = (genreId = "soul") => {
-                INSTRUMENTS.forEach(inst => {
-                    if (inst.id !== "voiceTrack") generateInstrumentAI(inst.id, genreId);
-                });
-                setStatus(`✨ 全楽器一括AI編成完了 (${genreId})！`);
-            };
-
             const saveCurrentSession = () => {
                 setSavedSlots({ ...savedSlots, [slotName]: JSON.parse(JSON.stringify(instrumentSteps)) });
                 setStatus(`💾 セッション「${slotName}」保存完了！`);
@@ -513,11 +497,19 @@
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-50 shadow-lg">
                         <div className="flex items-center gap-2">
                             <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                MIC VICTORY <span className="text-[10px] text-amber-400 font-normal">v51.0 ULTIMATE</span>
+                                MIC VICTORY <span className="text-[10px] text-amber-400 font-normal">v52.0 PRO DJ</span>
                             </span>
                         </div>
 
                         <div className="flex items-center gap-1.5 flex-wrap">
+                            {/* スクラッチボタン */}
+                            <button
+                                onClick={triggerScratch}
+                                className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-slate-950 font-black rounded text-[11px] shadow animate-pulse"
+                            >
+                                💿 スクラッチ
+                            </button>
+
                             <button
                                 onClick={togglePlay}
                                 className={`px-3 py-1 rounded font-bold text-xs shadow ${
@@ -553,9 +545,8 @@
                         {[
                             { id: "DUAL_EDIT", label: "🎛️ 2画面デュアル編集" },
                             { id: "MIXER", label: "🎚️ ミキサー＆ボリューム" },
-                            { id: "DRUM_SUBBASS_20", label: "🥁ドラム&重低音(各20)" },
-                            { id: "VOICE_STUDIO", label: "🎤 ボイス録音" },
-                            { id: "ALL_STUDIO", label: "🎵 全楽器一括AI" },
+                            { id: "RAP_STUDIO", label: "🎤 ラップ歌詞AI＆手動" },
+                            { id: "VOICE_STUDIO", label: "🎙️ ボイス録音" },
                             { id: "MEMORY_LIST", label: "💾 リスト保存" },
                             { id: "JACKET", label: "💿 ジャケット" },
                         ].map(t => (
@@ -582,13 +573,21 @@
                             <div className="flex flex-col gap-3">
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-2.5 shadow">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className="text-xs font-bold text-pink-400">① 楽器セレクト (フルート・オルガン追加)</span>
-                                        <button
-                                            onClick={() => clearSpecificInstrument(selectedInstrument)}
-                                            className="px-2.5 py-1 bg-red-950 hover:bg-red-900 text-red-300 font-bold rounded text-[10px] border border-red-800"
-                                        >
-                                            🗑️ 選択楽器をClear
-                                        </button>
+                                        <span className="text-xs font-bold text-pink-400">① 楽器セレクト & 個別AI・連打リピート</span>
+                                        <div className="flex gap-1.5">
+                                            <button
+                                                onClick={() => generateInstrumentAI(selectedInstrument)}
+                                                className="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded text-[10px] shadow"
+                                            >
+                                                ✨ この楽器の個別AI生成
+                                            </button>
+                                            <button
+                                                onClick={() => clearSpecificInstrument(selectedInstrument)}
+                                                className="px-2.5 py-1 bg-red-950 hover:bg-red-900 text-red-300 font-bold rounded text-[10px] border border-red-800"
+                                            >
+                                                🗑️ クリア
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-1.5">
@@ -613,7 +612,7 @@
                                         <span className="text-xs font-bold text-cyan-400">② ステップエディタ ({currentInstObj.label})</span>
                                         <div className="flex gap-1.5 items-center">
                                             <button onClick={() => setInputMode("grid")} className={`px-3 py-1 rounded text-[10px] font-bold ${inputMode === "grid" ? "bg-cyan-600 text-white" : "bg-slate-800 text-slate-400"}`}>グリッド入力</button>
-                                            <button onClick={() => setInputMode("keyboard")} className={`px-3 py-1 rounded text-[10px] font-bold ${inputMode === "keyboard" ? "bg-cyan-600 text-white" : "bg-slate-800 text-slate-400"}`}>ドレミ鍵盤</button>
+                                            <button onClick={() => setInputMode("keyboard")} className={`px-3 py-1 rounded text-[10px] font-bold ${inputMode === "keyboard" ? "bg-cyan-600 text-white" : "bg-slate-800 text-slate-400"}`}>ドレミ鍵盤 & 連打</button>
                                         </div>
                                     </div>
 
@@ -630,13 +629,20 @@
 
                                     {inputMode === "keyboard" && (
                                         <div className="bg-slate-950 border border-slate-800 rounded p-2.5 flex flex-col gap-2">
-                                            <div className="text-[11px] font-bold text-amber-400">🎹 ドレミ鍵盤（クリックで試聴・リアルタイム録音）</div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[11px] font-bold text-amber-400">🎹 ドレミ鍵盤（クリックで演奏 / 連打ロール機能付き）</span>
+                                            </div>
                                             <div className="grid grid-cols-8 gap-1.5">
                                                 {NOTES.map(note => (
-                                                    <button key={note} onClick={() => playNoteKeyboard(note)} className={`py-3 rounded font-bold flex flex-col items-center justify-center gap-0.5 border ${selectedNote === note ? "bg-amber-500 text-slate-950 border-white ring-2 ring-white" : "bg-slate-900 text-slate-200 border-slate-800"}`}>
-                                                        <span className="text-xs">{SOLFEGE[note]}</span>
-                                                        <span className="text-[8px] text-slate-400">{note}</span>
-                                                    </button>
+                                                    <div key={note} className="flex flex-col gap-1">
+                                                        <button onClick={() => playNoteKeyboard(note)} className={`py-2.5 rounded font-bold flex flex-col items-center justify-center gap-0.5 border ${selectedNote === note ? "bg-amber-500 text-slate-950 border-white ring-2 ring-white" : "bg-slate-900 text-slate-200 border-slate-800"}`}>
+                                                            <span className="text-xs">{SOLFEGE[note]}</span>
+                                                            <span className="text-[8px] text-slate-400">{note}</span>
+                                                        </button>
+                                                        <button onClick={() => playRepeatRoll(note)} className="py-1 bg-slate-800 hover:bg-pink-600 text-[9px] font-bold rounded text-pink-300 hover:text-white border border-slate-700">
+                                                            連打
+                                                        </button>
+                                                    </div>
                                                 ))}
                                             </div>
                                         </div>
@@ -680,11 +686,14 @@
                         {/* タブ2: ミキサー＆ボリューム */}
                         {tab === "MIXER" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
-                                <span className="text-xs font-bold text-amber-400">🎚️ 各楽器個別ボリュームミキサー (dB) ＆ エフェクト</span>
+                                <span className="text-xs font-bold text-amber-400">🎚️ 各楽器個別ボリュームミキサー & 個別AI一発生成</span>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-950 p-3 rounded border border-slate-800">
                                     {INSTRUMENTS.filter(i => i.id !== "voiceTrack").map(inst => (
-                                        <div key={inst.id} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-800">
-                                            <span className="text-[11px] font-bold text-slate-200">{inst.label}</span>
+                                        <div key={inst.id} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-800 gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[11px] font-bold text-slate-200">{inst.label}</span>
+                                                <button onClick={() => generateInstrumentAI(inst.id)} className="px-2 py-0.5 bg-purple-900 hover:bg-purple-700 text-purple-200 rounded text-[9px] font-bold">AI生成</button>
+                                            </div>
                                             <div className="flex items-center gap-2">
                                                 <input
                                                     type="range"
@@ -693,9 +702,9 @@
                                                     step="1"
                                                     value={volumes[inst.id]}
                                                     onChange={e => setVolumes({ ...volumes, [inst.id]: Number(e.target.value) })}
-                                                    className="w-24 accent-amber-500"
+                                                    className="w-20 accent-amber-500"
                                                 />
-                                                <span className="text-[10px] text-amber-400 w-8 text-right">{volumes[inst.id]}dB</span>
+                                                <span className="text-[10px] text-amber-400 w-7 text-right">{volumes[inst.id]}dB</span>
                                             </div>
                                         </div>
                                     ))}
@@ -703,29 +712,30 @@
                             </div>
                         )}
 
-                        {/* タブ3: ドラム20 & 重低音ベース20 */}
-                        {tab === "DRUM_SUBBASS_20" && (
-                            <div className="flex flex-col gap-4">
-                                <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3">
-                                    <span className="text-xs font-bold text-red-400">🥁 ドラムパターン 20種一括切り替え</span>
-                                    <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5 max-h-[160px] overflow-y-auto p-1 bg-slate-950 rounded border border-slate-800">
-                                        {Array.from({ length: 20 }).map((_, idx) => {
-                                            const pId = idx + 1;
-                                            return (
-                                                <button key={pId} onClick={() => applyDrumPattern20(pId)} className={`py-2 rounded font-bold text-[10px] border ${selectedDrumPatternId === pId ? "bg-red-600 text-white border-white" : "bg-slate-900 text-slate-300 border-slate-800"}`}>No.{pId}</button>
-                                            );
-                                        })}
-                                    </div>
+                        {/* タブ3: ラップ歌詞AI & 手動 */}
+                        {tab === "RAP_STUDIO" && (
+                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-4">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-pink-400">🎤 ラップ歌詞 AIメロディ ＆ 手動クリエーター</span>
+                                    <button onClick={generateRapAI} className="px-3 py-1.5 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold rounded text-xs shadow">✨ ラップ歌詞AI生成</button>
                                 </div>
-                                <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3">
-                                    <span className="text-xs font-bold text-amber-400">🔊 重低音ベースパターン 20種一括切り替え</span>
-                                    <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5 max-h-[160px] overflow-y-auto p-1 bg-slate-950 rounded border border-slate-800">
-                                        {Array.from({ length: 20 }).map((_, idx) => {
-                                            const pId = idx + 1;
-                                            return (
-                                                <button key={pId} onClick={() => applySubBassPattern20(pId)} className={`py-2 rounded font-bold text-[10px] border ${selectedSubBassPatternId === pId ? "bg-amber-600 text-slate-950 border-white" : "bg-slate-900 text-slate-300 border-slate-800"}`}>No.{pId}</button>
-                                            );
-                                        })}
+                                <div className="bg-slate-950 p-3 rounded border border-slate-800 flex flex-col gap-2">
+                                    <span className="text-[10px] text-slate-400">ライム（韻）を刻むリリックエディタ（手動で編集可能）:</span>
+                                    {rapLyrics.map((line, idx) => (
+                                        <input
+                                            key={idx}
+                                            type="text"
+                                            value={line}
+                                            onChange={e => {
+                                                const newL = [...rapLyrics];
+                                                newL[idx] = e.target.value;
+                                                setRapLyrics(newL);
+                                            }}
+                                            className="bg-slate-900 text-pink-300 font-bold px-3 py-2 rounded text-xs border border-slate-800"
+                                        />
+                                    ))}
+                                    <div className="flex gap-2 mt-2">
+                                        <button onClick={() => setStatus("🎤 ラップ歌詞をセットしました！")} className="px-4 py-2 bg-cyan-600 text-white font-bold rounded text-xs">💾 歌詞を適用</button>
                                     </div>
                                 </div>
                             </div>
@@ -734,7 +744,7 @@
                         {/* タブ4: ボイス */}
                         {tab === "VOICE_STUDIO" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
-                                <span className="text-xs font-bold text-rose-400">🎤 ボイス録音・再生スタジオ</span>
+                                <span className="text-xs font-bold text-rose-400">🎙️ ボイス録音・再生スタジオ</span>
                                 <div className="bg-slate-950 p-4 rounded border border-slate-800 flex flex-col gap-3 items-center">
                                     <div className="flex gap-2">
                                         {!isVoiceRecording ? (
@@ -744,30 +754,12 @@
                                         )}
                                         <button onClick={playVoiceAudio} disabled={!voiceAudioUrl} className={`px-4 py-2 font-bold rounded text-xs shadow ${voiceAudioUrl ? "bg-cyan-600 text-white" : "bg-slate-800 text-slate-500 cursor-not-allowed"}`}>▶ 再生</button>
                                     </div>
-                                    <span className="text-[10px] text-slate-400">{voiceAudioUrl ? "✅ 録音保存済み" : "マイクから音声を録音できます"}</span>
+                                    <span className="text-[10px] text-slate-400">{voiceAudioUrl ? "✅ ボイス保存済み" : "マイクから音声を録音できます"}</span>
                                 </div>
                             </div>
                         )}
 
-                        {/* タブ5: 全楽器一括AI */}
-                        {tab === "ALL_STUDIO" && (
-                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-4">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs font-bold text-pink-400">✨ 全楽器一括AI自動作曲</span>
-                                    <button onClick={clearAllSteps} className="px-3 py-1 bg-red-950 text-red-300 font-bold rounded text-[10px] border border-red-800">🧹 すべてClear</button>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-950 p-3 rounded border border-slate-800">
-                                    {GENRES.map(g => (
-                                        <button key={g.id} onClick={() => generateAllAI(g.id)} className="p-3 bg-slate-900 hover:bg-pink-950/40 border border-slate-800 rounded text-left flex flex-col gap-1 shadow">
-                                            <span className="font-bold text-slate-200 text-xs">{g.label}</span>
-                                            <span className="text-[9px] text-pink-400 font-bold mt-2">▶ 一括AI生成</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* タブ6: メモリリスト */}
+                        {/* タブ5: メモリリスト */}
                         {tab === "MEMORY_LIST" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3">
                                 <span className="text-xs font-bold text-emerald-400">💾 プロジェクトリスト保存</span>
@@ -782,9 +774,7 @@
                                         Object.keys(savedSlots).map(name => (
                                             <div key={name} className="flex justify-between items-center bg-slate-900 p-2 rounded border border-slate-800">
                                                 <span className="font-bold text-cyan-400 text-xs">📂 {name}</span>
-                                                <div className="flex gap-1">
-                                                    <button onClick={() => loadSession(name)} className="px-2 py-1 bg-cyan-600 text-white rounded text-[10px] font-bold">ロード</button>
-                                                </div>
+                                                <button onClick={() => loadSession(name)} className="px-2 py-1 bg-cyan-600 text-white rounded text-[10px] font-bold">ロード</button>
                                             </div>
                                         ))
                                     )}
@@ -792,7 +782,7 @@
                             </div>
                         )}
 
-                        {/* タブ7: ジャケット */}
+                        {/* タブ6: ジャケット */}
                         {tab === "JACKET" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-4 items-center">
                                 <span className="text-xs font-bold text-cyan-400 self-start">💿 アルバムジャケット作成</span>
@@ -801,7 +791,7 @@
                                     <div className={`w-full aspect-square bg-gradient-to-br ${jacketColor} rounded-xl shadow-2xl p-6 flex flex-col justify-between items-center text-center border-4 border-white/20`}>
                                         <div className="font-black text-xs text-white/80">MIC VICTORY RECORDS</div>
                                         <h2 className="text-xl font-black text-white">{jacketTitle}</h2>
-                                        <div className="text-[9px] text-white/70">PRODUCED BY MIKI TAKABE</div>
+                                        <div className="text-[9px] text-white/70">PRODUCED BY STUDIO v52.0</div>
                                     </div>
                                     <button onClick={() => setStatus(`🎉 【${jacketTitle}】リリース完了！`)} className="w-full py-3 bg-gradient-to-r from-pink-600 to-amber-500 text-white font-black rounded-lg text-xs shadow-lg">🚀 リリース！</button>
                                 </div>
@@ -817,4 +807,3 @@
     </script>
 </body>
 </html>
-
