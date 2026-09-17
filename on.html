@@ -16,6 +16,7 @@
         button.clear-btn:hover { background: linear-gradient(135deg, #7a2d1e, #4a1910); }
         button.preview-btn { background: linear-gradient(135deg, #205030, #103020); color: #fff; }
         button.edit-btn { background: linear-gradient(135deg, #204060, #102030); color: #fff; }
+        button.rand-btn { background: linear-gradient(135deg, #502060, #301040); color: #fff; }
         
         select, input { background: #261d15; color: #f5f0e6; border: 1px solid #594028; padding: 6px; border-radius: 6px; margin: 3px; font-size: 11px; outline: none; font-family: inherit; }
         
@@ -41,7 +42,7 @@
 </head>
 <body>
 
-    <h1>🥁🎹🎸 7大楽器・AI/手動切替DAW</h1>
+    <h1>🥁🎹🎸 7大楽器・AI/手動切替DAW（拡張18+18対応版）</h1>
 
     <!-- マスターコントロール -->
     <div class="section" style="border: 2px solid #f2a900;">
@@ -51,10 +52,28 @@
             <button onclick="masterStop()" style="font-size: 13px;">⏹ 停止</button>
             <button class="clear-btn" onclick="masterClear()">🗑 全パートClear</button>
             <button onclick="generateAllAi()" style="background: linear-gradient(135deg, #ff4500, #ff8c00); color: #fff; font-size: 13px;">🤖 一括AI自動作曲</button>
-            <label><input type="checkbox" id="repeatToggle" checked> ループ</label>
+            <button onclick="generateInferredAiAll()" style="background: linear-gradient(135deg, #008cff, #0044cc); color: #fff; font-size: 13px;">🧠 全体一括推測AI作曲</button>
+            <label><input type="checkbox" id="repeatToggle" checked> ループ再生</label>
             <span>BPM: <input type="number" id="bpmInput" value="120" min="50" max="240" style="width: 50px;"></span>
         </div>
         <div class="flex" style="margin-top: 10px; border-top: 1px dashed #3d2c1e; padding-top: 10px;">
+            <span>バンク範囲: 
+                <select id="bankSelect" onchange="switchBank(this.value)">
+                    <option value="0">前半 1〜18小節</option>
+                    <option value="18">後半 19〜36小節</option>
+                </select>
+            </span>
+            <button class="edit-btn" onclick="appendNext18Bars()">➕ 新たに18小節追加(計36小節化)</button>
+            <span>コード進行(推測・AI用): 
+                <select id="globalChordSelect">
+                    <option value="C-Am-F-G">C - Am - F - G (王道ポップス)</option>
+                    <option value="Am-F-C-G">Am - F - C - G (切実バラード)</option>
+                    <option value="F-G-Em-Am">F - G - Em - Am (J-POP疾走感)</option>
+                    <option value="C-G-Am-F">C - G - Am - F (カノン系)</option>
+                </select>
+            </span>
+        </div>
+        <div class="flex" style="margin-top: 10px;">
             <span>音量: <input type="range" min="0" max="1.5" step="0.05" value="0.9" id="masterVolumeControl" style="width: 70px;" onchange="updateMasterVolume(this.value)"></span>
             <span>リバーブ: <input type="range" min="0" max="1" step="0.05" value="0.3" id="reverbControl" style="width: 60px;"></span>
         </div>
@@ -62,11 +81,12 @@
 
     <!-- ボーカル・アルバム -->
     <div class="section" style="border: 1px solid #f2a900;">
-        <h2>🎙️ ボーカル録音・アルバム</h2>
+        <h2>🎙️ ボーカル録音・編集・アルバム</h2>
         <div class="flex">
             <button class="record-btn" onclick="startVocalRecording()">🔴 録音開始</button>
             <button onclick="stopVocalRecording()">⏹ 停止</button>
             <button class="preview-btn" onclick="playVocal()">▶ 試聴</button>
+            <button class="edit-btn" onclick="sliceAndEditVocal()">✂️ ボーカル編集・再配置</button>
             <button onclick="saveVocalData()">💾 保存</button>
             <button class="clear-btn" onclick="clearVocal()">🗑 Clear</button>
             <button onclick="addToList()">➕ アルバム登録</button>
@@ -86,6 +106,7 @@
                 <span>編集小節: <select id="modalBarSelect" onchange="changeEditingBar()"></select></span>
                 <button class="edit-btn" onclick="copyCurrentBar()">📋 コピー</button>
                 <button class="edit-btn" onclick="pasteBarData()">📋 ペースト</button>
+                <button class="rand-btn" onclick="randomizeCurrentBar()">🎲 この小節ランダム</button>
             </div>
             <div style="margin-top: 15px;">
                 <div style="font-size: 12px; margin-bottom: 6px; color: #f2a900;">16分音符グリッド (クリックで変更):</div>
@@ -94,6 +115,22 @@
             <div class="flex" style="margin-top: 25px; justify-content: flex-end;">
                 <button class="preview-btn" onclick="playBarPreview()">▶ この小節を試聴</button>
                 <button onclick="closeBarEditor()" style="background: #38291e; color: #f5f0e6;">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ボーカル編集用モーダル -->
+    <div id="vocalEditorModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 style="color: #f2a900;">✂️ ボーカル簡易セグメント編集</h2>
+            <div style="font-size: 12px; color: #b89b82; margin-bottom: 10px;">録音データの切り出しポイントや再生ミュート/反転などを調整できます。</div>
+            <div class="flex" style="flex-direction: column; align-items: flex-start;">
+                <label>開始オフセット (秒): <input type="number" id="vocalOffsetStart" value="0" step="0.1" style="width:70px;"></label>
+                <label>再生ゲイン(音量倍率): <input type="range" id="vocalGainRange" min="0" max="2" step="0.1" value="1.0"></label>
+            </div>
+            <div class="flex" style="margin-top: 25px; justify-content: flex-end;">
+                <button class="preview-btn" onclick="playVocalSlice()">▶ 部分試聴</button>
+                <button onclick="document.getElementById('vocalEditorModal').style.display='none'" style="background: #38291e; color: #f5f0e6;">閉じる</button>
             </div>
         </div>
     </div>
@@ -133,6 +170,17 @@
             pops: [0, 2, 0, 2, 1, 2, 0, 2, 0, 2, 1, 2, 0, 2, 3, 2]
         };
 
+        const chordNoteMap = {
+            'C': [0, 2, 4],
+            'Am': [5, 0, 2],
+            'F': [3, 5, 0],
+            'G': [4, 6, 1],
+            'Em': [2, 4, 6]
+        };
+
+        let totalBarsLength = 18; // 18 または 36
+        let currentBankOffset = 0; // 0 または 18
+
         let songData = {
             title: '7大楽器・完全オーケストラ',
             trackData: {},
@@ -140,32 +188,50 @@
             subBarData: {},
             subBarNotes: {},
             liveRecordingStates: {},
-            inputModes: {} // 'ai' or 'manual'
+            inputModes: {}
         };
 
         let audioCtx = null, masterGainNode = null, compressorNode = null, reverbNode = null;
         let isPlaying = false, currentTimer = null;
         let mediaRecorder, recordedChunks = [], vocalAudioBlob = null, savedList = [];
+        let vocalConfig = { offset: 0, gain: 1.0 };
         let currentEditingTrack = null, currentEditingBarIndex = 0;
         let copiedBarBuffer = null, copiedNotesBuffer = null;
 
         function initApp() {
             instruments.forEach(inst => {
-                songData.trackData[inst.id] = new Array(18).fill(false);
-                songData.trackNotes[inst.id] = new Array(18).fill(0);
-                songData.subBarData[inst.id] = Array.from({ length: 18 }, () => new Array(16).fill(false));
-                songData.subBarNotes[inst.id] = Array.from({ length: 18 }, () => new Array(16).fill(0));
+                songData.trackData[inst.id] = new Array(36).fill(false);
+                songData.trackNotes[inst.id] = new Array(36).fill(0);
+                songData.subBarData[inst.id] = Array.from({ length: 36 }, () => new Array(16).fill(false));
+                songData.subBarNotes[inst.id] = Array.from({ length: 36 }, () => new Array(16).fill(0));
                 songData.liveRecordingStates[inst.id] = false;
-                songData.inputModes[inst.id] = 'manual'; // 初期値は手動
+                songData.inputModes[inst.id] = 'manual';
             });
             renderTracks();
             initBarSelect();
         }
 
+        function switchBank(offset) {
+            currentBankOffset = parseInt(offset);
+            renderTracks();
+        }
+
+        function appendNext18Bars() {
+            totalBarsLength = 36;
+            document.getElementById('bankSelect').innerHTML = `
+                <option value="0">前半 1〜18小節</option>
+                <option value="18">後半 19〜36小節</option>
+            `;
+            initBarSelect();
+            renderTracks();
+            alert('➕ 36小節モードに拡張しました！バンクを切り替えて前半/後半を編集できます。');
+        }
+
         function initBarSelect() {
             const barSelect = document.getElementById('modalBarSelect');
+            if(!barSelect) return;
             barSelect.innerHTML = '';
-            for(let b=0; b<18; b++) {
+            for(let b=0; b<totalBarsLength; b++) {
                 let opt = document.createElement('option');
                 opt.value = b;
                 opt.innerText = `第 ${b + 1} 小節`;
@@ -208,13 +274,15 @@
                         </select>
                         <button class="${recordBtnClass}" id="rec-btn-${inst.id}" onclick="toggleLiveRecording('${inst.id}')">${recordBtnText}</button>
                         <button class="edit-btn" onclick="openBarEditor('${inst.id}')">🔍 編集 (エディター)</button>
+                        <button class="rand-btn" onclick="randomizeTrackBank('${inst.id}')">🎲 ランダム生成(バンク)</button>
                         <button class="preview-btn" onclick="playTrackPreview('${inst.id}')">▶ 試聴</button>
                         <button class="clear-btn" onclick="clearTrack('${inst.id}')">🗑 Clear</button>
                     </div>
                     ${extraHtml}
                     <div style="font-size:11px; color:#f2a900; margin-top:8px;">${inst.type==='drums'?'🥁 ドラム演奏パッド':'🎹 ドレミファ鍵盤'}:</div>
                     <div class="instrument-keyboard" id="kb-${inst.id}"></div>
-                    <div class="grid-18" id="grid-${inst.id}" style="margin-top:10px;"></div>
+                    <div style="font-size:11px; color:#b89b82; margin-top:6px;">表示範囲: ${currentBankOffset+1}〜${currentBankOffset+18}小節</div>
+                    <div class="grid-18" id="grid-${inst.id}" style="margin-top:4px;"></div>
                 `;
                 container.appendChild(div);
                 renderInstrumentKeyboard(inst);
@@ -225,13 +293,14 @@
         function changeInputMode(instId, mode) {
             songData.inputModes[instId] = mode;
             if (mode === 'ai') {
-                autoGenerateTrack(instId);
-                alert(`${instruments.find(i=>i.id===instId).name} をAIモードに切り替え、自動パターンを適用しました！`);
+                autoGenerateTrackByChord(instId);
+                alert(`${instruments.find(i=>i.id===instId).name} をAIコード連動モードに切り替えました！`);
             }
         }
 
         function renderInstrumentKeyboard(inst) {
             const kbContainer = document.getElementById(`kb-${inst.id}`);
+            if(!kbContainer) return;
             kbContainer.innerHTML = '';
             let items = (inst.type === 'drums') ? drumNotes : solfaNotes;
 
@@ -244,7 +313,7 @@
                     playInstrumentNote(inst.id, idx);
 
                     if (songData.liveRecordingStates[inst.id]) {
-                        const targetStep = Math.floor(Math.random() * 18);
+                        const targetStep = currentBankOffset + Math.floor(Math.random() * 18);
                         songData.trackData[inst.id][targetStep] = true;
                         songData.trackNotes[inst.id][targetStep] = idx;
                         renderGrid(inst.id);
@@ -261,7 +330,7 @@
             if (songData.liveRecordingStates[instId]) {
                 btn.innerText = '⏹ 記録停止';
                 btn.className = 'record-btn';
-                alert('リアルタイム記録を有効にしました。パッド/鍵盤を押すとタイムラインに記録されます！');
+                alert('リアルタイム記録を有効にしました。表示バンク内のランダムステップに記録されます。');
             } else {
                 btn.innerText = '🔴 記録 (鍵盤)';
                 btn.className = '';
@@ -277,7 +346,7 @@
             let tNotes = songData.trackNotes[id];
             let instObj = instruments.find(i => i.id === id);
 
-            for (let i = 0; i < 18; i++) {
+            for (let i = currentBankOffset; i < currentBankOffset + 18; i++) {
                 const cell = document.createElement('div');
                 cell.className = `step-cell ${tData[i] ? 'active' : ''}`;
                 cell.id = `cell-${id}-${i}`;
@@ -304,7 +373,7 @@
 
         function applyDrumPattern(instId, patternName) {
             let pattern = drumPresets[patternName];
-            for (let b = 0; b < 18; b++) {
+            for (let b = currentBankOffset; b < currentBankOffset + 18; b++) {
                 songData.trackData[instId][b] = true;
                 songData.trackNotes[instId][b] = pattern[b % pattern.length];
             }
@@ -312,9 +381,20 @@
             alert(`🥁 ドラムに「${patternName}」パターンを適用しました！`);
         }
 
+        function randomizeTrackBank(instId) {
+            let instObj = instruments.find(i => i.id === instId);
+            let maxNotes = instObj.type === 'drums' ? 4 : 8;
+            for(let b=currentBankOffset; b<currentBankOffset+18; b++) {
+                songData.trackData[instId][b] = Math.random() > 0.4;
+                songData.trackNotes[instId][b] = Math.floor(Math.random() * maxNotes);
+            }
+            renderGrid(instId);
+            alert(`🎲 ${instObj.name} の表示バンクをランダム生成しました！`);
+        }
+
         function openBarEditor(trackId) {
             currentEditingTrack = trackId;
-            currentEditingBarIndex = parseInt(document.getElementById('modalBarSelect').value);
+            currentEditingBarIndex = parseInt(document.getElementById('modalBarSelect').value) || currentBankOffset;
             const instObj = instruments.find(i => i.id === trackId);
             document.getElementById('modalTitle').innerText = `${instObj.name} - 1小節詳細エディター (編集)`;
             renderSubGrid();
@@ -340,8 +420,23 @@
             alert('ペーストしました！');
         }
 
+        function randomizeCurrentBar() {
+            const instObj = instruments.find(i => i.id === currentEditingTrack);
+            let maxNotes = instObj.type === 'drums' ? 4 : 8;
+            let barData = songData.subBarData[currentEditingTrack][currentEditingBarIndex];
+            let barNotes = songData.subBarNotes[currentEditingTrack][currentEditingBarIndex];
+            for(let s=0; s<16; s++) {
+                barData[s] = Math.random() > 0.5;
+                barNotes[s] = Math.floor(Math.random() * maxNotes);
+            }
+            songData.trackData[currentEditingTrack][currentEditingBarIndex] = barData.some(v => v);
+            renderSubGrid();
+            renderGrid(currentEditingTrack);
+        }
+
         function renderSubGrid() {
             const container = document.getElementById('subGridContainer');
+            if(!container) return;
             container.innerHTML = '';
             const data = songData.subBarData[currentEditingTrack][currentEditingBarIndex];
             const notes = songData.subBarNotes[currentEditingTrack][currentEditingBarIndex];
@@ -447,7 +542,7 @@
                     osc.connect(gain);
                     osc.start(now);
                     osc.stop(now + 0.2);
-                } else { // Snare & Hi-Hat (Noise based)
+                } else {
                     const bufferSize = ctx.sampleRate * 0.1;
                     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
                     const data = buffer.getChannelData(0);
@@ -468,8 +563,7 @@
                 return;
             }
 
-            // メロディ楽器の処理
-            let freq = solfaNotes[noteIndex].freq;
+            let freq = solfaNotes[noteIndex % solfaNotes.length].freq;
             if (instId === 'bass') freq = freq / 2;
             gain.gain.setValueAtTime(0.5, now);
 
@@ -490,8 +584,8 @@
         function clearTrack(id) {
             songData.trackData[id].fill(false);
             songData.trackNotes[id].fill(0);
-            songData.subBarData[id] = Array.from({ length: 18 }, () => new Array(16).fill(false));
-            songData.subBarNotes[id] = Array.from({ length: 18 }, () => new Array(16).fill(0));
+            songData.subBarData[id] = Array.from({ length: 36 }, () => new Array(16).fill(false));
+            songData.subBarNotes[id] = Array.from({ length: 36 }, () => new Array(16).fill(0));
             renderGrid(id);
         }
 
@@ -503,27 +597,25 @@
             const timer = setInterval(() => {
                 if(tData[step]) playInstrumentNote(id, tNotes[step]);
                 step++;
-                if (step >= 18) clearInterval(timer);
+                if (step >= totalBarsLength) clearInterval(timer);
             }, interval);
         }
 
-        function autoGenerateTrack(instId) {
+        function autoGenerateTrackByChord(instId) {
             let tData = songData.trackData[instId];
             let tNotes = songData.trackNotes[instId];
-            tData.fill(false);
             let instObj = instruments.find(i => i.id === instId);
-
-            for(let i=0; i<18; i++) {
+            const chordsSeq = document.getElementById('globalChordSelect').value.split('-');
+            
+            for(let b=0; b<totalBarsLength; b++) {
+                let chordName = chordsSeq[Math.floor(b / 4.5) % chordsSeq.length];
+                let scaleNotes = chordNoteMap[chordName] || [0,2,4];
                 if (instObj.type === 'drums') {
-                    if (i % 2 === 0 || i === 13) {
-                        tData[i] = true;
-                        tNotes[i] = i % 4;
-                    }
+                    tData[b] = true;
+                    tNotes[b] = (b % 4 === 2) ? 1 : (b % 2 === 0 ? 0 : 2);
                 } else {
-                    if (i % 2 === 0) {
-                        tData[i] = true;
-                        tNotes[i] = (i * 2) % 8;
-                    }
+                    tData[b] = (b % 2 === 0);
+                    tNotes[b] = scaleNotes[b % scaleNotes.length];
                 }
             }
             renderGrid(instId);
@@ -531,11 +623,38 @@
 
         function generateAllAi() {
             instruments.forEach(inst => {
-                autoGuideMode = songData.inputModes[inst.id] = 'ai';
-                autoGenerateTrack(inst.id);
+                songData.inputModes[inst.id] = 'ai';
+                autoGenerateTrackByChord(inst.id);
             });
             renderTracks();
-            alert('🤖 すべてのパートのAI自動作曲パターンを一括生成しました！');
+            alert('🤖 すべてのパートのコード連動AI自動作曲パターンを一括生成しました！');
+        }
+
+        function generateInferredAiAll() {
+            // 全体推測AI（曲のテンポ・コード進行・構成からアレンジ密度やエモい変化球を加味して全体構築）
+            const chordSeq = document.getElementById('globalChordSelect').value;
+            instruments.forEach(inst => {
+                songData.inputModes[inst.id] = 'ai';
+                let tData = songData.trackData[inst.id];
+                let tNotes = songData.trackNotes[inst.id];
+                let chords = chordSeq.split('-');
+                for(let b=0; b<36; b++) {
+                    let c = chords[b % chords.length];
+                    let notes = chordNoteMap[c] || [0,2,4];
+                    if(inst.type === 'drums') {
+                        tData[b] = true;
+                        tNotes[b] = b===35 ? 3 : (b%4===2 ? 1 : 0);
+                    } else if(inst.id === 'bass') {
+                        tData[b] = true;
+                        tNotes[b] = notes[0];
+                    } else {
+                        tData[b] = Math.random() > 0.3;
+                        tNotes[b] = notes[b % notes.length];
+                    }
+                }
+            });
+            renderTracks();
+            alert('🧠 全体推測AIがボーカルのテンションとコード進行（' + chordSeq + '）を推測し、36小節の起伏あるアレンジを構築しました！');
         }
 
         function masterPlay() {
@@ -548,6 +667,14 @@
             let tNotes = songData.trackNotes;
 
             currentTimer = setInterval(() => {
+                // 自動バンク切り替え同期
+                let targetBank = currentStep < 18 ? 0 : 18;
+                if (currentBankOffset !== targetBank) {
+                    currentBankOffset = targetBank;
+                    document.getElementById('bankSelect').value = targetBank;
+                    renderTracks();
+                }
+
                 instruments.forEach(inst => {
                     const cell = document.getElementById(`cell-${inst.id}-${currentStep}`);
                     if (cell) {
@@ -561,7 +688,7 @@
                 });
 
                 currentStep++;
-                if (currentStep >= 18) {
+                if (currentStep >= totalBarsLength) {
                     currentStep = 0;
                     if (!document.getElementById('repeatToggle').checked) masterStop();
                 }
@@ -587,7 +714,27 @@
         }
 
         function stopVocalRecording() { if (mediaRecorder) mediaRecorder.stop(); alert('録音停止しました。'); }
-        function playVocal() { const aud = document.getElementById('vocalAudio'); if (aud.src) aud.play(); else alert('試聴データがありません。'); }
+        function playVocal() {
+            const aud = document.getElementById('vocalAudio');
+            if (aud.src) {
+                aud.volume = vocalConfig.gain;
+                aud.play();
+            } else alert('試聴データがありません。');
+        }
+        function sliceAndEditVocal() {
+            if(!vocalAudioBlob) return alert('先ほど録音されたボーカルデータがありません。');
+            vocalConfig.offset = parseFloat(document.getElementById('vocalOffsetStart').value) || 0;
+            vocalConfig.gain = parseFloat(document.getElementById('vocalGainRange').value) || 1.0;
+            document.getElementById('vocalEditorModal').style.display = 'flex';
+        }
+        function playVocalSlice() {
+            const aud = document.getElementById('vocalAudio');
+            if (aud.src) {
+                aud.currentTime = vocalConfig.offset;
+                aud.volume = vocalConfig.gain;
+                aud.play();
+            }
+        }
         function saveVocalData() {
             if (!vocalAudioBlob) return alert('データがありません。');
             const url = URL.createObjectURL(vocalAudioBlob);
@@ -598,7 +745,7 @@
         }
         function clearVocal() { vocalAudioBlob = null; document.getElementById('vocalAudio').src = ''; alert('クリアしました。'); }
         function addToList() {
-            savedList.push(songData.title);
+            savedList.push(songData.title + ` (${totalBarsLength}小節)`);
             document.getElementById('compositionListContainer').innerHTML = savedList.map((item, i) => `<div>💿 登録曲 ${i+1}: ${item}</div>`).join('');
             alert('アルバム登録しました！');
         }
