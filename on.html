@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ULTIMATE MASTER DAW v33.0 - PRO SYNTHESIS & FULL EDIT EDITION</title>
+    <title>ULTIMATE MASTER DAW v33.1 - PRO SYNTHESIS & FULL EDIT EDITION</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #070605; color: #f5f0e6; margin: 0; padding: 15px; }
         h1, h2, h3 { color: #f2a900; border-bottom: 1px solid #3d2c1e; padding-bottom: 6px; margin: 8px 0; letter-spacing: 1px; }
@@ -20,7 +20,7 @@
         textarea { width: 100%; height: 50px; resize: vertical; box-sizing: border-box; }
         
         .grid-18 { display: grid; grid-template-columns: repeat(18, 1fr); gap: 3px; margin-top: 6px; overflow-x: auto; }
-        .step-cell { background: #221912; height: 32px; text-align: center; font-size: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; user-select: none; color: #8c735e; border: 1px solid #38291e; }
+        .step-cell { background: #221912; height: 36px; text-align: center; font-size: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; user-select: none; color: #8c735e; border: 1px solid #38291e; }
         .step-cell.active { background: #f2a900; color: #0f0c08; font-weight: bold; border-color: #ffe066; box-shadow: 0 0 8px rgba(242,169,0,0.6); }
         .step-cell.current-playing { border: 2px solid #fff !important; transform: scale(1.05); }
         
@@ -33,7 +33,7 @@
 </head>
 <body>
 
-    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.0 (プロドラム & 重低音ベース & 鍵盤自動記録)</h1>
+    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.1 (プロドラム & 重低音ベース & 鍵盤自動記録 & 音長調整)</h1>
 
     <!-- 1. マスター＆テンポコントロール -->
     <div class="section" style="border: 2px solid #f2a900;">
@@ -116,12 +116,20 @@
             { name: '重低音 Kick' }, { name: 'スタジアム Snare' }, { name: 'クリア Hi-Hat' }, { name: 'クラッシュ Crash' }
         ];
 
+        const gateOptions = [
+            { label: '短 (0.1s)', val: 0.1 },
+            { label: '中 (0.3s)', val: 0.3 },
+            { label: '長 (0.6s)', val: 0.6 }
+        ];
+
         let songData = {
             title: 'マイソング 01',
             trackData: {},
             trackNotes: {},
+            trackGate: {},
             inputModes: {},
-            trackFx: {}
+            trackFx: {},
+            recStepCursor: {}
         };
 
         let savedProjects = [];
@@ -134,8 +142,10 @@
             instruments.forEach(inst => {
                 songData.trackData[inst.id] = new Array(18).fill(false);
                 songData.trackNotes[inst.id] = new Array(18).fill(0);
+                songData.trackGate[inst.id] = new Array(18).fill(0.3);
                 songData.inputModes[inst.id] = 'manual';
                 songData.trackFx[inst.id] = 'normal';
+                songData.recStepCursor[inst.id] = 0;
             });
             initAlbumTemplates();
             renderTracks();
@@ -190,10 +200,16 @@
                         ${patternHTML}
                         <span>FX:</span>
                         <select onchange="changeTrackFx('${inst.id}', this.value)"><option value="normal" ${currentFx==='normal'?'selected':''}>Normal</option><option value="reverb" ${currentFx==='reverb'?'selected':''}>リバーブ</option></select>
+                        <span>既定音長:</span>
+                        <select onchange="setTrackDefaultGate('${inst.id}', this.value)">
+                            <option value="0.1">短スタッカート</option>
+                            <option value="0.3" selected>標準</option>
+                            <option value="0.6">ロング</option>
+                        </select>
                         <button class="preview-btn" onclick="playTrackPreview('${inst.id}')">▶ トラック試聴</button>
-                        <button class="clear-btn" onclick="clearTrack('${inst.id}')">🗑 Clear</button>
+                        <button class="clear-btn" onclick="clearTrack('${inst.id}')">🗑 独立Clear</button>
                     </div>
-                    <div style="font-size:10px; color:#f2a900; margin-top:4px;">💡 鍵盤・パッドをクリックすると、音が出て自動記録されます:</div>
+                    <div style="font-size:10px; color:#f2a900; margin-top:4px;">💡 鍵盤連打で順次オート記録（クリックで音長切り替え）:</div>
                     <div class="instrument-keyboard" id="kb-${inst.id}"></div>
                     <div class="grid-18" id="grid-${inst.id}"></div>
                 `;
@@ -209,6 +225,11 @@
         }
 
         function changeTrackFx(id, fx) { songData.trackFx[id] = fx; }
+        function setTrackDefaultGate(id, val) {
+            let v = parseFloat(val);
+            songData.trackGate[id].fill(v);
+            renderGrid(id);
+        }
 
         function changeGuitarStyle(style) {
             let tData = songData.trackData['guitar'], tNotes = songData.trackNotes['guitar'];
@@ -257,20 +278,17 @@
                 key.innerHTML = `<span>${item.name}</span>`;
                 key.onmousedown = () => {
                     key.classList.add('playing');
-                    playNote(inst.id, idx);
+                    playNote(inst.id, idx, 0.25);
                     setTimeout(() => key.classList.remove('playing'), 200);
 
-                    // 手動打ちのリアルタイム記録（空いているステップへ自動追加）
+                    // 順次オート記録＆連打リピート対応（カーソル進行）
                     let tData = songData.trackData[inst.id];
                     let tNotes = songData.trackNotes[inst.id];
-                    for(let s=0; s<18; s++) {
-                        if(!tData[s]) {
-                            tData[s] = true;
-                            tNotes[s] = idx;
-                            renderGrid(inst.id);
-                            break;
-                        }
-                    }
+                    let cur = songData.recStepCursor[inst.id] || 0;
+                    tData[cur] = true;
+                    tNotes[cur] = idx;
+                    renderGrid(inst.id);
+                    songData.recStepCursor[inst.id] = (cur + 1) % 18;
                 };
                 kb.appendChild(key);
             });
@@ -280,38 +298,49 @@
             const grid = document.getElementById(`grid-${id}`);
             if(!grid) return;
             grid.innerHTML = '';
-            let tData = songData.trackData[id], tNotes = songData.trackNotes[id], instObj = instruments.find(i => i.id === id);
+            let tData = songData.trackData[id], tNotes = songData.trackNotes[id], tGate = songData.trackGate[id], instObj = instruments.find(i => i.id === id);
 
             for (let i = 0; i < 18; i++) {
                 const cell = document.createElement('div');
                 cell.className = `step-cell ${tData[i] ? 'active' : ''}`;
                 cell.id = `cell-${id}-${i}`;
                 let label = tData[i] ? ((instObj.type === 'drums' || id === 'guitar') ? drumNotes[tNotes[i]].name : solfaNotes[tNotes[i]].name) : '';
-                cell.innerHTML = `<span>${i+1}</span><span style="font-size:7px;">${label}</span>`;
-                cell.onclick = () => {
+                let gateLabel = tGate[i] === 0.1 ? '短' : (tGate[i] === 0.6 ? '長' : '中');
+                cell.innerHTML = `<span>${i+1}</span><span style="font-size:7px;">${label}</span><span style="font-size:6px; opacity:0.8;">[${gateLabel}]</span>`;
+                cell.onclick = (e) => {
+                    e.stopPropagation();
                     let maxN = (instObj.type === 'drums' || id === 'guitar') ? 4 : 8;
-                    if(!tData[i]) { tData[i] = true; tNotes[i] = 0; }
-                    else { tNotes[i] = (tNotes[i] + 1) % maxN; if(tNotes[i] === 0) tData[i] = false; }
+                    if(!tData[i]) {
+                        tData[i] = true; tNotes[i] = 0; tGate[i] = 0.3;
+                    } else {
+                        // ノート変更 or 音長サイクル切替
+                        if(e.shiftKey) {
+                            // シフト押し等またはダブルサイクル：音の長短変更
+                            tGate[i] = tGate[i] === 0.3 ? 0.6 : (tGate[i] === 0.6 ? 0.1 : 0.3);
+                        } else {
+                            tNotes[i] = (tNotes[i] + 1) % maxN;
+                            if(tNotes[i] === 0) {
+                                // 一周したら音長を切り替えるかクリアにするかトグル
+                                tGate[i] = tGate[i] === 0.3 ? 0.6 : (tGate[i] === 0.6 ? 0.1 : 0.3);
+                                if(tGate[i] === 0.3) tData[i] = false;
+                            }
+                        }
+                    }
                     renderGrid(id);
                 };
-                grid.appendChild(cell);
             }
         }
 
-        // 高音質音響エンジン（プロドラム ＆ ウルトラ重低音サブベース）
+        // 高音質音響エンジン（Gate対応）
         function getAudioContext() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                
                 masterGainNode = audioCtx.createGain();
                 masterGainNode.gain.value = parseFloat(document.getElementById('masterVolumeControl').value);
-                
                 compressorNode = audioCtx.createDynamicsCompressor();
                 compressorNode.threshold.setValueAtTime(-14, audioCtx.currentTime);
                 compressorNode.ratio.setValueAtTime(5, audioCtx.currentTime);
-
                 masterDestNode = audioCtx.createMediaStreamDestination();
-
                 compressorNode.connect(masterGainNode);
                 masterGainNode.connect(audioCtx.destination);
                 masterGainNode.connect(masterDestNode);
@@ -322,67 +351,69 @@
 
         function updateMasterVolume(v) { if(masterGainNode && audioCtx) masterGainNode.gain.setValueAtTime(parseFloat(v), audioCtx.currentTime); }
 
-        function playNote(instId, noteIndex) {
+        function playNote(instId, noteIndex, gate = 0.3) {
             const ctx = getAudioContext();
             const now = ctx.currentTime;
             const gain = ctx.createGain();
             gain.connect(compressorNode);
+            let duration = Math.min(Math.max(gate, 0.05), 0.8);
 
-            // 🥁 超リアルプロドラム音源
             if (instId === 'drums') {
                 gain.gain.setValueAtTime(0.9, now);
                 const osc = ctx.createOscillator();
-                if (noteIndex === 0) { // 重低音Kick
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(130, now);
-                    osc.frequency.exponentialRampToValueAtTime(35, now + 0.12);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-                } else if (noteIndex === 1) { // スタジアムSnare
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(240, now);
-                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-                } else if (noteIndex === 2) { // Hi-Hat
-                    osc.type = 'square';
-                    osc.frequency.setValueAtTime(800, now);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
-                } else { // Crash
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(500, now);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+                if (noteIndex === 0) {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(130, now); osc.frequency.exponentialRampToValueAtTime(35, now + 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                } else if (noteIndex === 1) {
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(240, now); osc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                } else if (noteIndex === 2) {
+                    osc.type = 'square'; osc.frequency.setValueAtTime(800, now);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + Math.min(duration, 0.08));
+                } else {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(500, now);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
                 }
-                osc.connect(gain); osc.start(now); osc.stop(now + 0.4);
+                osc.connect(gain); osc.start(now); osc.stop(now + duration + 0.05);
                 return;
             }
 
-            // 🎸 ウルトラ重低音サブベース
             if (instId === 'bass') {
                 gain.gain.setValueAtTime(0.85, now);
                 const osc = ctx.createOscillator();
                 osc.type = 'sine';
-                let subFreq = (solfaNotes[noteIndex % solfaNotes.length].freq) / 4; // 2オクターブ下
+                let subFreq = (solfaNotes[noteIndex % solfaNotes.length].freq) / 4;
                 osc.frequency.setValueAtTime(subFreq, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-                osc.connect(gain); osc.start(now); osc.stop(now + 0.5);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration + 0.1);
+                osc.connect(gain); osc.start(now); osc.stop(now + duration + 0.15);
                 return;
             }
 
-            // 🎹 メロディ楽器・ギター等
             let freq = solfaNotes[noteIndex % solfaNotes.length].freq;
             gain.gain.setValueAtTime(0.45, now);
             const osc = ctx.createOscillator();
             osc.type = (instId === 'guitar') ? 'triangle' : 'sawtooth';
             osc.frequency.setValueAtTime(freq, now);
-            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
-            osc.connect(gain); osc.start(now); osc.stop(now + 0.4);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            osc.connect(gain); osc.start(now); osc.stop(now + duration + 0.05);
         }
 
-        function clearTrack(id) { songData.trackData[id].fill(false); songData.trackNotes[id].fill(0); renderGrid(id); }
+        function clearTrack(id) {
+            songData.trackData[id].fill(false);
+            songData.trackNotes[id].fill(0);
+            songData.trackGate[id].fill(0.3);
+            songData.recStepCursor[id] = 0;
+            renderGrid(id);
+        }
 
         function playTrackPreview(id) {
             let step = 0, interval = (60 / document.getElementById('bpmInput').value) * 500;
-            let tData = songData.trackData[id], tNotes = songData.trackNotes[id];
-            const timer = setInterval(() => { if(tData[step]) playNote(id, tNotes[step]); step++; if(step >= 18) clearInterval(timer); }, interval);
+            let tData = songData.trackData[id], tNotes = songData.trackNotes[id], tGate = songData.trackGate[id];
+            const timer = setInterval(() => {
+                if(tData[step]) playNote(id, tNotes[step], tGate[step]);
+                step++;
+                if(step >= 18) clearInterval(timer);
+            }, interval);
         }
 
         function masterPlay() {
@@ -390,7 +421,7 @@
             isPlaying = true;
             let currentStep = parseInt(document.getElementById('startBarSelect').value);
             let interval = (60 / document.getElementById('bpmInput').value) * 500;
-            let tData = songData.trackData, tNotes = songData.trackNotes;
+            let tData = songData.trackData, tNotes = songData.trackNotes, tGate = songData.trackGate;
 
             currentTimer = setInterval(() => {
                 instruments.forEach(inst => {
@@ -399,7 +430,7 @@
                 });
 
                 Object.keys(tData).forEach(id => {
-                    if (tData[id][currentStep]) playNote(id, tNotes[id][currentStep]);
+                    if (tData[id][currentStep]) playNote(id, tNotes[id][currentStep], tGate[id][currentStep]);
                 });
 
                 currentStep++;
@@ -414,7 +445,6 @@
         function masterClear() { masterStop(); instruments.forEach(inst => clearTrack(inst.id)); document.getElementById('lyricTextArea').value = ''; }
         function previewMaster() { masterPlay(); }
 
-        // プロジェクトリスト保存
         function saveProjectToList() {
             const name = prompt('保存するプロジェクト名を入力してください:', songData.title);
             if (!name) return;
@@ -441,7 +471,6 @@
             alert(`「${songData.title}」を読み込みました！`);
         }
 
-        // 全体ミックス一括録音
         function toggleMasterRecording() {
             if (!isMasterRecording) {
                 masterRecordedChunks = [];
@@ -524,4 +553,3 @@
     </script>
 </body>
 </html>
-
