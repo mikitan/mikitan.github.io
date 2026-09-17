@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ULTIMATE MASTER DAW v33.7 - 54小節マルチバンク拡張・波形＆M/S対応</title>
+    <title>ULTIMATE MASTER DAW v33.8 - ドンパシャ刺激ハリ拡張・波形＆M/S対応</title>
     <style>
         :root {
             --bg-color: #070605;
@@ -28,6 +28,7 @@
         button.ai-btn { background: linear-gradient(135deg, #204080, #102040); color: #fff; }
         button.release-btn { background: linear-gradient(135deg, #8a2be2, #4b0082); color: #fff; font-size: 12px; }
         button.bank-btn { background: linear-gradient(135deg, #2a4736, #16291e); color: #7cfc00; border: 1px solid #3fae49; }
+        button.stimulus-btn { background: linear-gradient(135deg, #ff4500, #ff1493); color: #fff; }
         button.mute-btn.active-mute { background: var(--mute-color); color: #fff; }
         button.solo-btn.active-solo { background: var(--solo-color); color: #fff; }
         
@@ -54,7 +55,7 @@
 </head>
 <body>
 
-    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.7 (波形モニタ・M/S・バンクコピー追加)</h1>
+    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.8 (ドンパシャ刺激ハリ・波形＆M/S対応)</h1>
 
     <!-- 1. マスター＆テンポコントロール -->
     <div class="section" style="border: 2px solid var(--accent-gold);">
@@ -66,6 +67,7 @@
             <button class="clear-btn" onclick="masterClear()">🗑 全曲CRERA(全クリア)</button>
             <button class="preview-btn" onclick="previewMaster()">▶ 試聴</button>
             <button class="bank-btn" onclick="add18BarsBank()">➕ 18小節新たに作曲つけ足し</button>
+            <button class="stimulus-btn" onclick="applyCollabStimulusLayer()">⚡ 崩さないドンパシャ刺激ハリ追加</button>
             <button onclick="copyCurrentBank()">📋 現在バンク複製</button>
             <label><input type="checkbox" id="repeatToggle" checked> マルチバンク・フルリピート</label>
             <span>BPM: <input type="number" id="bpmInput" value="120" min="50" max="240" style="width: 55px;"></span>
@@ -124,7 +126,7 @@
 
     <script>
         const instruments = [
-            { id: 'drums', name: '🥁 超リアル・プロドラムキット (20パターン＋AI/手動/CRERA)', type: 'drums' },
+            { id: 'drums', name: '🥁 超リアル・プロドラムキット (20パターン＋AI/手動/CRERA/ドンパシャ)', type: 'drums' },
             { id: 'bass', name: '🎸 ウルトラ重低音サブベース (普通チューン＋AI/手動/CRERA)', type: 'bass' },
             { id: 'guitar', name: '🪵 エレキギター音(20パターン) ＋ 木目ギター音 (CRERA付き)', type: 'guitar' },
             { id: 'piano', name: '🎹 ピアノ (イイ奴プロ上質音) ＋ AIランダム切替', type: 'melody' },
@@ -140,7 +142,7 @@
         ];
 
         const drumNotes = [
-            { name: '重低音 Kick' }, { name: 'スタジアム Snare' }, { name: 'クリア Hi-Hat' }, { name: 'クラッシュ Crash' }
+            { name: '重低音 Kick' }, { name: 'スタジアム Snare' }, { name: 'クリア Hi-Hat/パシャ' }, { name: 'クラッシュ Crash' }
         ];
 
         const chordPatternNames = [
@@ -210,6 +212,22 @@
             activeBankIdx = numBanks - 1;
             renderTracks();
             alert(`➕ 新たに第${(activeBankIdx)*18 + 1}〜${(activeBankIdx+1)*18}小節バンクを追加しました！`);
+        }
+
+        function applyCollabStimulusLayer() {
+            ensureBankArray('drums', activeBankIdx);
+            let tData = songData.trackData['drums'][activeBankIdx];
+            let tNotes = songData.trackNotes['drums'][activeBankIdx];
+            
+            // 既存グルーブを崩さず、裏拍の隙間に「ドンパシャ」刺激ハリ音を追加
+            for (let i = 0; i < 18; i++) {
+                if (!tData[i] && (i % 2 === 1)) {
+                    tData[i] = true;
+                    tNotes[i] = 2; // Hi-Hat / パシャ系
+                }
+            }
+            renderGrid('drums');
+            alert('⚡ 既存グルーブを崩さず「ドンパシャ・刺激ハリ」層をつけ足しました！');
         }
 
         function copyCurrentBank() {
@@ -537,7 +555,7 @@
                 masterGainNode.gain.value = parseFloat(document.getElementById('masterVolumeControl').value || 1.0);
                 compressorNode = audioCtx.createDynamicsCompressor();
                 compressorNode.threshold.setValueAtTime(-14, audioCtx.currentTime);
-                compressorNode.ratio.setValueAtTime(4, audioCtx.currentTime);
+                compressorNode.ratio.setValueAtTime(6, audioCtx.currentTime); // 刺激ハリ向けに高め
                 analyserNode = audioCtx.createAnalyser();
                 analyserNode.fftSize = 256;
                 masterDestNode = audioCtx.createMediaStreamDestination();
@@ -574,19 +592,24 @@
             let releaseTail = 0.18;
 
             if (instId === 'drums') {
-                gain.gain.setValueAtTime(0.85, now);
+                gain.gain.setValueAtTime(1.0, now);
                 const osc = ctx.createOscillator();
                 if (noteIndex === 0) {
-                    osc.type = 'sine'; osc.frequency.setValueAtTime(140, now); osc.frequency.exponentialRampToValueAtTime(32, now + 0.15);
+                    // ドンパシャ重低音キック (Sub + Clickパンチ)
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(160, now); osc.frequency.exponentialRampToValueAtTime(28, now + 0.18);
+                    const oscClick = ctx.createOscillator();
+                    const gainClick = ctx.createGain();
+                    oscClick.type = 'square'; oscClick.frequency.setValueAtTime(2200, now); oscClick.frequency.exponentialRampToValueAtTime(180, now + 0.03);
+                    gainClick.gain.setValueAtTime(0.4, now); gainClick.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+                    oscClick.connect(gainClick); gainClick.connect(compressorNode);
+                    oscClick.start(now); oscClick.stop(now + 0.04);
                 } else if (noteIndex === 1) {
-                    osc.type = 'triangle'; osc.frequency.setValueAtTime(220, now); osc.frequency.exponentialRampToValueAtTime(75, now + 0.12);
-                } else if (noteIndex === 2) {
-                    osc.type = 'square'; osc.frequency.setValueAtTime(750, now);
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(280, now); osc.frequency.exponentialRampToValueAtTime(65, now + 0.14);
                 } else {
-                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(450, now);
+                    osc.type = 'square'; osc.frequency.setValueAtTime(950, now);
                 }
-                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-                osc.connect(gain); osc.start(now); osc.stop(now + duration + releaseTail);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration + 0.05);
+                osc.connect(gain); osc.start(now); osc.stop(now + duration + 0.1);
                 return;
             }
 
@@ -876,7 +899,7 @@
 
         function exportProjectFileTransfer() {
             const transferPayload = {
-                version: "v33.7-transfer",
+                version: "v33.8-transfer",
                 exportedAt: new Date().toISOString(),
                 songData: songData,
                 audioBlobsAvailable: {
