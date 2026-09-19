@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ULTIMATE MASTER DAW v33.8 - プロ改修版</title>
+    <title>ULTIMATE MASTER DAW v33.9 - ノンスピーカーポップアップ版</title>
     <style>
         :root {
             --bg-color: #070605;
@@ -46,8 +46,8 @@
         .doremi-key { min-width: 38px; height: 52px; background: #eaeaf0; color: #111; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 4px; font-size: 10px; font-weight: bold; cursor: pointer; border-radius: 0 0 4px 4px; user-select: none; flex: 1; }
         .doremi-key:active, .doremi-key.playing { background: var(--accent-gold) !important; color: #0f0c08 !important; }
         canvas { background: #050403; border: 1px solid #38291e; border-radius: 4px; width: 100%; height: 45px; margin-top: 6px; }
+        .status-bar { font-size: 11px; color: var(--accent-gold); margin-top: 4px; min-height: 16px; }
 
-        /* モーダルスタイル (全体音響・EQ別画面用) */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; }
         .modal-overlay.active { display: flex; }
         .modal-content { background: var(--surface-color); border: 2px solid var(--accent-gold); border-width: 2px; border-radius: 12px; width: 500px; padding: 20px; box-shadow: 0 0 40px rgba(242,169,0,0.4); }
@@ -55,9 +55,9 @@
 </head>
 <body>
 
-    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.8 (ノイズレス・EQ別画面・54小節マルチバンク)</h1>
+    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.9 (ポップアップレス・完全シームレス)</h1>
+    <div id="statusMessage" class="status-bar">準備完了</div>
 
-    <!-- 1. マスター＆テンポコントロール -->
     <div class="section" style="border: 2px solid var(--accent-gold);">
         <h2>🎛️ 1. マスター再生・全体録音CRERA・マルチ小節バンク管理</h2>
         <div class="flex">
@@ -83,14 +83,13 @@
                 </select>
             </span>
             <button onclick="openSoundEqModal()" style="background: linear-gradient(135deg, #402080, #201040); color: #fff;">🎚️ 全体音響・EQ別画面</button>
-            <button onclick="saveProjectToList()">💾 現在の曲をリスト保存</button>
+            <button onclick="quickSaveProject()">💾 クイックリスト保存</button>
         </div>
         <canvas id="masterVisualizer" width="600" height="45"></canvas>
         <div style="margin-top: 5px;"><audio id="masterAudio" controls style="height: 32px; width: 100%;"></audio></div>
         <div id="compositionListContainer" class="summary-box">保存プロジェクトリストはありません。</div>
     </div>
 
-    <!-- 2. AI作詞＆ボーカル録音CRERAスタジオ -->
     <div class="section" style="border: 2px solid #a62b14;">
         <h2>🧢 2. AI作詞 ＆ ボーカル録音 (CRERA機能付き)</h2>
         <div class="flex">
@@ -111,34 +110,31 @@
         <div style="margin-top: 3px;"><audio id="vocalAudio" controls style="height: 28px; width: 100%;"></audio></div>
     </div>
 
-    <!-- 3. プロ・リリース & 著作権認可共有スタジオ -->
     <div class="section" style="border: 2px solid #8a2be2;">
         <h2>💎 3. 著作権取得 (MICVICTORY/DLANDメジャー) & リリース</h2>
         <div class="flex">
             <button class="release-btn" onclick="executeProRelease()">🚀 MICVICTORY / DLAND メジャー一括リリース</button>
-            <button onclick="exportProjectJSON()">💾 プロジェクト保存</button>
+            <button onclick="exportProjectJSON()">💾 プロジェクトJSON書出</button>
         </div>
         <div id="releaseStatusBox" class="summary-box" style="color: #da70d6;">ステータス: 未リリース (準備完了)</div>
     </div>
 
-    <!-- 各楽器トラック管理用コンテナ -->
     <div id="tracksContainer"></div>
 
-    <!-- 全体音響・イコライザー別画面 (モーダル) -->
     <div id="soundEqModal" class="modal-overlay">
         <div class="modal-content">
             <h2>🎚️ 全体音響バランス ＆ 3バンドEQ (別画面)</h2>
             <div style="margin: 12px 0;">
-                <label>マスター音量 (Master Gain): <input type="range" min="0" max="1.5" step="0.05" value="1.0" id="eqMasterVolume" oninput="updateMasterVolume(this.value)"></label>
+                <label>マスター音量 (Master Gain): <input type="range" min="0" max="1.5" step="0.05" value="1.0" oninput="updateMasterVolume(this.value)"></label>
             </div>
             <div style="margin: 12px 0;">
-                <label>LOW (低音域 100Hz): <input type="range" min="-12" max="12" step="1" value="0" id="eqLowGain" oninput="updateEqBand('low', this.value)"> dB</label>
+                <label>LOW (低音域 100Hz): <input type="range" min="-12" max="12" step="1" value="0" oninput="updateEqBand('low', this.value)"> dB</label>
             </div>
             <div style="margin: 12px 0;">
-                <label>MID (中音域 1kHz): <input type="range" min="-12" max="12" step="1" value="0" id="eqMidGain" oninput="updateEqBand('mid', this.value)"> dB</label>
+                <label>MID (中音域 1kHz): <input type="range" min="-12" max="12" step="1" value="0" oninput="updateEqBand('mid', this.value)"> dB</label>
             </div>
             <div style="margin: 12px 0;">
-                <label>HIGH (高音域 8kHz): <input type="range" min="-12" max="12" step="1" value="0" id="eqHighGain" oninput="updateEqBand('high', this.value)"> dB</label>
+                <label>HIGH (高音域 8kHz): <input type="range" min="-12" max="12" step="1" value="0" oninput="updateEqBand('high', this.value)"> dB</label>
             </div>
             <div style="text-align: right; margin-top: 15px;">
                 <button onclick="closeSoundEqModal()">閉じる</button>
@@ -147,6 +143,11 @@
     </div>
 
     <script>
+        function setStatus(msg) {
+            const st = document.getElementById('statusMessage');
+            if(st) st.innerText = msg;
+        }
+
         const instruments = [
             { id: 'drums', name: '🥁 プロ・アコースティックキック＆スネアキット (金属音カット/20パターン＋AI/CRERA)', type: 'drums' },
             { id: 'bass', name: '🎸 ウルトラ重低音サブベース (20パターン切り替え手動ボタンAI記憶再生CRERA)', type: 'bass' },
@@ -163,7 +164,6 @@
             { name: 'ソ', freq: 392.00 }, { name: 'ラ', freq: 440.00 }, { name: 'シ', freq: 493.88 }, { name: '高ド', freq: 523.25 }
         ];
 
-        // 金属音（Hi-Hat/Crash）を除外した打楽器インデックス（0: Kick, 1: Snare, 2: Deep Thump, 3: Rimshot）のみ
         const drumNotes = [
             { name: '重低音 Kick' }, { name: 'ファット Snare' }, { name: 'ディープ Thump' }, { name: 'クローズ Rimshot' }
         ];
@@ -218,7 +218,7 @@
 
         function add18BarsBank() {
             if (numBanks >= 3) {
-                alert('最大54小節（3バンク）に到達しています！');
+                setStatus('最大54小節（3バンク）に到達しています');
                 return;
             }
             numBanks++;
@@ -230,12 +230,12 @@
             });
             activeBankIdx = numBanks - 1;
             renderTracks();
-            alert(`➕ 新たに第${(activeBankIdx)*18 + 1}〜${(activeBankIdx+1)*18}小節バンクを追加しました！`);
+            setStatus(`➕ 第${(activeBankIdx)*18 + 1}〜${(activeBankIdx+1)*18}小節バンクを追加`);
         }
 
         function copyCurrentBank() {
             if (numBanks >= 3) {
-                alert('最大54小節（3バンク）の制限によりコピー＆追加できません。');
+                setStatus('最大54小節の制限によりコピー追加できません');
                 return;
             }
             numBanks++;
@@ -251,7 +251,7 @@
             });
             activeBankIdx = numBanks - 1;
             renderTracks();
-            alert(`📋 現在バンクを新バンク(第${activeBankIdx*18+1}〜小節)にコピー追加しました！`);
+            setStatus(`📋 現在バンクを新バンク(第${activeBankIdx*18+1}〜小節)にコピー追加`);
         }
 
         function switchBank(bIdx) {
@@ -355,10 +355,10 @@
                 tData.fill(false);
                 for(let i=0; i<18; i+=2) { tData[i] = true; tNotes[i] = 3; }
                 renderGrid('guitar');
-                alert('木目ギター音モードに切り替えました！');
+                setStatus('木目ギター音モードに切り替え');
             } else {
                 applyGuitarPattern(0);
-                alert('エレキギター音(20選連動)に切り替えました！');
+                setStatus('エレキギター音(20選連動)に切り替え');
             }
         }
 
@@ -372,7 +372,6 @@
             renderGrid('guitar');
         }
 
-        // 金属音（Hi-Hat/Crash）を除外したキック＆スネア中心パター生成
         function applyDrumPattern(idx) {
             ensureBankArray('drums', activeBankIdx);
             let tData = songData.trackData['drums'][activeBankIdx], tNotes = songData.trackNotes['drums'][activeBankIdx];
@@ -430,7 +429,7 @@
             applyBassPattern(1);
             applyChordPattern(2);
             aiRandomMelody('piano');
-            alert(`全体ジャンルビート「${genre.toUpperCase()}」の設定＆20選パターンを反映しました！`);
+            setStatus(`全体ジャンルビート「${genre.toUpperCase()}」を反映`);
         }
 
         function aiRandomMelody(id) {
@@ -444,18 +443,18 @@
                 }
             }
             renderGrid(id);
-            alert(`🎲 ${id} (バンク${activeBankIdx+1}) にAIランダムメロディ適用！`);
+            setStatus(`🎲 ${id} (バンク${activeBankIdx+1}) AIランダムメロディ適用`);
         }
 
         function aiRandomPattern(id) {
             if(id === 'drums') applyDrumPattern(Math.floor(Math.random() * 20));
             if(id === 'bass') applyBassPattern(Math.floor(Math.random() * 20));
-            alert(`🎲 ${id} AIランダムパターン更新！`);
+            setStatus(`🎲 ${id} AIランダムパターン更新`);
         }
 
         function aiRandomChordEdit() {
             applyChordPattern(Math.floor(Math.random() * 20));
-            alert('🤖 AIコード進行を自動編集しました！');
+            setStatus('🤖 AIコード進行を自動編集');
         }
 
         function renderKeyboard(inst) {
@@ -523,9 +522,8 @@
                 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContextClass();
                 masterGainNode = audioCtx.createGain();
-                masterGainNode.gain.value = parseFloat(document.getElementById('eqMasterVolume')?.value || 1.0);
+                masterGainNode.gain.value = 1.0;
                 
-                // 3バンドEQ用BiquadFilter
                 eqLowFilter = audioCtx.createBiquadFilter();
                 eqLowFilter.type = 'lowshelf';
                 eqLowFilter.frequency.value = 100;
@@ -548,7 +546,6 @@
                 analyserNode.fftSize = 256;
                 masterDestNode = audioCtx.createMediaStreamDestination();
                 
-                // 接続チェイン: Compressor -> EQ Low -> EQ Mid -> EQ High -> Master Gain -> Analyser & Destination
                 compressorNode.connect(eqLowFilter);
                 eqLowFilter.connect(eqMidFilter);
                 eqMidFilter.connect(eqHighFilter);
@@ -577,13 +574,8 @@
             if(band === 'high' && eqHighFilter) eqHighFilter.gain.value = v;
         }
 
-        function openSoundEqModal() {
-            document.getElementById('soundEqModal').classList.add('active');
-        }
-
-        function closeSoundEqModal() {
-            document.getElementById('soundEqModal').classList.remove('active');
-        }
+        function openSoundEqModal() { document.getElementById('soundEqModal').classList.add('active'); }
+        function closeSoundEqModal() { document.getElementById('soundEqModal').classList.remove('active'); }
 
         function playNote(instId, noteIndex, gate = 0.4) {
             const ctx = getAudioContext();
@@ -597,7 +589,6 @@
             if (instId === 'drums') {
                 gain.gain.setValueAtTime(0.85, now);
                 const osc = ctx.createOscillator();
-                // 金属音レス：パンチの効いたキック・スネア・タム系のみ生成
                 if (noteIndex === 0) {
                     osc.type = 'sine'; osc.frequency.setValueAtTime(140, now); osc.frequency.exponentialRampToValueAtTime(32, now + 0.15);
                 } else if (noteIndex === 1) {
@@ -659,14 +650,14 @@
             songData.trackGate[id][activeBankIdx].fill(0.4);
             songData.recStepCursor[id] = 0;
             renderGrid(id);
-            alert(`🗑 ${id} のバンク小節をCRERAクリアしました！`);
+            setStatus(`🗑 ${id} バンク小節クリア完了`);
         }
 
         function clearVocal() {
             if (vocalAudioBlob) URL.revokeObjectURL(document.getElementById('vocalAudio').src);
             vocalAudioBlob = null; recordedChunks = [];
             const aud = document.getElementById('vocalAudio'); aud.src = ''; aud.load();
-            alert('🗑 ボーカル録音をCRERA(クリア)しました！');
+            setStatus('🗑 ボーカルCRERAクリア完了');
         }
 
         function playTrackPreview(id) {
@@ -725,18 +716,20 @@
                     }
                 }
             }, interval);
+            setStatus('▶ 再生中');
         }
 
         function masterStop() { 
             isPlaying = false; 
             if (currentTimer) { clearInterval(currentTimer); currentTimer = null; } 
+            setStatus('⏹ 停止');
         }
 
         function masterClear() { 
             masterStop(); 
             instruments.forEach(inst => clearTrack(inst.id)); 
             document.getElementById('lyricTextArea').value = ''; 
-            alert('全曲CRERA(全クリア)実行完了！'); 
+            setStatus('全曲CRERA(全クリア)完了'); 
         }
         
         function previewMaster() { masterPlay(); }
@@ -780,14 +773,12 @@
             draw();
         }
 
-        function saveProjectToList() {
-            const name = prompt('保存するプロジェクト名を入力してください:', songData.title);
-            if (!name) return;
-            songData.title = name;
+        function quickSaveProject() {
+            songData.title = `マイソング_${Date.now().toString().slice(-4)}`;
             songData.numBanks = numBanks;
             savedProjects.push(JSON.parse(JSON.stringify(songData)));
             updateProjectListUI();
-            alert(`「${name}」をリストに保存しました！`);
+            setStatus(`💾 「${songData.title}」をリスト保存完了`);
         }
 
         function updateProjectListUI() {
@@ -807,7 +798,7 @@
             numBanks = songData.numBanks || 1;
             activeBankIdx = 0;
             renderTracks();
-            alert(`「${songData.title}」を読み込みました！`);
+            setStatus(`📂 「${songData.title}」読込完了`);
         }
 
         function toggleMasterRecording() {
@@ -825,14 +816,14 @@
                     isMasterRecording = true;
                     document.getElementById('masterRecBtn').innerText = '⏹ 一括録音停止';
                     masterPlay();
-                    alert('🔴 全楽器ミックス一括録音開始！');
-                } catch(e) { alert('録音開始に失敗しました。'); }
+                    setStatus('🔴 全楽器ミックス一括録音開始');
+                } catch(e) { setStatus('録音開始エラー'); }
             } else {
                 if (masterMediaRecorder && masterMediaRecorder.state !== 'inactive') masterMediaRecorder.stop();
                 masterStop();
                 isMasterRecording = false;
                 document.getElementById('masterRecBtn').innerText = '🔴 全体ミックス一括録音';
-                alert('一括録音完了！');
+                setStatus('一括録音完了');
             }
         }
 
@@ -840,7 +831,7 @@
             const theme = document.getElementById('lyricThemeSelect').value;
             const ta = document.getElementById('lyricTextArea');
             ta.value = `【AIストーリー・${theme}】\nプロピアノ＆重低音ベース、ノイズレスキック＆スネアが重なる。\n(Chorus) MICVICTORY / DLANDメジャーへ向けて加速する54小節。`;
-            alert('AI歌詞を生成しました！');
+            setStatus('🤖 AI歌詞自動生成完了');
         }
 
         async function startVocalRecording() {
@@ -855,16 +846,22 @@
                     stream.getTracks().forEach(t => t.stop());
                 };
                 mediaRecorder.start();
-                alert('🎙️ ボーカル録音中...');
-            } catch(e) { alert('マイクアクセスエラー'); }
+                setStatus('🎙️ ボーカル録音中...');
+            } catch(e) { setStatus('マイクアクセスエラー'); }
         }
 
-        function stopVocalRecording() { if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop(); }
-        function playVocal() { const aud = document.getElementById('vocalAudio'); if(aud.src) aud.play(); }
+        function stopVocalRecording() { 
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop(); 
+            setStatus('⏹ ボーカル録音停止');
+        }
+        function playVocal() { 
+            const aud = document.getElementById('vocalAudio'); 
+            if(aud.src) { aud.play(); setStatus('▶ ボーカル試聴中'); } 
+        }
 
         function executeProRelease() {
             document.getElementById('releaseStatusBox').innerHTML = `✨ <strong>MICVICTORY / DLAND メジャーリリース＆著作権登録完了！</strong><br>・金属音完全除去・高音質3バンドEQ適用完了 (ID: MV-DL-2026-MULTI54)`;
-            alert('🎉 MICVICTORY / DLAND メジャーリリース完了！');
+            setStatus('🎉 MICVICTORY / DLAND メジャーリリース完了！');
         }
 
         function exportProjectJSON() {
@@ -872,6 +869,7 @@
             const dlAnchor = document.createElement('a');
             dlAnchor.setAttribute("href", dataStr); dlAnchor.setAttribute("download", "daw_project.json");
             document.body.appendChild(dlAnchor); dlAnchor.click(); dlAnchor.remove();
+            setStatus('💾 プロジェクトJSON書出完了');
         }
 
         window.onload = initApp;
