@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ULTIMATE MASTER DAW v33.9 - ノンスピーカーポップアップ版</title>
+    <title>ULTIMATE MASTER DAW v33.9 - 弾き語り＆バイオリン拡張版</title>
     <style>
         :root {
             --bg-color: #070605;
@@ -55,7 +55,7 @@
 </head>
 <body>
 
-    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.9 (ポップアップレス・完全シームレス)</h1>
+    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.9 (木目ギター弾き語り＆バイオリンビブラート追加版)</h1>
     <div id="statusMessage" class="status-bar">準備完了</div>
 
     <div class="section" style="border: 2px solid var(--accent-gold);">
@@ -88,6 +88,31 @@
         <canvas id="masterVisualizer" width="600" height="45"></canvas>
         <div style="margin-top: 5px;"><audio id="masterAudio" controls style="height: 32px; width: 100%;"></audio></div>
         <div id="compositionListContainer" class="summary-box">保存プロジェクトリストはありません。</div>
+    </div>
+
+    <!-- === 新規追加エリア: 木目ギター弾き語り ＆ バイオリンAIビブラート演奏 === -->
+    <div class="section" style="border: 2px solid #ff1493; background: #1a0f18;">
+        <h2>🪵🎻 木目ギター弾き語り ＆ バイオリンAI推測演奏（ビブラート制御）</h2>
+        <div class="flex">
+            <button onclick="toggleWoodGuitarStrumming()" style="background: linear-gradient(135deg, #d2691e, #8b4513); color: #fff;">🪵 木目ギター弾き語りON/OFF</button>
+            <span>現在認識コード: <b id="liveChordDisplay" style="color: var(--accent-gold);">CMaj7</b></span>
+            <button onclick="recordAndShowScoreLog()">📝 コード・演奏ビジュアル記録表示</button>
+            <button onclick="shareProjectData()">🔗 記録・プロジェクト共有</button>
+        </div>
+        
+        <div class="flex" style="margin-top: 10px; border-top: 1px dashed #4a2f40; padding-top: 8px;">
+            <span>バイオリンAI伴奏モード:</span>
+            <select id="violinAiMode">
+                <option value="auto_harmony">AI自動対旋律＆自動追従</option>
+                <option value="emotional_solo">エモーショナル・ソロ代奏</option>
+            </select>
+            <span>ビブラート深度: <input type="range" id="vibratoDepth" min="0" max="1" step="0.1" value="0.5" style="width: 80px;"></span>
+            <span>ビブラート速度: <input type="range" id="vibratoSpeed" min="2" max="10" step="0.5" value="5" style="width: 80px;"></span>
+            <button class="ai-btn" onclick="triggerViolinAiPerformance()">🎻 バイオリンAI推測演奏スタート</button>
+        </div>
+        <div id="visualScoreLogBox" class="summary-box" style="color: #ffb6c1; margin-top: 8px;">
+            譜面・コード進行の視覚記録ログはここに表示されます...
+        </div>
     </div>
 
     <div class="section" style="border: 2px solid #a62b14;">
@@ -197,6 +222,10 @@
         let isPlaying = false, currentTimer = null;
         let mediaRecorder = null, recordedChunks = [], vocalAudioBlob = null;
         let masterMediaRecorder = null, masterRecordedChunks = [], masterAudioBlob = null, isMasterRecording = false;
+
+        // --- 追加変数: 弾き語り・バイオリン拡張 ---
+        let isWoodStrummingActive = false;
+        let strummingTimer = null;
 
         function createBlankBankArray(size = 18, fillVal = false) {
             return new Array(size).fill(fillVal);
@@ -402,6 +431,9 @@
                 if(i % 2 === 0 || p % 3 === 0) { tData[i] = true; tNotes[i] = (p + i) % 8; }
             }
             renderGrid('chords');
+            // ライブコード表示の更新連動
+            const cd = document.getElementById('liveChordDisplay');
+            if(cd) cd.innerText = chordPatternNames[p].split(' ')[0];
         }
 
         function applyHarmonyPattern(mode) {
@@ -734,6 +766,110 @@
         
         function previewMaster() { masterPlay(); }
 
+        // --- 新規追加ロジック: 木目ギター弾き語り、視覚記録共有、バイオリンAIビブラート ---
+        function toggleWoodGuitarStrumming() {
+            isWoodStrummingActive = !isWoodStrummingActive;
+            const btn = event.target;
+            if (isWoodStrummingActive) {
+                btn.innerText = '🪵 木目ギター弾き語りON中...';
+                applyWoodGuitarStrummingLoop();
+                setStatus('🪵 木目ギター弾き語りモード有効化');
+            } else {
+                btn.innerText = '🪵 木目ギター弾き語りON/OFF';
+                if (strummingTimer) clearInterval(strummingTimer);
+                setStatus('木目ギター弾き語り停止');
+            }
+        }
+
+        function applyWoodGuitarStrummingLoop() {
+            const bpm = parseFloat(document.getElementById('bpmInput').value) || 120;
+            const interval = (60 / bpm) * 250; 
+            let stepCount = 0;
+            strummingTimer = setInterval(() => {
+                if (!isWoodStrummingActive) return;
+                const styleIdx = songData.chordStyles['chords'] || 0;
+                const currentChordIdx = (stepCount + styleIdx) % chordPatternNames.length;
+                const chordName = chordPatternNames[currentChordIdx].split(' ')[0];
+                document.getElementById('liveChordDisplay').innerText = chordName;
+                playNote('guitar', currentChordIdx % 8, 0.3);
+                stepCount = (stepCount + 1) % 36;
+            }, interval);
+        }
+
+        function recordAndShowScoreLog() {
+            let logHTML = `<b>🎼 【視覚記録：コード進行＆ピアノ/ギター連動ログ】</b><br>`;
+            logHTML += `・現在バンク(${activeBankIdx+1}): 進行スタイル ${chordPatternNames[songData.chordStyles['chords'] || 0]}<br>`;
+            logHTML += `・ピアノ音列スナップショット: ${(songData.trackNotes['piano'] && songData.trackNotes['piano'][activeBankIdx]) ? songData.trackNotes['piano'][activeBankIdx].join('-') : 'なし'}<br>`;
+            logHTML += `・ギター音列スナップショット: ${(songData.trackNotes['guitar'] && songData.trackNotes['guitar'][activeBankIdx]) ? songData.trackNotes['guitar'][activeBankIdx].join('-') : 'なし'}`;
+            
+            document.getElementById('visualScoreLogBox').innerHTML = logHTML;
+            setStatus('📝 譜面・コードビジュアル記録を表示');
+        }
+
+        function shareProjectData() {
+            const payload = JSON.stringify({
+                title: songData.title,
+                banks: numBanks,
+                chords: chordPatternNames[songData.chordStyles['chords'] || 0],
+                timestamp: Date.now()
+            });
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(payload);
+                setStatus('🔗 プロジェクト共有データをクリップボードにコピーしました！');
+            } else {
+                alert('共有用データ:\n' + payload);
+            }
+        }
+
+        function triggerViolinAiPerformance() {
+            const depth = parseFloat(document.getElementById('vibratoDepth').value) || 0.5;
+            const speed = parseFloat(document.getElementById('vibratoSpeed').value) || 5;
+            const mode = document.getElementById('violinAiMode').value;
+            const ctx = getAudioContext();
+            
+            ensureBankArray('violin', activeBankIdx);
+            let pianoNotes = (songData.trackNotes['piano'] && songData.trackNotes['piano'][activeBankIdx]) || [0,2,4,5];
+            
+            pianoNotes.forEach((pNote, idx) => {
+                if (idx >= 18) return;
+                setTimeout(() => {
+                    if (!ctx) return;
+                    const t = ctx.currentTime;
+                    const baseFreq = solfaNotes[(pNote + (mode === 'emotional_solo' ? 3 : 4)) % solfaNotes.length].freq * 2;
+                    
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    const lfo = ctx.createOscillator();
+                    const lfoGain = ctx.createGain();
+                    
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(baseFreq, t);
+                    
+                    // ビブラートLFO変調
+                    lfo.frequency.setValueAtTime(speed, t);
+                    lfoGain.gain.setValueAtTime(baseFreq * 0.02 * depth, t);
+                    lfo.connect(lfoGain);
+                    lfoGain.connect(osc.frequency);
+                    
+                    gain.connect(compressorNode);
+                    gain.gain.setValueAtTime(0.01, t);
+                    gain.gain.linearRampToValueAtTime(0.25, t + 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+                    
+                    osc.connect(gain);
+                    lfo.start(t);
+                    osc.start(t);
+                    lfo.stop(t + 0.65);
+                    osc.stop(t + 0.65);
+                    
+                    document.getElementById('liveChordDisplay').innerText = `バイオリンAI [Note ${pNote}] (ビブラート${Math.round(depth*100)}%)`;
+                }, idx * 250);
+            });
+            
+            setStatus(`🎻 バイオリンAI推測演奏実行 (${mode}, ビブラート深度:${depth}, 速度:${speed}Hz)`);
+        }
+        // --- 拡張終わり ---
+
         function startVisualizerLoop() {
             const canvas = document.getElementById('masterVisualizer');
             const ctx = canvas.getContext('2d');
@@ -876,4 +1012,3 @@
     </script>
 </body>
 </html>
-
