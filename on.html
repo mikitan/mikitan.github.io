@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ULTIMATE MASTER DAW v33.9 - ドンパシャ刺激ハリ・波形＆M/S対応</title>
+    <title>ULTIMATE MASTER DAW v33.10 - マスタリング完全統合版</title>
     <style>
         :root {
             --bg-color: #070605;
@@ -55,16 +55,15 @@
 </head>
 <body>
 
-    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.9 (ドンパシャ刺激ハリ・波形＆M/S対応)</h1>
+    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.10 (マスタリング統合版)</h1>
 
-    <!-- 1. マスター＆テンポコントロール -->
     <div class="section" style="border: 2px solid var(--accent-gold);">
-        <h2>🎛️ 1. マスター再生・全体録音・マルチ小節バンク管理</h2>
+        <h2>🎛️ 1. マスター再生・全体録音・マルチ小節バンク管理 ＆ マスタリング保護</h2>
         <div class="flex">
             <button onclick="masterPlay()" style="font-size: 13px;">▶ 再生</button>
             <button onclick="masterStop()" style="font-size: 13px;">⏹ 停止</button>
             <button class="record-btn" onclick="toggleMasterRecording()" id="masterRecBtn">🔴 全体ミックス一括録音</button>
-            <button class="clear-btn" onclick="masterClear()">🗑 全曲CRERA(全クリア)</button>
+            <button class="clear-btn" onclick="masterClear()">🗑 全曲CLEAR(全クリア)</button>
             <button class="preview-btn" onclick="previewMaster()">▶ 試聴</button>
             <button class="bank-btn" onclick="add18BarsBank()">➕ 18小節新たに作曲つけ足し</button>
             <button class="stimulus-btn" onclick="applyCollabStimulusLayer()">⚡ 崩さないドンパシャ刺激ハリ追加</button>
@@ -74,6 +73,8 @@
         </div>
         <div class="flex" style="margin-top: 8px; border-top: 1px dashed #3d2c1e; padding-top: 8px;">
             <span>マスター音量: <input type="range" min="0" max="1.5" step="0.05" value="1.0" id="masterVolumeControl" style="width: 75px;" onchange="updateMasterVolume(this.value)"></span>
+            <span>M/Sサイド拡張: <input type="range" min="0.5" max="2.0" step="0.1" value="1.0" id="msWidthControl" style="width: 65px;" onchange="updateMSWidth(this.value)"></span>
+            <span>SC深度(dB): <input type="range" min="-6.0" max="-1.0" step="0.5" value="-3.5" id="scDepthControl" style="width: 65px;"></span>
             <button onclick="saveProjectToList()">💾 現在の曲をリスト保存</button>
             <button onclick="exportProjectFileTransfer()">📤 ファイル転送用JSON書出</button>
             <span>アルバムテンプレ: 
@@ -82,12 +83,20 @@
                 </select>
             </span>
         </div>
+        <div class="flex" style="margin-top: 8px; border-top: 1px dashed #3d2c1e; padding-top: 8px; background: rgba(0,0,0,0.2); padding: 6px; border-radius: 6px;">
+            <span>一括トリム: <input type="range" min="0" max="1.5" step="0.05" value="1.0" id="allTracksTrimControl" style="width: 70px;" onchange="updateAllTracksTrim(this.value)"></span>
+            <span>リミッター天井(dB): <input type="range" min="-6.0" max="0.0" step="0.5" value="-1.0" id="limiterThresholdControl" style="width: 60px;" onchange="updateLimiterThreshold(this.value)"></span>
+            <span>サチュレーション: <input type="checkbox" id="busSatToggle" onchange="toggleBusSaturation(this.checked)"></span>
+        </div>
+        <div id="masterLevelMeterWrap" style="margin-top: 6px; background: #050403; border: 1px solid #38291e; border-radius: 4px; padding: 4px 8px; display: flex; align-items: center; justify-content: space-between; font-size: 10px;">
+            <span>ピークレベル監視: <strong id="peakLevelReadout" style="color: var(--accent-gold);">-∞ dBFS</strong></span>
+            <span>ヘッドルーム: <strong id="headroomReadout" style="color: #7cfc00;">安全 (Safe)</strong></span>
+        </div>
         <canvas id="masterVisualizer" width="600" height="50"></canvas>
         <div style="margin-top: 5px;"><audio id="masterAudio" controls style="height: 32px; width: 100%;"></audio></div>
         <div id="compositionListContainer" class="summary-box">保存プロジェクトリストはありません。</div>
     </div>
 
-    <!-- 2. AI作詞＆ボーカル録音スタジオ -->
     <div class="section" style="border: 2px solid #a62b14;">
         <h2>🧢 2. AI作詞 ＆ ボーカル録音</h2>
         <div class="flex">
@@ -108,7 +117,6 @@
         <div style="margin-top: 3px;"><audio id="vocalAudio" controls style="height: 28px; width: 100%;"></audio></div>
     </div>
 
-    <!-- 3. プロ・リリース & 著作権認可共有スタジオ -->
     <div class="section" style="border: 2px solid #8a2be2;">
         <h2>💎 3. 著作権取得 (MICVICTORY) & リリース・共有</h2>
         <div class="flex">
@@ -121,7 +129,6 @@
         <div id="releaseStatusBox" class="summary-box" style="color: #da70d6;">ステータス: 未リリース (準備完了)</div>
     </div>
 
-    <!-- 各楽器トラック管理用コンテナ -->
     <div id="tracksContainer"></div>
 
     <script>
@@ -171,13 +178,103 @@
         };
 
         let savedProjects = [];
-        let audioCtx = null, masterGainNode = null, compressorNode = null, masterDestNode = null, analyserNode = null;
+        let audioCtx = null, masterGainNode = null, compressorNode = null, masterDestNode = null, analyserNode = null, midSideGainSide = null;
+        let reverbBus = null;
+        let trackGainNodes = {};
         let isPlaying = false, currentTimer = null;
         let mediaRecorder = null, recordedChunks = [], vocalAudioBlob = null;
         let masterMediaRecorder = null, masterRecordedChunks = [], masterAudioBlob = null, isMasterRecording = false;
 
+        // マスタリング＆サチュレーション追加変数
+        let masterLimiterNode = null;
+        let waveshaperNode = null;
+        let allTracksTrimValue = 1.0;
+
         function createBlankBankArray(size = 18, fillVal = false) {
             return new Array(size).fill(fillVal);
+        }
+
+        function makeDistortionCurve(amount) {
+            const k = typeof amount === 'number' ? amount : 50;
+            const n_samples = 44100;
+            const curve = new Float32Array(n_samples);
+            const deg = Math.PI / 180;
+            for (let i = 0; i < n_samples; ++i) {
+                let x = i * 2 / n_samples - 1;
+                curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+            }
+            return curve;
+        }
+
+        function updateAllTracksTrim(val) {
+            allTracksTrimValue = parseFloat(val);
+            Object.keys(trackGainNodes).forEach(id => {
+                if (trackGainNodes[id] && audioCtx) {
+                    trackGainNodes[id].gain.setValueAtTime(allTracksTrimValue, audioCtx.currentTime);
+                }
+            });
+        }
+
+        function updateLimiterThreshold(val) {
+            if (masterLimiterNode && audioCtx) {
+                masterLimiterNode.threshold.setValueAtTime(parseFloat(val), audioCtx.currentTime);
+            }
+        }
+
+        function toggleBusSaturation(enabled) {
+            if (waveshaperNode) {
+                waveshaperNode.curve = enabled ? makeDistortionCurve(12) : makeDistortionCurve(0);
+            }
+        }
+
+        function setupReverbBus(ctx, destinationNode) {
+            const reverbInput = ctx.createGain();
+            const preDelay = ctx.createDelay(0.1);
+            preDelay.delayTime.setValueAtTime(0.04, ctx.currentTime);
+
+            const hpf = ctx.createBiquadFilter();
+            hpf.type = 'highpass';
+            hpf.frequency.setValueAtTime(300, ctx.currentTime);
+
+            const lpf = ctx.createBiquadFilter();
+            lpf.type = 'lowpass';
+            lpf.frequency.setValueAtTime(7000, ctx.currentTime);
+
+            const rate = ctx.sampleRate;
+            const length = rate * 1.5;
+            const impulse = ctx.createBuffer(2, length, rate);
+            for (let channel = 0; channel < 2; channel++) {
+                const data = impulse.getChannelData(channel);
+                for (let i = 0; i < length; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.2);
+                }
+            }
+            const convolver = ctx.createConvolver();
+            convolver.buffer = impulse;
+
+            const returnGain = ctx.createGain();
+            returnGain.gain.setValueAtTime(0.35, ctx.currentTime);
+
+            reverbInput.connect(preDelay);
+            preDelay.connect(hpf);
+            hpf.connect(lpf);
+            lpf.connect(convolver);
+            convolver.connect(returnGain);
+            returnGain.connect(destinationNode);
+
+            return { input: reverbInput, returnGain: returnGain };
+        }
+
+        function triggerSidechainDuck(targetGainNode, ctx, depthDb = -3.5, attack = 0.007, release = 0.22) {
+            if (!targetGainNode || !ctx) return;
+            const now = ctx.currentTime;
+            const baseGain = allTracksTrimValue;
+            const ratio = Math.pow(10, depthDb / 20);
+
+            targetGainNode.gain.cancelScheduledValues(now);
+            targetGainNode.gain.setValueAtTime(baseGain, now);
+            targetGainNode.gain.linearRampToValueAtTime(baseGain * ratio, now + attack);
+            targetGainNode.gain.exponentialRampToValueAtTime(baseGain, now + attack + release);
         }
 
         function initApp() {
@@ -198,10 +295,7 @@
         }
 
         function add18BarsBank() {
-            if (numBanks >= 3) {
-                console.warn('最大54小節（3バンク）に到達しています！');
-                return;
-            }
+            if (numBanks >= 3) return;
             numBanks++;
             songData.numBanks = numBanks;
             instruments.forEach(inst => {
@@ -214,17 +308,20 @@
         }
 
         function applyCollabStimulusLayer() {
-            ensureBankArray('drums', activeBankIdx);
-            let tData = songData.trackData['drums'][activeBankIdx];
-            let tNotes = songData.trackNotes['drums'][activeBankIdx];
-            
-            for (let i = 0; i < 18; i++) {
-                if (!tData[i] && (i % 2 === 1)) {
-                    tData[i] = true;
-                    tNotes[i] = 2; 
+            for(let b=0; b<numBanks; b++) {
+                ensureBankArray('drums', b);
+                let tData = songData.trackData['drums'][b];
+                let tNotes = songData.trackNotes['drums'][b];
+                let tGate = songData.trackGate['drums'][b];
+                for (let i = 0; i < 18; i++) {
+                    if (i % 2 === 1 && !tData[i]) {
+                        tData[i] = true;
+                        tNotes[i] = 2;
+                        tGate[i] = 0.2;
+                    }
                 }
             }
-            renderGrid('drums');
+            renderTracks();
         }
 
         function copyCurrentBank() {
@@ -540,17 +637,49 @@
                 audioCtx = new AudioContextClass();
                 masterGainNode = audioCtx.createGain();
                 masterGainNode.gain.value = parseFloat(document.getElementById('masterVolumeControl').value || 1.0);
+                
+                midSideGainSide = audioCtx.createGain();
+                midSideGainSide.gain.value = parseFloat(document.getElementById('msWidthControl').value || 1.0);
+
                 compressorNode = audioCtx.createDynamicsCompressor();
                 compressorNode.threshold.setValueAtTime(-14, audioCtx.currentTime);
                 compressorNode.ratio.setValueAtTime(6, audioCtx.currentTime);
+
+                // サチュレーションとリミッターの安全チェーン構築
+                waveshaperNode = audioCtx.createWaveShaper();
+                waveshaperNode.curve = makeDistortionCurve(0);
+                waveshaperNode.oversample = '2x';
+
+                masterLimiterNode = audioCtx.createDynamicsCompressor();
+                masterLimiterNode.threshold.setValueAtTime(parseFloat(document.getElementById('limiterThresholdControl').value || -1.0), audioCtx.currentTime);
+                masterLimiterNode.knee.setValueAtTime(0.0, audioCtx.currentTime);
+                masterLimiterNode.ratio.setValueAtTime(20.0, audioCtx.currentTime);
+                masterLimiterNode.attack.setValueAtTime(0.001, audioCtx.currentTime);
+                masterLimiterNode.release.setValueAtTime(0.05, audioCtx.currentTime);
+
                 analyserNode = audioCtx.createAnalyser();
                 analyserNode.fftSize = 256;
                 masterDestNode = audioCtx.createMediaStreamDestination();
                 
-                compressorNode.connect(masterGainNode);
+                compressorNode.connect(waveshaperNode);
+                waveshaperNode.connect(masterLimiterNode);
+                masterLimiterNode.connect(masterGainNode);
+
                 masterGainNode.connect(analyserNode);
                 analyserNode.connect(audioCtx.destination);
                 masterGainNode.connect(masterDestNode);
+
+                reverbBus = setupReverbBus(audioCtx, compressorNode);
+
+                allTracksTrimValue = parseFloat(document.getElementById('allTracksTrimControl').value || 1.0);
+                instruments.forEach(inst => {
+                    if (!trackGainNodes[inst.id]) {
+                        const tg = audioCtx.createGain();
+                        tg.gain.value = allTracksTrimValue;
+                        tg.connect(compressorNode);
+                        trackGainNodes[inst.id] = tg;
+                    }
+                });
             }
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
@@ -564,6 +693,12 @@
             }
         }
 
+        function updateMSWidth(v) {
+            if(midSideGainSide && audioCtx) {
+                midSideGainSide.gain.setValueAtTime(parseFloat(v), audioCtx.currentTime);
+            }
+        }
+
         function playNote(instId, noteIndex, gate = 0.4) {
             const anySolo = Object.values(songData.trackSolo).some(v => v);
             const isMuted = songData.trackMute[instId];
@@ -573,7 +708,30 @@
             const ctx = getAudioContext();
             const now = ctx.currentTime;
             const gain = ctx.createGain();
-            gain.connect(compressorNode);
+            
+            const targetTrackGain = trackGainNodes[instId] || compressorNode;
+            
+            const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+            if (panner) {
+                let panVal = 0;
+                if(instId === 'drums') panVal = 0;
+                else if(instId === 'bass') panVal = 0;
+                else if(instId === 'guitar') panVal = -0.4;
+                else if(instId === 'piano') panVal = 0.3;
+                else panVal = (Math.random() * 0.8) - 0.4;
+                panner.pan.setValueAtTime(panVal, now);
+                gain.connect(panner);
+                panner.connect(targetTrackGain);
+
+                if (reverbBus && (instId === 'chords' || instId === 'synth' || instId === 'piano')) {
+                    const sendGain = ctx.createGain();
+                    sendGain.gain.value = (instId === 'chords' || instId === 'synth') ? 0.35 : 0.2;
+                    panner.connect(sendGain);
+                    sendGain.connect(reverbBus.input);
+                }
+            } else {
+                gain.connect(targetTrackGain);
+            }
             
             let duration = Math.max(gate, 0.15);
             let releaseTail = 0.18;
@@ -587,7 +745,7 @@
                     const gainClick = ctx.createGain();
                     oscClick.type = 'square'; oscClick.frequency.setValueAtTime(2200, now); oscClick.frequency.exponentialRampToValueAtTime(180, now + 0.03);
                     gainClick.gain.setValueAtTime(0.4, now); gainClick.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
-                    oscClick.connect(gainClick); gainClick.connect(compressorNode);
+                    oscClick.connect(gainClick); gainClick.connect(targetTrackGain);
                     oscClick.start(now); oscClick.stop(now + 0.04);
                 } else if (noteIndex === 1) {
                     osc.type = 'triangle'; osc.frequency.setValueAtTime(280, now); osc.frequency.exponentialRampToValueAtTime(65, now + 0.14);
@@ -623,7 +781,6 @@
             osc.connect(gain); osc.start(now); osc.stop(now + duration + releaseTail + 0.05);
         }
 
-        // ポップアップを排除した個別バンククリア関数
         function clearTrack(id) {
             ensureBankArray(id, activeBankIdx);
             songData.trackData[id][activeBankIdx].fill(false);
@@ -662,11 +819,13 @@
         function masterPlay() {
             if (isPlaying) return;
             isPlaying = true;
+            getAudioContext();
             let currentBank = activeBankIdx;
             let currentStep = 0;
             const bpm = parseFloat(document.getElementById('bpmInput').value) || 120;
             let interval = (60 / bpm) * 500;
             let tData = songData.trackData, tNotes = songData.trackNotes, tGate = songData.trackGate;
+            const scDepthVal = parseFloat(document.getElementById('scDepthControl').value || -3.5);
 
             currentTimer = setInterval(() => {
                 instruments.forEach(inst => {
@@ -680,6 +839,14 @@
                 Object.keys(tData).forEach(id => {
                     if (tData[id] && tData[id][currentBank] && tData[id][currentBank][currentStep]) {
                         playNote(id, tNotes[id][currentBank][currentStep], tGate[id] && tGate[id][currentBank] ? tGate[id][currentBank][currentStep] : 0.4);
+                        
+                        if (id === 'drums' && tNotes[id][currentBank][currentStep] === 0) {
+                            ['chords', 'synth', 'harmony'].forEach(targetId => {
+                                if (trackGainNodes[targetId]) {
+                                    triggerSidechainDuck(trackGainNodes[targetId], audioCtx, scDepthVal);
+                                }
+                            });
+                        }
                     }
                 });
 
@@ -723,6 +890,8 @@
             const ctx = canvas.getContext('2d');
             const bufferLength = 128;
             const dataArray = new Uint8Array(bufferLength);
+            const peakReadout = document.getElementById('peakLevelReadout');
+            const headroomReadout = document.getElementById('headroomReadout');
 
             function draw() {
                 requestAnimationFrame(draw);
@@ -731,6 +900,25 @@
 
                 if (analyserNode && (isPlaying || isMasterRecording)) {
                     analyserNode.getByteTimeDomainData(dataArray);
+                    
+                    let maxVal = 0;
+                    for (let i = 0; i < bufferLength; i++) {
+                        let normalized = Math.abs((dataArray[i] / 128.0) - 1.0);
+                        if (normalized > maxVal) maxVal = normalized;
+                    }
+                    let dbFS = maxVal > 0.0001 ? 20 * Math.log10(maxVal) : -Infinity;
+                    let thresholdVal = parseFloat(document.getElementById('limiterThresholdControl').value || -1.0);
+                    let headroom = thresholdVal - dbFS;
+
+                    if (peakReadout) {
+                        peakReadout.innerText = dbFS > -50 ? `${dbFS.toFixed(1)} dBFS` : '-∞ dBFS';
+                        peakReadout.style.color = dbFS > -0.5 ? '#ff4500' : 'var(--accent-gold)';
+                    }
+                    if (headroomReadout) {
+                        headroomReadout.innerText = headroom < 0.2 ? 'リミッター作動中/ニアクリップ' : `安全 (Headroom +${headroom.toFixed(1)}dB)`;
+                        headroomReadout.style.color = headroom < 0.2 ? '#ff4500' : '#7cfc00';
+                    }
+
                     ctx.lineWidth = 2;
                     ctx.strokeStyle = '#f2a900';
                     ctx.beginPath();
@@ -746,6 +934,8 @@
                     ctx.lineTo(canvas.width, canvas.height / 2);
                     ctx.stroke();
                 } else {
+                    if (peakReadout) peakReadout.innerText = '-∞ dBFS';
+                    if (headroomReadout) { headroomReadout.innerText = '待機中 (Safe)'; headroomReadout.style.color = '#7cfc00'; }
                     ctx.strokeStyle = '#38291e';
                     ctx.lineWidth = 1;
                     ctx.beginPath();
@@ -816,7 +1006,7 @@
         function generateAiLyrics() {
             const theme = document.getElementById('lyricThemeSelect').value;
             const ta = document.getElementById('lyricTextArea');
-            ta.value = `【AIフルストーリー・${theme}】\nプロピアノの響きとギター・コード・ハーモニーが重なり、永遠のビートが刻まれる。\n(Verse 1) 星のしずくが窓をたたき、ふたりのメロディが動き出す。\n(Chorus) MICVICTORYの光のなかへ、54小節の旅は続く。`;
+            ta.value = `【AIフルストーリー・${theme}】\nプロピアノの響きとギター・コード・ハーモニーが重なり、永遠のビートが刻マレル。\n(Verse 1) 星のしずくが窓をたたき、ふたりのメロディが動き出す。\n(Chorus) MICVICTORYの光のなかへ、54小節の旅は続く。`;
         }
 
         async function startVocalRecording() {
@@ -860,7 +1050,7 @@
 
         function exportProjectFileTransfer() {
             const transferPayload = {
-                version: "v33.9-transfer",
+                version: "v33.10-transfer",
                 exportedAt: new Date().toISOString(),
                 songData: songData,
                 audioBlobsAvailable: {
