@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ULTIMATE MASTER DAW v33.10 - マスタリング完全統合版</title>
+    <title>ULTIMATE MASTER DAW v33.10+ - マスタリング＆拡張統合版</title>
     <style>
         :root {
             --bg-color: #070605;
@@ -55,7 +55,7 @@
 </head>
 <body>
 
-    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.10 (マスタリング統合版)</h1>
+    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.10+ (拡張・マスタリング統合版)</h1>
 
     <div class="section" style="border: 2px solid var(--accent-gold);">
         <h2>🎛️ 1. マスター再生・全体録音・マルチ小節バンク管理 ＆ マスタリング保護</h2>
@@ -82,6 +82,13 @@
                     <option value="">-- 20アルバムテンプレート選択 --</option>
                 </select>
             </span>
+        </div>
+        <!-- 拡張UI: ローカルストレージ & PCキーボード演奏 & ABループ -->
+        <div class="flex" style="margin-top: 8px; border-top: 1px dashed #3d2c1e; padding-top: 8px; font-size: 11px;">
+            <button onclick="autoSaveToLocalStorage()" style="background: linear-gradient(135deg, #2b7fa6, #16476b); color:#fff;">💾 ローカル即時保存</button>
+            <button onclick="loadFromLocalStorage()" style="background: linear-gradient(135deg, #205030, #103020); color:#fff;">📂 ローカル復帰</button>
+            <label><input type="checkbox" id="keyTypingToggle" onchange="toggleKeyTyping(this.checked)"> PCキーボード演奏 (A-Kでドレミ)</label>
+            <span>ABループ: バンク <input type="number" id="loopStartBank" value="0" min="0" max="2" style="width:35px;"> 〜 <input type="number" id="loopEndBank" value="0" min="0" max="2" style="width:35px;"></span>
         </div>
         <div class="flex" style="margin-top: 8px; border-top: 1px dashed #3d2c1e; padding-top: 8px; background: rgba(0,0,0,0.2); padding: 6px; border-radius: 6px;">
             <span>一括トリム: <input type="range" min="0" max="1.5" step="0.05" value="1.0" id="allTracksTrimControl" style="width: 70px;" onchange="updateAllTracksTrim(this.value)"></span>
@@ -185,7 +192,6 @@
         let mediaRecorder = null, recordedChunks = [], vocalAudioBlob = null;
         let masterMediaRecorder = null, masterRecordedChunks = [], masterAudioBlob = null, isMasterRecording = false;
 
-        // マスタリング＆サチュレーション追加変数
         let masterLimiterNode = null;
         let waveshaperNode = null;
         let allTracksTrimValue = 1.0;
@@ -645,7 +651,6 @@
                 compressorNode.threshold.setValueAtTime(-14, audioCtx.currentTime);
                 compressorNode.ratio.setValueAtTime(6, audioCtx.currentTime);
 
-                // サチュレーションとリミッターの安全チェーン構築
                 waveshaperNode = audioCtx.createWaveShaper();
                 waveshaperNode.curve = makeDistortionCurve(0);
                 waveshaperNode.oversample = '2x';
@@ -816,11 +821,17 @@
             }, interval);
         }
 
+        // --- ABループ対応版 マスター再生 ---
         function masterPlay() {
             if (isPlaying) return;
             isPlaying = true;
             getAudioContext();
-            let currentBank = activeBankIdx;
+            
+            let loopStart = parseInt(document.getElementById('loopStartBank')?.value || 0, 10);
+            let loopEnd = parseInt(document.getElementById('loopEndBank')?.value || (numBanks - 1), 10);
+            if(loopStart > loopEnd) loopEnd = loopStart;
+            
+            let currentBank = activeBankIdx < loopStart || activeBankIdx > loopEnd ? loopStart : activeBankIdx;
             let currentStep = 0;
             const bpm = parseFloat(document.getElementById('bpmInput').value) || 120;
             let interval = (60 / bpm) * 500;
@@ -856,9 +867,9 @@
                     currentBank++;
                     activeBankIdx = currentBank; 
                     renderTracks(); 
-                    if (currentBank >= (songData.numBanks || 1)) {
-                        currentBank = 0;
-                        activeBankIdx = 0;
+                    if (currentBank > loopEnd) {
+                        currentBank = loopStart;
+                        activeBankIdx = loopStart;
                         renderTracks();
                         if (!document.getElementById('repeatToggle').checked) {
                             masterStop();
@@ -1086,6 +1097,63 @@
         function openConcertMode() { 
             console.log('🎤 コンサート音源シェアモード: 会場出力用リミッター/EQ調整完了（ロー latency モード）'); 
         }
+
+        // --- 追加機能: ローカルストレージ自動保存・復帰 ---
+        function autoSaveToLocalStorage() {
+            try {
+                localStorage.setItem('ultimate_daw_autosave', JSON.stringify({
+                    songData: songData,
+                    numBanks: numBanks,
+                    savedAt: new Date().toLocaleTimeString()
+                }));
+                console.log('ローカルストレージへ保存完了');
+            } catch(e) {
+                console.warn('保存容量オーバーまたは非対応');
+            }
+        }
+
+        function loadFromLocalStorage() {
+            const raw = localStorage.getItem('ultimate_daw_autosave');
+            if(!raw) {
+                alert('保存されたデータがありません');
+                return;
+            }
+            try {
+                const parsed = JSON.parse(raw);
+                songData = parsed.songData;
+                numBanks = parsed.numBanks || 1;
+                activeBankIdx = 0;
+                renderTracks();
+                alert(`保存データ（${parsed.savedAt}）を復帰しました`);
+            } catch(e) {
+                console.error('復帰失敗', e);
+            }
+        }
+        setInterval(autoSaveToLocalStorage, 180000);
+
+        // --- 追加機能: PC QWERTYキーボード演奏 (A-Kでピアノ等へ入力) ---
+        let keyTypingEnabled = false;
+        const pcKeyMap = { 'a': 0, 's': 1, 'd': 2, 'f': 3, 'g': 4, 'h': 5, 'j': 6, 'k': 7 };
+
+        function toggleKeyTyping(enabled) { keyTypingEnabled = enabled; }
+
+        window.addEventListener('keydown', (e) => {
+            if(!keyTypingEnabled) return;
+            if(['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+            const noteIdx = pcKeyMap[e.key.toLowerCase()];
+            if(noteIdx !== undefined) {
+                let targetInst = 'piano';
+                let g = (songData.trackGate[targetInst] && songData.trackGate[targetInst][activeBankIdx]) ? songData.trackGate[targetInst][activeBankIdx][0] : 0.4;
+                playNote(targetInst, noteIdx, g);
+                
+                ensureBankArray(targetInst, activeBankIdx);
+                let cur = songData.recStepCursor[targetInst] || 0;
+                songData.trackData[targetInst][activeBankIdx][cur] = true;
+                songData.trackNotes[targetInst][activeBankIdx][cur] = noteIdx;
+                renderGrid(targetInst);
+                songData.recStepCursor[targetInst] = (cur + 1) % 18;
+            }
+        });
 
         window.onload = initApp;
     </script>
