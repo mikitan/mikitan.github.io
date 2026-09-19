@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ULTIMATE MASTER DAW v33.9 - 弾き語り＆バイオリン拡張版</title>
+    <title>ULTIMATE MASTER DAW v33.9 - 弾き語り＆バイオリン拡張完全版</title>
     <style>
         :root {
             --bg-color: #070605;
@@ -55,7 +55,7 @@
 </head>
 <body>
 
-    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.9 (木目ギター弾き語り＆バイオリンビブラート追加版)</h1>
+    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.9 (木目ギター弾き語り＆拡張完全版)</h1>
     <div id="statusMessage" class="status-bar">準備完了</div>
 
     <div class="section" style="border: 2px solid var(--accent-gold);">
@@ -90,7 +90,7 @@
         <div id="compositionListContainer" class="summary-box">保存プロジェクトリストはありません。</div>
     </div>
 
-    <!-- === 新規追加エリア: 木目ギター弾き語り ＆ バイオリンAIビブラート演奏 === -->
+    <!-- === 新規追加エリア: 木目ギター弾き語り ＆ バイオリンAIビブラート演奏 ＆ 4. 弾き語り連動拡張 === -->
     <div class="section" style="border: 2px solid #ff1493; background: #1a0f18;">
         <h2>🪵🎻 木目ギター弾き語り ＆ バイオリンAI推測演奏（ビブラート制御）</h2>
         <div class="flex">
@@ -110,6 +110,17 @@
             <span>ビブラート速度: <input type="range" id="vibratoSpeed" min="2" max="10" step="0.5" value="5" style="width: 80px;"></span>
             <button class="ai-btn" onclick="triggerViolinAiPerformance()">🎻 バイオリンAI推測演奏スタート</button>
         </div>
+
+        <div class="flex" style="margin-top: 10px; border-top: 1px dashed #00ffff; padding-top: 8px; background: rgba(0,255,255,0.03);">
+            <span style="color:#00ffff; font-weight:bold;">⚡ 4. コードtoベース・アルペジオ連動:</span>
+            <button onclick="syncGuitarChordToBass()" style="background: linear-gradient(135deg, #008b8b, #004848); color: #fff;">🔄 コード進行をベースに完全自動同期コピー</button>
+            <button onclick="applyArpeggioRollEnhance()" style="background: linear-gradient(135deg, #4682b4, #1c3d5a); color: #fff;">🎹 ピアノ/木目ギター交互アルペジオロール</button>
+            <span style="color:#7fffd4;">移調(半音): <input type="number" id="transposePitch" value="0" min="-12" max="12" style="width: 50px;" onchange="applyTranspose(this.value)"></span>
+        </div>
+        <div id="chordSyncStatus" style="font-size: 11px; color: #7fffd4; margin-top: 6px;">
+            同期待機中... コードスタイル（#chords）の動きを他トラックへ反映できます。
+        </div>
+
         <div id="visualScoreLogBox" class="summary-box" style="color: #ffb6c1; margin-top: 8px;">
             譜面・コード進行の視覚記録ログはここに表示されます...
         </div>
@@ -431,7 +442,6 @@
                 if(i % 2 === 0 || p % 3 === 0) { tData[i] = true; tNotes[i] = (p + i) % 8; }
             }
             renderGrid('chords');
-            // ライブコード表示の更新連動
             const cd = document.getElementById('liveChordDisplay');
             if(cd) cd.innerText = chordPatternNames[p].split(' ')[0];
         }
@@ -845,7 +855,6 @@
                     osc.type = 'sawtooth';
                     osc.frequency.setValueAtTime(baseFreq, t);
                     
-                    // ビブラートLFO変調
                     lfo.frequency.setValueAtTime(speed, t);
                     lfoGain.gain.setValueAtTime(baseFreq * 0.02 * depth, t);
                     lfo.connect(lfoGain);
@@ -867,6 +876,67 @@
             });
             
             setStatus(`🎻 バイオリンAI推測演奏実行 (${mode}, ビブラート深度:${depth}, 速度:${speed}Hz)`);
+        }
+
+        // --- 4. 弾き語り連動・コード同期・アルペジオ拡張モジュール ---
+        function syncGuitarChordToBass() {
+            ensureBankArray('bass', activeBankIdx);
+            ensureBankArray('chords', activeBankIdx);
+            let bassData = songData.trackData['bass'][activeBankIdx];
+            let bassNotes = songData.trackNotes['bass'][activeBankIdx];
+            let chordNotes = songData.trackNotes['chords'][activeBankIdx];
+            let chordActive = songData.trackData['chords'][activeBankIdx];
+
+            if (!bassData || !chordActive) return;
+            bassData.fill(false);
+            for(let i = 0; i < 18; i++) {
+                if(i % 2 === 0 && chordActive[i]) {
+                    bassData[i] = true;
+                    bassNotes[i] = (chordNotes && chordNotes[i] !== undefined ? (chordNotes[i] + 4) % 8 : 0);
+                }
+            }
+            renderGrid('bass');
+            const st = document.getElementById('chordSyncStatus');
+            if(st) st.innerText = `✅ バンク${activeBankIdx+1}のコード進行をベース重低音トラックへ完全同期反映しました！`;
+            setStatus('🔄 コード→ベース自動同期完了');
+        }
+
+        function applyArpeggioRollEnhance() {
+            ensureBankArray('piano', activeBankIdx);
+            ensureBankArray('guitar', activeBankIdx);
+            let pData = songData.trackData['piano'][activeBankIdx], pNotes = songData.trackNotes['piano'][activeBankIdx];
+            let gData = songData.trackData['guitar'][activeBankIdx], gNotes = songData.trackNotes['guitar'][activeBankIdx];
+            
+            if (!pData || !gData) return;
+            for(let i = 0; i < 18; i++) {
+                if(i % 2 === 0) {
+                    pData[i] = true; if(pNotes) pNotes[i] = (i / 2) % 8;
+                    gData[i] = false;
+                } else {
+                    pData[i] = false;
+                    gData[i] = true; if(gNotes) gNotes[i] = (i * 3) % 4; // 木目ギター風ピッキング
+                }
+            }
+            renderGrid('piano');
+            renderGrid('guitar');
+            setStatus('🎹/🪵 ピアノと木目ギターの交互交錯アルペジオロールを適用');
+        }
+
+        function applyTranspose(semitoneVal) {
+            let offset = parseInt(semitoneVal, 10) || 0;
+            instruments.forEach(inst => {
+                ensureBankArray(inst.id, activeBankIdx);
+                let notes = songData.trackNotes[inst.id][activeBankIdx];
+                if(notes) {
+                    for(let i = 0; i < 18; i++) {
+                        if(songData.trackData[inst.id] && songData.trackData[inst.id][activeBankIdx] && songData.trackData[inst.id][activeBankIdx][i]) {
+                            notes[i] = (notes[i] + offset + 80) % 8;
+                        }
+                    }
+                    renderGrid(inst.id);
+                }
+            });
+            setStatus(`音程全体を ${offset > 0 ? '+'+offset : offset} 半音（度数換算）シフト`);
         }
         // --- 拡張終わり ---
 
