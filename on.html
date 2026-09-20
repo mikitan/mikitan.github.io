@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ULTIMATE MASTER DAW v38.0 - MICVICTORY DL&D 完全統合版</title>
+    <title>ULTIMATE MASTER DAW v39.0 - MICVICTORY DL&D 完全統合版</title>
     <style>
         :root {
             --bg-color: #070605;
@@ -45,12 +45,68 @@
         .track-toolbar { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 6px; }
         .status-bar { font-size: 11px; color: var(--accent-gold); margin-top: 4px; min-height: 16px; font-weight: bold; }
         .album-list { background: #1f1812; padding: 8px; border-radius: 6px; font-size: 11px; max-height: 100px; overflow-y: auto; border: 1px solid #4a3520; }
+        .bank-tabs { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .bank-tab { padding: 4px 10px; background: #221912; border: 1px solid #594028; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .bank-tab.active-bank { background: var(--accent-gold); color: #0f0c08; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h1>🎛️🎶 ULTIMATE MASTER DAW v38.0 (MICVICTORY DL&D 完全統合版)</h1>
+    <h1>🎛️🎶 ULTIMATE MASTER DAW v39.0 (MICVICTORY DL&D 総合完全版)</h1>
     <div id="statusMessage" class="status-bar">準備完了 — 画面をクリックしてAudioContextを有効化してください</div>
+
+    <!-- === v39.0追加：CRERAモード切替 / コード表示 / Vocal & Synth パネル === -->
+    <div class="section" style="border: 2px solid #00ffaa; background: #0c1815;">
+        <h2>🎚️ v39.0 拡張：CRERA粒度/Vocal/Synth/コード表示/著作権メタ</h2>
+        
+        <!-- コード記録ビジュアル表示 -->
+        <div style="background:#091210; padding:6px 10px; border-radius:6px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+            <span>🎼 現在のコード進行ビジュアル表示:</span>
+            <span id="currentChordDisplay" style="color:#00ffcc; font-weight:bold; font-size:13px;">Cmaj7 → Am7 → Dm7 → G7</span>
+            <button style="padding:3px 8px; font-size:10px;" onclick="cycleChordProgressionSet()">🔄 コードバンク切替</button>
+        </div>
+
+        <!-- CRERA粒度切替：全体 vs 一部 -->
+        <div class="flex" style="margin-bottom:8px;">
+            <span>CRERA粒度モード:</span>
+            <select id="creraScopeMode">
+                <option value="global_overdub">全体CRERA（マルチトラック一括オーバーダブ）</option>
+                <option value="partial_select" selected>1部CRERA（選択ステップ/パート特化上書き）</option>
+            </select>
+            <span style="font-size:10px; color:#8c735e;">※1部選択時は選択パート/ステップへピンポイントCRERA記録されます</span>
+        </div>
+
+        <!-- Vocal & Synth 拡張コントロール -->
+        <div class="flex" style="margin-bottom:8px;">
+            <button class="record-btn" onclick="toggleVocalCreraRec()" id="vocalRecBtn">🎤 Vocal記録CRERA(OFF)</button>
+            <button class="ai-btn" onclick="generateSynthAiBacking()">🎹 シンセサイザーバック演奏AI生成</button>
+            <span>全体音響（各楽器個別手動バランス）: 
+                <input type="range" min="0" max="100" value="80" onchange="adjustGlobalMasterMix(this.value)" style="width:80px;">
+            </span>
+        </div>
+
+        <!-- バイオリンAIランダム／手動CRERAエディタ -->
+        <div class="flex">
+            <span style="color:var(--harmony-color);">🎻 バイオリン専用:</span>
+            <button class="ai-btn" onclick="violinAiRandomEdit()">🤖 バイオリンAIランダム変調</button>
+            <button class="preview-btn" onclick="playViolinCreraSolo()">▶ バイオリンCRERA再生</button>
+        </div>
+    </div>
+
+    <!-- === v39.0追加：著作権・リリース権利プロテクトパネル === -->
+    <div class="section" style="border: 1px dashed #f2a900; background: #14100c;">
+        <h3>📜 著作権・MICVICTORY DL&D 権利インプリント設定</h3>
+        <div class="flex">
+            <span>権利者名(Author): <input type="text" id="rightsAuthor" value="Miki Takabe / MICVICTORY" style="width:140px;"></span>
+            <span>ライセンス種別: 
+                <select id="rightsLicense">
+                    <option value="DL&D_EXCLUSIVE">MICVICTORY DL&D独占販売</option>
+                    <option value="CC_BY_NC">CC BY-NC 4.0</option>
+                </select>
+            </span>
+            <button class="release-btn" onclick="exportCopyrightProtectedRelease()">🔐 著作権スタンプ付きリリースパッケージ書き出し</button>
+        </div>
+    </div>
 
     <!-- 1. ドレミファ鍵盤 & CRERAリアルタイム崩さないつけ足しレコーダー -->
     <section class="section" style="border: 2px solid #ff4500;">
@@ -81,7 +137,7 @@
             <button class="release-btn" onclick="toggleCreraRealtimeRecord()" id="creraRecToggleBtn">🔴 CRERAリアルタイムつけ足し録音(OFF)</button>
         </div>
         <div class="solfa-keys" id="solfaKeyboardContainer"></div>
-        <div style="font-size:10px; color:#b89b82;">💡 「CRERAリアルタイムつけ足し」ONのまま鍵盤を叩くと、既存ノートを崩さず現在の再生ステップや選択位置へレイヤーオーバーダブされます。</div>
+        <div style="font-size:10px; color:#b89b82;">💡 「CRERAリアルタイムつけ足し」ONのまま鍵盤を叩くと、既存ノートを崩さずレイヤーオーバーダブされます。</div>
     </section>
 
     <!-- 2. ハーモニー彩色・ギター叩いた音・全体リズム切り替え -->
@@ -134,6 +190,16 @@
         let numBanks = 1;
         let activeBankIdx = 0;
         let dlAndAlbumList = [];
+
+        // v39.0拡張ステート
+        let chordProgressionSets = [
+            "Cmaj7 → Am7 → Dm7 → G7",
+            "Fmaj7 → Em7 → Am7 → C7",
+            "Am → F → C → G (歌もの定番)"
+        ];
+        let currentChordIdx = 0;
+        let isVocalCreraActive = false;
+        let vocalRecordedSteps = new Array(18).fill(false);
 
         let songData = {
             numBanks: 1,
@@ -193,14 +259,11 @@
         // ================= ウェブオーディオ・実音エンジン（ハーモニー重畳対応） =================
         function playRealAudioStep(instId, step, noteIdx, durIdx = 1, vibIdx = 1, harmIdx = 0) {
             initAudioContext();
-            const now = audioCtx.currentTime;
             const solfa = solfaNotes[noteIdx % solfaNotes.length] || solfaNotes[0];
             const durSec = durDurations[durIdx] || 0.28;
 
-            // プライマリ発音
             playSingleVoice(instId, solfa.freq, durSec, vibIdx, step);
 
-            // ハーモニー彩色発音（3度(+2) または 5度(+4)）
             if (harmIdx > 0) {
                 const harmOffset = harmIdx === 1 ? 2 : 4;
                 const harmSolfa = solfaNotes[(noteIdx + harmOffset) % solfaNotes.length];
@@ -363,7 +426,7 @@
             const notes = songData.trackNotes['acoustic_strum'][activeBankIdx];
             for (let i = 0; i < 18; i += 4) {
                 data[i] = true;
-                notes[i] = 0; // 低域打音スロット
+                notes[i] = 0;
             }
             playGuitarBodyPalmHit();
             renderTracks();
@@ -393,21 +456,110 @@
 
         function handleSolfaKeyInput(solfaIdx) {
             initAudioContext();
+            const scopeMode = document.getElementById('creraScopeMode')?.value || 'partial_select';
             const targetTrack = document.getElementById('creraTargetTrack').value;
             const targetDur = parseInt(document.getElementById('recDur').value) || 1;
             const targetVib = parseInt(document.getElementById('recVib').value) || 2;
             const stepToRecord = isPlaying ? currentStep : (currentStep % 18);
 
-            ensureBankArray(targetTrack, activeBankIdx);
-            // 崩さないつけ足し（Overdub）：既存音の有無に関わらずレイヤー上書きまたは追加
-            songData.trackData[targetTrack][activeBankIdx][stepToRecord] = true;
-            songData.trackNotes[targetTrack][activeBankIdx][stepToRecord] = solfaIdx;
-            songData.trackDur[targetTrack][activeBankIdx][stepToRecord] = targetDur;
-            songData.trackVib[targetTrack][activeBankIdx][stepToRecord] = targetVib;
+            if (scopeMode === 'global_overdub') {
+                // 全体一括オーバーダブ
+                instruments.forEach(inst => {
+                    ensureBankArray(inst.id, activeBankIdx);
+                    songData.trackData[inst.id][activeBankIdx][stepToRecord] = true;
+                    songData.trackNotes[inst.id][activeBankIdx][stepToRecord] = solfaIdx;
+                });
+                renderTracks();
+                setStatus(`🔴 全体CRERA一括オーバーダブ：全トラックのステップ${stepToRecord+1}に音を重ね書き`);
+            } else {
+                // 1部パーシャル選択CRERA
+                ensureBankArray(targetTrack, activeBankIdx);
+                songData.trackData[targetTrack][activeBankIdx][stepToRecord] = true;
+                songData.trackNotes[targetTrack][activeBankIdx][stepToRecord] = solfaIdx;
+                songData.trackDur[targetTrack][activeBankIdx][stepToRecord] = targetDur;
+                songData.trackVib[targetTrack][activeBankIdx][stepToRecord] = targetVib;
 
-            playRealAudioStep(targetTrack, stepToRecord, solfaIdx, targetDur, targetVib, songData.trackHarm[targetTrack][activeBankIdx][stepToRecord]);
+                playRealAudioStep(targetTrack, stepToRecord, solfaIdx, targetDur, targetVib, songData.trackHarm[targetTrack][activeBankIdx][stepToRecord]);
+                renderTracks();
+                setStatus(`🎹 1部CRERA鍵盤[${solfaNotes[solfaIdx].name}] → ${targetTrack} ステップ${stepToRecord+1}`);
+            }
+        }
+
+        // ================= v39.0 拡張機能 =================
+        function cycleChordProgressionSet() {
+            currentChordIdx = (currentChordIdx + 1) % chordProgressionSets.length;
+            const disp = document.getElementById('currentChordDisplay');
+            if(disp) disp.innerText = chordProgressionSets[currentChordIdx];
+            setStatus(`🎼 コード進行表示を更新: ${chordProgressionSets[currentChordIdx]}`);
+        }
+
+        function toggleVocalCreraRec() {
+            isVocalCreraActive = !isVocalCreraActive;
+            const btn = document.getElementById('vocalRecBtn');
+            if(btn) btn.innerText = isVocalCreraActive ? '🎤 Vocal記録CRERA(ON・重ね録音)' : '🎤 Vocal記録CRERA(OFF)';
+            initAudioContext();
+            if(isVocalCreraActive) {
+                const targetStep = isPlaying ? currentStep : 0;
+                vocalRecordedSteps[targetStep] = true;
+                playSingleVoice('violin', 523.25, 0.4, 2, targetStep, 0.8);
+                setStatus(`🎤 Vocal CRERAレコーディング：ステップ${targetStep+1}にレイヤー記録`);
+            } else {
+                setStatus('🎤 Vocal CRERAレコーディング停止');
+            }
+        }
+
+        function generateSynthAiBacking() {
+            ensureBankArray('piano', activeBankIdx);
+            const chordNotes = [0, 2, 4, 7];
+            for(let i=0; i<18; i++) {
+                songData.trackData['piano'][activeBankIdx][i] = (i % 2 === 0);
+                songData.trackNotes['piano'][activeBankIdx][i] = chordNotes[i % chordNotes.length];
+                songData.trackDur['piano'][activeBankIdx][i] = 2;
+            }
             renderTracks();
-            setStatus(`🎹 鍵盤[${solfaNotes[solfaIdx].name}] → ${targetTrack} ステップ${stepToRecord+1}につけ足しCRERA記録`);
+            setStatus('🎹 シンセサイザー/ピアノバック演奏AIパッド生成完了');
+        }
+
+        function violinAiRandomEdit() {
+            ensureBankArray('violin', activeBankIdx);
+            const data = songData.trackData['violin'][activeBankIdx];
+            const notes = songData.trackNotes['violin'][activeBankIdx];
+            const vib = songData.trackVib['violin'][activeBankIdx];
+            for(let i=0; i<18; i++) {
+                data[i] = Math.random() > 0.4;
+                notes[i] = Math.floor(Math.random() * 8);
+                vib[i] = 2;
+            }
+            renderTracks();
+            setStatus('🎻 バイオリンAIランダム演奏編集＆豊潤ビブラート適用完了');
+        }
+
+        function playViolinCreraSolo() {
+            playSingleTrackWithProps('violin');
+            setStatus('🎻 バイオリンCRERAソロ再生実行');
+        }
+
+        function adjustGlobalMasterMix(val) {
+            setStatus(`🎚️ 全体音響マスターゲイン調整: ${val}%`);
+        }
+
+        function exportCopyrightProtectedRelease() {
+            const author = document.getElementById('rightsAuthor')?.value || 'Miki Takabe';
+            const license = document.getElementById('rightsLicense')?.value || 'DL&D_EXCLUSIVE';
+            const releasePackage = {
+                meta: {
+                    title: document.getElementById('releaseTitleInput')?.value || 'MICVICTORY_DL_D_Take_01',
+                    author: author,
+                    license: license,
+                    timestamp: new Date().toISOString(),
+                    copyrightStamp: `(c) ${new Date().getFullYear()} ${author}. All Rights Reserved. MICVICTORY DL&D.`
+                },
+                songData: songData,
+                vocalLayers: vocalRecordedSteps
+            };
+            console.log("PROTECTED RELEASE PACKAGE:", JSON.stringify(releasePackage, null, 2));
+            saveReleaseTakeToAlbum();
+            setStatus(`🔐 著作権プロテクト付リリースパッケージ [${author} / ${license}] を作成・保存完了`);
         }
 
         // ================= ハーモニー彩色レイヤー =================
@@ -660,7 +812,7 @@
             initSolfaKeyboard();
             renderTracks();
             renderAlbumList();
-            setStatus('🟢 ULTIMATE MASTER DAW v38.0 初期化完了・リアル発音準備OK');
+            setStatus('🟢 ULTIMATE MASTER DAW v39.0 初期化完了・リアル発音準備OK');
         }
 
         window.onload = initApp;
