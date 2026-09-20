@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - DLAND DTM v56.5 CRERA CLEAR SUB-RHYTHM EDITION</title>
+    <title>MIC VICTORY - DLAND DTM v56.6 CRERA CLEAR SUB-RHYTHM PUNCH EDITION</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -22,7 +22,7 @@
             const [bpm, setBpm] = React.useState(116);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("✨ v56.5 クリア重低音＆リズム分離ロジック統合完了！");
+            const [status, setStatus] = React.useState("✨ v56.6 クリア重低音＆ドラム・ハリ/パンチ強化ロジック統合完了！");
 
             const BARS = 8;
             const BAR_STEPS = 16;
@@ -42,7 +42,7 @@
             const [masterVolume, setMasterVolume] = React.useState(1.3);
             const [dlandMode, setDlandMode] = React.useState(true);
             const [screenSaverActive, setScreenSaverActive] = React.useState(false);
-            const [slotName, setSlotName] = React.useState("MIC_DLAND_DTM_v56_5_CLEAR_SUB");
+            const [slotName, setSlotName] = React.useState("MIC_DLAND_DTM_v56_6_PUNCH_CLEAR");
 
             const INSTRUMENTS = [
                 { id: "drums", label: "🥁 ドラム (20入)", color: "from-red-600 to-amber-600" },
@@ -75,7 +75,7 @@
             });
 
             const [volumes, setVolumes] = React.useState({
-                drums: 0, loopTrack: 0, subBass: 6, bass: 4, synth: 0, trumpet: 0, guitar: 0, africa1: 0, africa2: 0, piano: 0, violin: 0, flute: 0
+                drums: 2, loopTrack: 0, subBass: 6, bass: 4, synth: 0, trumpet: 0, guitar: 0, africa1: 0, africa2: 0, piano: 0, violin: 0, flute: 0
             });
 
             const synthsRef = React.useRef(null);
@@ -96,10 +96,11 @@
                 masterGainRef.current = masterGain;
 
                 // 低域の濁りを削りつつC0/C1土台を活かすクロスオーバーEQ (160Hz)
-                const eq = new Tone.EQ3({ low: masterBassBoost, lowFrequency: 160, mid: 1, high: 2 }).connect(masterGain);
+                const eq = new Tone.EQ3({ low: masterBassBoost, lowFrequency: 160, mid: 1.5, high: 2.5 }).connect(masterGain);
                 const reverb = new Tone.Reverb({ decay: 1.4, wet: 0.12 }).connect(eq);
                 const delay = new Tone.FeedbackDelay({ delayTime: "8n.", feedback: 0.2, wet: 0.1 }).connect(reverb);
-                const distortion = new Tone.Distortion(0.05).connect(delay);
+                // サチュレーション（ハリ・パンチ強化用ソフトクリップ）を0.08に増量
+                const distortion = new Tone.Distortion(0.08).connect(delay);
 
                 const cGains = {};
                 Object.keys(instrumentSteps).forEach(key => {
@@ -107,7 +108,7 @@
                     cGains[key] = cg;
                 });
 
-                // 【重低音でもリズム・メロディが埋もれないアタック・エンベロープ最適化】
+                // 【ドラムのアタック・ハリ・パンチ特化エンベロープ最適化】
                 synthsRef.current = {
                     subBass: new Tone.MonoSynth({
                         oscillator: { type: "sine" },
@@ -128,10 +129,13 @@
                     violin: new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.08, decay: 0.25, sustain: 0.8, release: 0.4 } }).connect(cGains.violin),
                     flute: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.06, decay: 0.25, sustain: 0.7, release: 0.3 } }).connect(cGains.flute),
                     drums: {
-                        kick: new Tone.MembraneSynth({ pitchDecay: 0.08, octaves: 6, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.45, sustain: 0.01, release: 0.2 } }).connect(cGains.drums),
-                        snare: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.2, sustain: 0 } }).connect(cGains.drums),
-                        hihat: new Tone.MetalSynth({ frequency: 800, envelope: { attack: 0.001, decay: 0.03, release: 0.01 }, harmonicity: 5.1, modulationIndex: 32, resonance: 6500, octaves: 1.5 }).connect(cGains.drums),
-                        clap: new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.008, decay: 0.15, sustain: 0 } }).connect(cGains.drums),
+                        // アタック極小(0.0001)＆ディケイ短縮(0.3)で太さとパンチを両立
+                        kick: new Tone.MembraneSynth({ pitchDecay: 0.06, octaves: 6, oscillator: { type: "sine" }, envelope: { attack: 0.0001, decay: 0.3, sustain: 0.01, release: 0.15 } }).connect(cGains.drums),
+                        // スネア：超高速アタック(0.0001)で頭の芯を立てる
+                        snare: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.0001, decay: 0.18, sustain: 0 } }).connect(cGains.drums),
+                        // ハイハット：金属的な抜けを強調
+                        hihat: new Tone.MetalSynth({ frequency: 900, envelope: { attack: 0.0005, decay: 0.025, release: 0.01 }, harmonicity: 5.1, modulationIndex: 32, resonance: 7000, octaves: 1.5 }).connect(cGains.drums),
+                        clap: new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.005, decay: 0.14, sustain: 0 } }).connect(cGains.drums),
                     },
                     eq, reverb, distortion
                 };
@@ -172,7 +176,7 @@
                                 if (typeof item === "object") {
                                     if (item.kick) syns.drums.kick.triggerAttackRelease(item.subBoost ? "C0" : "C1", "8n", time);
                                     if (item.snare) syns.drums.snare.triggerAttackRelease("8n", time);
-                                    if (item.hihat) syns.drums.hihat.triggerAttackRelease("32n", time, 0.7);
+                                    if (item.hihat) syns.drums.hihat.triggerAttackRelease("32n", time, 0.85);
                                     if (item.clap) syns.drums.clap.triggerAttackRelease("8n", time);
                                 }
                             } else if (instKey === "subBass") {
@@ -206,11 +210,9 @@
                 }
             };
 
-            // 【重低音＋リズム・メロディ共存型AIパターン生成（シンコペーション配慮）】
             const applyHeavySubManualAi = (instKey, modeType) => {
                 const newArr = new Array(TOTAL_STEPS).fill(null);
                 for (let i = 0; i < TOTAL_STEPS; i++) {
-                    // 16分のベタ塗りを避け、キックの裏・グルーブの隙間にC0シンコペーション配置
                     const isBeat = modeType === 'roll' ? (i % 2 === 0) : (i % 4 === 0 || i % 16 === 10 || i % 16 === 14);
                     if (isBeat) {
                         newArr[i] = { note: "C0", dur: modeType === 'roll' ? "16n" : "8n", subBoost: true };
@@ -225,7 +227,7 @@
                 for (let i = 0; i < TOTAL_STEPS; i++) {
                     const isKick = modeName === 'heavy_roll' ? (i % 2 === 0) : (i % 4 === 0 || i === 10 || i === 14);
                     const isSnare = i % 8 === 4;
-                    const isHihat = true;
+                    const isHihat = true; // 16分等でハリ・抜けを作るため常時レイヤー化も可能
                     const isClap = modeName === 'heavy_roll' ? (i % 4 === 2) : (i % 16 === 12);
                     newArr[i] = { kick: isKick, snare: isSnare, hihat: isHihat, clap: isClap, subBoost: true };
                 }
@@ -268,20 +270,18 @@
                     if (instKey === "drums") {
                         const isKick = i % (4 + (patternNum % 3)) === 0 || (patternNum > 10 && i % 8 === 2);
                         const isSnare = i % 8 === 4 || (patternNum > 15 && i % 4 === 2);
-                        const isHihat = i % (patternNum % 2 === 0 ? 2 : 4) === 0;
+                        const isHihat = true;
                         const isClap = patternNum > 5 && i % 16 === 14;
                         if (isKick || isSnare || isHihat || isClap) {
                             newArr[i] = { kick: isKick, snare: isSnare, hihat: isHihat, clap: isClap, subBoost: true };
                         }
                     } else if (instKey === "subBass") {
-                        // 低音が濁らないようシンコペーション（4分・8分裏）配置
                         if (i % 4 === 0 || i % 16 === 10) {
                             newArr[i] = { note: "C0", dur: selectedDuration, subBoost: true };
                         }
                     } else {
-                        // メロディは高音域側(C2以上相当)に密度最適化
                         let density = 0.25 + (patternNum * 0.015);
-                        if (Math.randomN || Math.random() < density) {
+                        if (Math.random() < density) {
                             const noteIdx = (i * 2 + patternNum) % scale.length;
                             const note = scale[noteIdx];
                             const dur = selectedDuration;
@@ -395,7 +395,7 @@
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-40 shadow-lg">
                         <div className="flex items-center gap-2">
                             <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                MIC VICTORY <span className="text-[10px] text-pink-400 font-bold">v56.5 クリア重低音+リズム分離</span>
+                                MIC VICTORY <span className="text-[10px] text-pink-400 font-bold">v56.6 パンチ/ハリ強化版</span>
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -431,7 +431,7 @@
                     </nav>
 
                     <div className="bg-slate-900/50 px-3 py-1 text-[11px] text-cyan-400 border-b border-slate-900 truncate flex justify-between items-center">
-                        <span>💡 {status} | 160HzローエンドEQ & C0サブオシレーター最適化</span>
+                        <span>💡 {status} | キック/スネア アタック極鋭化 & サチュレーション適用中</span>
                         {playing && (
                             <div className="flex items-center gap-1">
                                 <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
@@ -507,6 +507,17 @@
                                             ))}
                                         </div>
                                     </div>
+
+                                    {selectedInstrument === "drums" && (
+                                        <div className="flex items-center gap-2 bg-slate-950 p-2 rounded border border-slate-800">
+                                            <span className="text-[10px] font-bold text-red-400">ドラム打楽器切替:</span>
+                                            {["kick", "snare", "hihat", "clap"].map(part => (
+                                                <button key={part} onClick={() => setSelectedDrumPart(part)} className={`px-2.5 py-1 rounded text-[10px] font-bold ${selectedDrumPart === part ? "bg-red-600 text-white" : "bg-slate-900 text-slate-400"}`}>
+                                                    {part.toUpperCase()}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
 
                                     <div className="grid grid-cols-8 gap-1.5">
                                         {NOTES.map(note => (
