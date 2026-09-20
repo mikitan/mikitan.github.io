@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ULTIMATE MASTER DAW v37.0 - エレキギター・弾き語りリフ・つけ足し完全版</title>
+    <title>ULTIMATE MASTER DAW v38.0 - MICVICTORY DL&D 完全統合版</title>
     <style>
         :root {
             --bg-color: #070605;
@@ -14,6 +14,7 @@
             --accent-gold-bright: #ffc233;
             --text-main: #f5f0e6;
             --text-muted: #b89b82;
+            --harmony-color: #da70d6;
         }
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg-color); color: var(--text-main); margin: 0; padding: 15px; }
         h1, h2, h3 { color: var(--accent-gold); border-bottom: 1px solid #3d2c1e; padding-bottom: 6px; margin: 8px 0; letter-spacing: 1px; }
@@ -26,56 +27,98 @@
         button.ai-btn { background: linear-gradient(135deg, #204080, #102040); color: #fff; }
         button.bank-btn { background: linear-gradient(135deg, #2a4736, #16291e); color: #7cfc00; border: 1px solid #3fae49; }
         button.add-play-btn { background: linear-gradient(135deg, #008b8b, #004848); color: #fff; }
+        button.release-btn { background: linear-gradient(135deg, #ff1493, #8b008b); color: #fff; font-size: 12px; }
         
         select, input, textarea { background: #221912; color: var(--text-main); border: 1px solid #594028; padding: 6px; border-radius: 6px; margin: 3px; font-size: 11px; outline: none; font-family: inherit; }
         
-        .bank-tabs { display: flex; gap: 4px; margin: 6px 0; align-items: center; flex-wrap: wrap; }
-        .bank-tab { padding: 5px 12px; background: #221912; border: 1px solid #594028; border-radius: 4px; cursor: pointer; font-size: 10px; color: var(--text-muted); transition: 0.15s; }
-        .bank-tab:hover { border-color: var(--accent-gold); }
-        .bank-tab.active-bank { background: var(--accent-gold); color: #0f0c08; font-weight: bold; border-color: #ffe066; }
+        .solfa-keys { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
+        .solfa-key { background: #2f2219; border: 1px solid #594028; color: #f5f0e6; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 11px; }
+        .solfa-key:hover { background: var(--accent-gold); color: #0f0c08; }
 
         .grid-18 { display: grid; grid-template-columns: repeat(18, minmax(28px, 1fr)); gap: 3px; margin-top: 6px; overflow-x: auto; padding-bottom: 4px; }
-        .step-cell { background: #221912; height: 50px; text-align: center; font-size: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; user-select: none; color: #8c735e; border: 1px solid #38291e; line-height: 1.1; }
+        .step-cell { background: #221912; height: 52px; text-align: center; font-size: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; user-select: none; color: #8c735e; border: 1px solid #38291e; line-height: 1.1; }
         .step-cell.active { background: var(--accent-gold); color: #0f0c08; font-weight: bold; border-color: #ffe066; box-shadow: 0 0 8px rgba(242,169,0,0.6); }
+        .step-cell.has-harmony { border-color: var(--harmony-color) !important; box-shadow: 0 0 6px rgba(218,112,214,0.7); }
         .step-cell.current-playing { outline: 2px solid #00ffff !important; transform: scale(1.08); background: #3d3010 !important; color: #fff !important; z-index: 5; }
         
         .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         .track-toolbar { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 6px; }
         .status-bar { font-size: 11px; color: var(--accent-gold); margin-top: 4px; min-height: 16px; font-weight: bold; }
+        .album-list { background: #1f1812; padding: 8px; border-radius: 6px; font-size: 11px; max-height: 100px; overflow-y: auto; border: 1px solid #4a3520; }
     </style>
 </head>
 <body>
 
-    <h1>🎛️🎶 ULTIMATE MASTER DAW v37.0 (エレキギター・弾き語りリフ・つけ足し完全統合)</h1>
-    <div id="statusMessage" class="status-bar">準備完了 — 画面のどこかをクリックしてAudioContextを有効化してから再生してください</div>
+    <h1>🎛️🎶 ULTIMATE MASTER DAW v38.0 (MICVICTORY DL&D 完全統合版)</h1>
+    <div id="statusMessage" class="status-bar">準備完了 — 画面をクリックしてAudioContextを有効化してください</div>
 
-    <!-- エレキギター & 弾き語りリフ特化コントロール -->
-    <section class="section" style="border: 2px solid #ff4500; background: linear-gradient(135deg, #1f0f0d, #2a1610);">
-        <h2>🎸⚡ エレキギター歪み ＆ 弾き語りリフ生成・つけ足し(Overdub)パレット</h2>
+    <!-- 1. ドレミファ鍵盤 & CRERAリアルタイム崩さないつけ足しレコーダー -->
+    <section class="section" style="border: 2px solid #ff4500;">
+        <h2>🎹 ドレミファ鍵盤ボタン ＆ 崩さないCRERAリアルタイム録音パレット</h2>
         <div class="flex">
-            <span>歪みトーン: 
-                <select id="egToneSelect">
-                    <option value="clean">クリーン・カッティング</option>
-                    <option value="crunch">クランチ・ブルース歪み</option>
-                    <option value="lead" selected>ディストーション・リード</option>
+            <span>対象トラック: 
+                <select id="creraTargetTrack">
+                    <option value="electric_guitar">⚡ エレキギター</option>
+                    <option value="acoustic_strum">🪵 弾き語りカッティング</option>
+                    <option value="piano">🎹 ピアノ</option>
+                    <option value="violin">🎻 バイオリン</option>
                 </select>
             </span>
-            <button class="ai-btn" style="background: linear-gradient(135deg, #ff4500, #b22222);" onclick="generateAcousticVocalStrumRiff()">🪵 弾き語りコードストラム・リフ作成</button>
-            <button class="add-play-btn" onclick="overdubStackStepRandom('electric_guitar', 4)">⚡ ギターリフつけ足し (+4ステップ)</button>
-            <button class="add-play-btn" onclick="flashRepeatStaccato('electric_guitar')">🔥 フラッシュ連打(Staccato Repeat)</button>
-            <button class="clear-btn" onclick="clearSingleTrack('electric_guitar')">🗑 ギターCRERAクリア</button>
+            <span class="flex">音長: 
+                <select id="recDur">
+                    <option value="0">短(0.12s)</option>
+                    <option value="1" selected>中(0.28s)</option>
+                    <option value="2">長(0.55s)</option>
+                </select>
+            </span>
+            <span class="flex">ビブラート: 
+                <select id="recVib">
+                    <option value="0">なし</option>
+                    <option value="1">軽やか</option>
+                    <option value="2" selected>豊か</option>
+                </select>
+            </span>
+            <button class="release-btn" onclick="toggleCreraRealtimeRecord()" id="creraRecToggleBtn">🔴 CRERAリアルタイムつけ足し録音(OFF)</button>
+        </div>
+        <div class="solfa-keys" id="solfaKeyboardContainer"></div>
+        <div style="font-size:10px; color:#b89b82;">💡 「CRERAリアルタイムつけ足し」ONのまま鍵盤を叩くと、既存ノートを崩さず現在の再生ステップや選択位置へレイヤーオーバーダブされます。</div>
+    </section>
+
+    <!-- 2. ハーモニー彩色・ギター叩いた音・全体リズム切り替え -->
+    <section class="section" style="border: 2px solid var(--accent-gold);">
+        <h2>🎨 ハーモニー彩色・ギター叩いた音・全体リズムテンポ連打調整</h2>
+        <div class="flex">
+            <button class="ai-btn" style="background: linear-gradient(135deg, #da70d6, #8b008b);" onclick="addHarmonyColoringLayer('electric_guitar', +2)">🌈 ハーモニー彩色(+3度ハモリ重畳)</button>
+            <button class="add-play-btn" onclick="playGuitarBodyPalmHit()">🪵 ギター版「叩いた音(パームミュート打音)」単体テスト</button>
+            <button class="add-play-btn" onclick="insertGuitarBodyHitToGrid()">🪵 グリッドへ「叩いた音」つけ足し挿入</button>
+            <span>全体リズム連打パターン: 
+                <select id="globalGrooveSelect" onchange="applyGlobalGroovePreset(this.value)">
+                    <option value="standard">スタンダード 4/4</option>
+                    <option value="shuffle">シャッフル・グルーブ</option>
+                    <option value="staccato_flash">全小節フラッシュ連打変調</option>
+                </select>
+            </span>
         </div>
     </section>
 
-    <!-- マスター同期トランスポート -->
-    <div class="section" style="border: 2px solid var(--accent-gold);">
-        <h2>🎛️ 1. マスター再生・全楽器一括AI・バンク拡張管理</h2>
+    <!-- 3. マスター同期・リリース・MICVICTORY DL&Dアルバム一覧 -->
+    <div class="section" style="border: 2px solid #00ffcc; background: linear-gradient(135deg, #0a1f1b, #122a25);">
+        <h2>🚀 MICVICTORY DL&D アルバム保存・著作権メタ管理・共有宣伝</h2>
         <div class="flex">
             <button onclick="masterPlay()" style="font-size: 13px; background: linear-gradient(135deg, #00ffcc, #008b8b); color:#000;">▶ 同期トランスポート再生</button>
             <button onclick="masterStop()" style="font-size: 13px;">⏹ 停止</button>
             <button class="bank-btn" onclick="add18BarsBank()">➕ 18小節バンク追加つけ足し</button>
-            <button class="ai-btn" style="background: linear-gradient(135deg, #00a86b, #004d40);" onclick="generateAllInstrumentsAi()">🤖 全楽器一括AI作曲</button>
+            <button class="ai-btn" onclick="generateAllInstrumentsAi()">🤖 全楽器一括AI作曲</button>
             <span>BPM: <input type="number" id="bpmInput" value="120" min="50" max="240" style="width: 55px;"></span>
+        </div>
+        <div class="flex" style="margin-top: 8px;">
+            <span>テイクタイトル: <input type="text" id="releaseTitleInput" value="MICVICTORY_DL_D_Take_01" style="width: 160px;"></span>
+            <button class="release-btn" onclick="saveReleaseTakeToAlbum()">💾 良い出来をDL&Dアルバムに保存</button>
+            <button onclick="exportReleaseJsonShare()">📤 宣伝用JSONエクスポート</button>
+        </div>
+        <div style="margin-top: 6px;">
+            <div style="font-size:10px; color:#7cfc00; margin-bottom:3px;">📚 MICVICTORY DL&D リストアルバム蓄積状況:</div>
+            <div id="albumListView" class="album-list">まだリリース保存されたテイクはありません。</div>
         </div>
     </div>
 
@@ -85,22 +128,25 @@
     <script>
         let audioCtx = null;
         let isPlaying = false;
+        let isCreraRecActive = false;
         let currentStep = 0;
         let playIntervalTimer = null;
         let numBanks = 1;
         let activeBankIdx = 0;
+        let dlAndAlbumList = [];
 
         let songData = {
             numBanks: 1,
             trackData: {},   // boolean[bank][step]
             trackNotes: {},  // number[bank][step]
             trackDur: {},    // number[bank][step] (0:短, 1:中, 2:長)
-            trackVib: {}     // number[bank][step] (0:無, 1:軽, 2:豊)
+            trackVib: {},    // number[bank][step] (0:無, 1:軽, 2:豊)
+            trackHarm: {}    // number[bank][step] (0:なし, 1:3度上, 2:5度上)
         };
 
         const instruments = [
             { id: 'electric_guitar', name: '⚡ エレキギター (歪み/クランチ/リード切替)', type: 'melody' },
-            { id: 'acoustic_strum', name: '🪵 弾き語りアコースティック・カッティング', type: 'chords' },
+            { id: 'acoustic_strum', name: '🪵 弾き語りアコースティック・カッティング＋叩いた音', type: 'chords' },
             { id: 'drums', name: '🥁 プロ・アコースティックキック＆スネアキット', type: 'drums' },
             { id: 'bass', name: '🎸 ウルトラ重低音サブベース', type: 'bass' },
             { id: 'piano', name: '🎹 ピアノ (上質アコースティック)', type: 'melody' },
@@ -133,77 +179,90 @@
                 songData.trackNotes[instId] = [];
                 songData.trackDur[instId] = [];
                 songData.trackVib[instId] = [];
+                songData.trackHarm[instId] = [];
             }
             while (songData.trackData[instId].length <= bankIndex) {
                 songData.trackData[instId].push(new Array(18).fill(false));
                 songData.trackNotes[instId].push(new Array(18).fill(0));
                 songData.trackDur[instId].push(new Array(18).fill(1));
                 songData.trackVib[instId].push(new Array(18).fill(1));
+                songData.trackHarm[instId].push(new Array(18).fill(0));
             }
         }
 
-        // ================= ウェブオーディオ・エレキ／弾き語り実音エンジン =================
-        function playRealAudioStep(instId, step, noteIdx, durIdx = 1, vibIdx = 1) {
+        // ================= ウェブオーディオ・実音エンジン（ハーモニー重畳対応） =================
+        function playRealAudioStep(instId, step, noteIdx, durIdx = 1, vibIdx = 1, harmIdx = 0) {
             initAudioContext();
             const now = audioCtx.currentTime;
             const solfa = solfaNotes[noteIdx % solfaNotes.length] || solfaNotes[0];
-            const freq = solfa.freq;
             const durSec = durDurations[durIdx] || 0.28;
 
+            // プライマリ発音
+            playSingleVoice(instId, solfa.freq, durSec, vibIdx, step);
+
+            // ハーモニー彩色発音（3度(+2) または 5度(+4)）
+            if (harmIdx > 0) {
+                const harmOffset = harmIdx === 1 ? 2 : 4;
+                const harmSolfa = solfaNotes[(noteIdx + harmOffset) % solfaNotes.length];
+                if (harmSolfa) {
+                    playSingleVoice(instId, harmSolfa.freq * 0.99, durSec * 0.9, 0, step, 0.08);
+                }
+            }
+        }
+
+        function playSingleVoice(instId, freq, duration, vibIdx, step, gainScale = 1.0) {
+            const now = audioCtx.currentTime + (arguments[5] || 0);
             if (instId === 'electric_guitar') {
-                const tone = document.getElementById('egToneSelect').value;
-                playElectricGuitarNote(freq, durSec, tone);
+                const tone = document.getElementById('egToneSelect')?.value || 'lead';
+                playElectricGuitarNote(freq, duration, tone, gainScale);
             } else if (instId === 'acoustic_strum') {
-                playAcousticStrumChord(freq, durSec);
+                playAcousticStrumChord(freq, duration, gainScale);
             } else if (instId === 'drums') {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 if (step % 2 === 0) {
                     osc.frequency.setValueAtTime(140, now);
-                    osc.frequency.exponentialRampToValueAtTime(40, now + durSec * 0.8);
-                    gain.gain.setValueAtTime(0.5, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + durSec);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + duration * 0.8);
+                    gain.gain.setValueAtTime(0.5 * gainScale, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
                 } else {
                     osc.type = 'triangle';
                     osc.frequency.setValueAtTime(220, now);
-                    gain.gain.setValueAtTime(0.25, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + durSec);
+                    gain.gain.setValueAtTime(0.25 * gainScale, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
                 }
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start(now);
-                osc.stop(now + durSec + 0.05);
+                osc.stop(now + duration + 0.05);
             } else if (instId === 'violin') {
-                playViolinNoteWithVibrato(freq, durSec, vibIdx);
+                playViolinNoteWithVibrato(freq, duration, vibIdx, gainScale);
             } else {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(freq, now);
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + durSec);
+                gain.gain.setValueAtTime(0.2 * gainScale, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start(now);
-                osc.stop(now + durSec + 0.05);
+                osc.stop(now + duration + 0.05);
             }
         }
 
-        function playElectricGuitarNote(freq, duration, tone) {
+        function playElectricGuitarNote(freq, duration, tone, gainScale) {
             const now = audioCtx.currentTime;
             const osc = audioCtx.createOscillator();
             const waveshaper = audioCtx.createWaveShaper();
             const gain = audioCtx.createGain();
 
-            // 歪みシェーパー簡易設定
             waveshaper.curve = makeDistortionCurve(tone === 'lead' ? 400 : tone === 'crunch' ? 120 : 15);
-            waveshaper.oversample = '4x';
-
             osc.type = tone === 'clean' ? 'triangle' : 'sawtooth';
             osc.frequency.setValueAtTime(freq, now);
 
             gain.gain.setValueAtTime(0.001, now);
-            gain.gain.linearRampToValueAtTime(0.22, now + 0.03);
+            gain.gain.linearRampToValueAtTime(0.22 * gainScale, now + 0.03);
             gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
             osc.connect(waveshaper);
@@ -226,16 +285,15 @@
             return curve;
         }
 
-        function playAcousticStrumChord(rootFreq, duration) {
+        function playAcousticStrumChord(rootFreq, duration, gainScale) {
             const now = audioCtx.currentTime;
-            // 3度と5度を加えたストラムアルペジオ（微差遅延）
             [rootFreq, rootFreq * 1.25, rootFreq * 1.5].forEach((f, idx) => {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(f, now + idx * 0.03);
                 gain.gain.setValueAtTime(0.001, now + idx * 0.03);
-                gain.gain.linearRampToValueAtTime(0.12, now + idx * 0.03 + 0.02);
+                gain.gain.linearRampToValueAtTime(0.12 * gainScale, now + idx * 0.03 + 0.02);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
@@ -244,7 +302,7 @@
             });
         }
 
-        function playViolinNoteWithVibrato(freq, duration, vibIdx) {
+        function playViolinNoteWithVibrato(freq, duration, vibIdx, gainScale) {
             const now = audioCtx.currentTime;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
@@ -265,7 +323,7 @@
             lfoGain.connect(osc.frequency);
 
             gain.gain.setValueAtTime(0.001, now);
-            gain.gain.linearRampToValueAtTime(0.18, now + 0.04);
+            gain.gain.linearRampToValueAtTime(0.18 * gainScale, now + 0.04);
             gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
             osc.connect(gain);
@@ -277,49 +335,110 @@
             lfo.stop(now + duration + 0.05);
         }
 
-        // ================= つけ足し(Overdub)・フラッシュ連打ロジック =================
-        function overdubStackStepRandom(instId, interval = 2) {
-            ensureBankArray(instId, activeBankIdx);
-            const data = songData.trackData[instId][activeBankIdx];
-            const notes = songData.trackNotes[instId][activeBankIdx];
-            let addedCount = 0;
-            for(let i=0; i<18; i+=interval) {
-                data[i] = true;
-                notes[i] = (notes[i] + Math.floor(Math.random() * 4) + 1) % solfaNotes.length;
-                addedCount++;
-            }
-            renderTracks();
-            playSingleTrackWithProps(instId);
-            setStatus(`⚡ ${instId} つけ足しスタック合成 (${addedCount}ステップ追加)`);
+        // ================= ギター版「叩いた音(パームミュート打音)」＝パーカッシブヒット =================
+        function playGuitarBodyPalmHit() {
+            initAudioContext();
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(95, now);
+            osc.frequency.exponentialRampToValueAtTime(25, now + 0.08);
+
+            gain.gain.setValueAtTime(0.45, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(now);
+            osc.stop(now + 0.1);
+            setStatus('🪵 ギターボディ叩いた音（パームミュート打音）発音');
         }
 
-        function flashRepeatStaccato(instId) {
-            ensureBankArray(instId, activeBankIdx);
-            const data = songData.trackData[instId][activeBankIdx];
-            const notes = songData.trackNotes[instId][activeBankIdx];
-            const dur = songData.trackDur[instId][activeBankIdx];
-            for(let i=0; i<18; i++) {
-                data[i] = true;
-                notes[i] = (i * 2) % solfaNotes.length;
-                dur[i] = 0; // 短スタッカート連打
-            }
-            renderTracks();
-            playSingleTrackWithProps(instId);
-            setStatus(`🔥 ${instId} フラッシュ連打(Staccato Repeat)適用`);
-        }
-
-        function generateAcousticVocalStrumRiff() {
+        function insertGuitarBodyHitToGrid() {
             ensureBankArray('acoustic_strum', activeBankIdx);
             const data = songData.trackData['acoustic_strum'][activeBankIdx];
             const notes = songData.trackNotes['acoustic_strum'][activeBankIdx];
-            const strumPattern = [0, 1, 3, 5]; // 弾き語り基本裏拍ストラム
-            strumPattern.forEach((idx, step) => {
-                data[step*4] = true;
-                notes[step*4] = idx * 2;
-            });
+            for (let i = 0; i < 18; i += 4) {
+                data[i] = true;
+                notes[i] = 0; // 低域打音スロット
+            }
+            playGuitarBodyPalmHit();
             renderTracks();
-            playSingleTrackWithProps('acoustic_strum');
-            setStatus('🪵 弾き語りコードストラム・リフ作成完了');
+            setStatus('🪵 ギター叩いた音を 弾き語り/カッティング グリッド裏拍につけ足し挿入');
+        }
+
+        // ================= ドレミファ鍵盤 & 崩さないCRERAリアルタイム録音 =================
+        function initSolfaKeyboard() {
+            const kb = document.getElementById('solfaKeyboardContainer');
+            if(!kb) return;
+            kb.innerHTML = '';
+            solfaNotes.forEach((s, idx) => {
+                const btn = document.createElement('div');
+                btn.className = 'solfa-key';
+                btn.innerText = s.name;
+                btn.onclick = () => handleSolfaKeyInput(idx);
+                kb.appendChild(btn);
+            });
+        }
+
+        function toggleCreraRealtimeRecord() {
+            isCreraRecActive = !isCreraRecActive;
+            const btn = document.getElementById('creraRecToggleBtn');
+            btn.innerText = isCreraRecActive ? '🔴 CRERAリアルタイムつけ足し録音(ON・崩さない)' : '⭕ CRERAリアルタイムつけ足し録音(OFF)';
+            setStatus(isCreraRecActive ? '🔴 CRERAリアルタイム録音ON：鍵盤タップで既存を崩さずスタック' : '⭕ CRERAリアルタイム録音OFF');
+        }
+
+        function handleSolfaKeyInput(solfaIdx) {
+            initAudioContext();
+            const targetTrack = document.getElementById('creraTargetTrack').value;
+            const targetDur = parseInt(document.getElementById('recDur').value) || 1;
+            const targetVib = parseInt(document.getElementById('recVib').value) || 2;
+            const stepToRecord = isPlaying ? currentStep : (currentStep % 18);
+
+            ensureBankArray(targetTrack, activeBankIdx);
+            // 崩さないつけ足し（Overdub）：既存音の有無に関わらずレイヤー上書きまたは追加
+            songData.trackData[targetTrack][activeBankIdx][stepToRecord] = true;
+            songData.trackNotes[targetTrack][activeBankIdx][stepToRecord] = solfaIdx;
+            songData.trackDur[targetTrack][activeBankIdx][stepToRecord] = targetDur;
+            songData.trackVib[targetTrack][activeBankIdx][stepToRecord] = targetVib;
+
+            playRealAudioStep(targetTrack, stepToRecord, solfaIdx, targetDur, targetVib, songData.trackHarm[targetTrack][activeBankIdx][stepToRecord]);
+            renderTracks();
+            setStatus(`🎹 鍵盤[${solfaNotes[solfaIdx].name}] → ${targetTrack} ステップ${stepToRecord+1}につけ足しCRERA記録`);
+        }
+
+        // ================= ハーモニー彩色レイヤー =================
+        function addHarmonyColoringLayer(instId, harmType) {
+            ensureBankArray(instId, activeBankIdx);
+            const harmArr = songData.trackHarm[instId][activeBankIdx];
+            for(let i=0; i<18; i++) {
+                if(songData.trackData[instId][activeBankIdx][i]) {
+                    harmArr[i] = harmType === +2 ? 1 : 2;
+                }
+            }
+            renderTracks();
+            playSingleTrackWithProps(instId);
+            setStatus(`🌈 ${instId} ハーモニー彩色（3度/5度ハモリ重畳）を適用`);
+        }
+
+        // ================= 全体リズム連打／一括AI =================
+        function applyGlobalGroovePreset(preset) {
+            ensureBankArray('drums', activeBankIdx);
+            const dData = songData.trackData['drums'][activeBankIdx];
+            for(let i=0; i<18; i++) {
+                if(preset === 'shuffle') {
+                    dData[i] = (i % 3 === 0);
+                } else if(preset === 'staccato_flash') {
+                    dData[i] = true;
+                } else {
+                    dData[i] = (i % 2 === 0 || i === 7);
+                }
+            }
+            renderTracks();
+            setStatus(`🥁 グローブルーチン「${preset}」全体適用完了`);
         }
 
         function generateAllInstrumentsAi() {
@@ -333,7 +452,7 @@
                 }
             });
             renderTracks();
-            setStatus('🤖 全楽器一括AIメロディ生成完了');
+            setStatus('🤖 全楽器一括AIメロディ作曲生成完了');
         }
 
         function generateTrackAi(instId) {
@@ -355,6 +474,56 @@
             setStatus(`🗑 ${instId} CRERAクリア`);
         }
 
+        // ================= MICVICTORY DL&D アルバム保存・リスト化 =================
+        function saveReleaseTakeToAlbum() {
+            const title = document.getElementById('releaseTitleInput').value || 'Take_Unnamed';
+            const takeRecord = {
+                id: dlAndAlbumList.length + 1,
+                title: title,
+                timestamp: new Date().toLocaleTimeString(),
+                bpm: document.getElementById('bpmInput').value,
+                snapshot: JSON.parse(JSON.stringify(songData))
+            };
+            dlAndAlbumList.push(takeRecord);
+            renderAlbumList();
+            setStatus(`💾 「${title}」を MICVICTORY DL&D アルバムにリリース保存しました！`);
+        }
+
+        function renderAlbumList() {
+            const container = document.getElementById('albumListView');
+            if(!container) return;
+            if(dlAndAlbumList.length === 0) {
+                container.innerHTML = 'まだリリース保存されたテイクはありません。';
+                return;
+            }
+            container.innerHTML = dlAndAlbumList.map(t => 
+                `<div style="display:flex; justify-content:space-between; border-bottom:1px dashed #332418; padding:3px 0;">
+                    <span>🎧 <b>#${t.id} ${t.title}</b> (${t.timestamp} / BPM ${t.bpm})</span>
+                    <button style="padding:2px 8px; font-size:10px;" onclick="loadTakeFromAlbum(${t.id-1})">📥 ロード</button>
+                </div>`
+            ).join('');
+        }
+
+        function loadTakeFromAlbum(idx) {
+            if(dlAndAlbumList[idx]) {
+                songData = JSON.parse(JSON.stringify(dlAndAlbumList[idx].snapshot));
+                numBanks = songData.numBanks || 1;
+                renderTracks();
+                setStatus(`📥 アルバム #${idx+1} 「${dlAndAlbumList[idx].title}」をロード完了`);
+            }
+        }
+
+        function exportReleaseJsonShare() {
+            const payload = JSON.stringify({
+                platform: 'MICVICTORY DL&D ALBUM',
+                releasedAt: new Date().toISOString(),
+                songData: songData,
+                takesCount: dlAndAlbumList.length
+            }, null, 2);
+            console.log(payload);
+            setStatus('📤 宣伝用MICVICTORY DL&D JSONを出力コンソール生成');
+        }
+
         // ================= グリッド描画・状態管理 =================
         function renderTracks() {
             const container = document.getElementById('tracksContainer');
@@ -371,6 +540,7 @@
             `;
             const durLabels = ['短', '中', '長'];
             const vibLabels = ['無', '軽', '豊'];
+            const harmLabels = ['', ' +3度', ' +5度'];
 
             instruments.forEach(inst => {
                 ensureBankArray(inst.id, activeBankIdx);
@@ -384,10 +554,11 @@
                     const noteName = solfaNotes[noteIdx % solfaNotes.length]?.name || '';
                     const dur = songData.trackDur[inst.id][activeBankIdx][s];
                     const vib = songData.trackVib[inst.id][activeBankIdx][s];
+                    const harm = songData.trackHarm[inst.id][activeBankIdx][s];
                     cellsHtml += `
-                        <div class="step-cell ${isActive ? 'active' : ''}" id="cell-${inst.id}-${activeBankIdx}-${s}" onclick="toggleStep('${inst.id}', ${activeBankIdx}, ${s})">
+                        <div class="step-cell ${isActive ? 'active' : ''} ${harm > 0 ? 'has-harmony' : ''}" id="cell-${inst.id}-${activeBankIdx}-${s}" onclick="toggleStep('${inst.id}', ${activeBankIdx}, ${s})">
                             ${s+1}<br><span style="font-size:8px;">${isActive ? noteName : '·'}</span><br>
-                            <span style="font-size:7px; opacity:0.8;">${isActive ? durLabels[dur]+vibLabels[vib] : ''}</span>
+                            <span style="font-size:7px; opacity:0.8;">${isActive ? durLabels[dur]+vibLabels[vib]+harmLabels[harm] : ''}</span>
                         </div>`;
                 }
 
@@ -395,7 +566,7 @@
                     <h3>${inst.name}</h3>
                     <div class="track-toolbar">
                         <button class="ai-btn" onclick="generateTrackAi('${inst.id}')">🤖 AI作曲</button>
-                        <button class="add-play-btn" onclick="overdubStackStepRandom('${inst.id}', 2)">➕ つけ足しスタック</button>
+                        <button class="add-play-btn" onclick="addHarmonyColoringLayer('${inst.id}', +2)">🌈 ハーモニー彩色</button>
                         <button class="preview-btn" onclick="playSingleTrackWithProps('${inst.id}')">▶ トラック試聴</button>
                         <button class="clear-btn" onclick="clearSingleTrack('${inst.id}')">🗑 クリア</button>
                     </div>
@@ -410,7 +581,7 @@
             const current = songData.trackData[instId][bankIdx][step];
             songData.trackData[instId][bankIdx][step] = !current;
             if (!current) {
-                playRealAudioStep(instId, step, songData.trackNotes[instId][bankIdx][step], songData.trackDur[instId][bankIdx][step], songData.trackVib[instId][bankIdx][step]);
+                playRealAudioStep(instId, step, songData.trackNotes[instId][bankIdx][step], songData.trackDur[instId][bankIdx][step], songData.trackVib[instId][bankIdx][step], songData.trackHarm[instId][bankIdx][step]);
             }
             renderTracks();
         }
@@ -436,11 +607,11 @@
                 if(songData.trackData[instId][activeBankIdx][s]) {
                     const delay = s * 130;
                     setTimeout(() => {
-                        playRealAudioStep(instId, s, songData.trackNotes[instId][activeBankIdx][s], songData.trackDur[instId][activeBankIdx][s], songData.trackVib[instId][activeBankIdx][s]);
+                        playRealAudioStep(instId, s, songData.trackNotes[instId][activeBankIdx][s], songData.trackDur[instId][activeBankIdx][s], songData.trackVib[instId][activeBankIdx][s], songData.trackHarm[instId][activeBankIdx][s]);
                     }, delay);
                 }
             }
-            setStatus(`▶ ${instId} トラック試聴中...`);
+            setStatus(`▶ ${instId} トラック試聴(ハーモニー彩色込)再生中...`);
         }
 
         // ================= マスター同期再生ループ =================
@@ -463,7 +634,8 @@
                             currentStep,
                             songData.trackNotes[inst.id][activeBankIdx][currentStep],
                             songData.trackDur[inst.id][activeBankIdx][currentStep],
-                            songData.trackVib[inst.id][activeBankIdx][currentStep]
+                            songData.trackVib[inst.id][activeBankIdx][currentStep],
+                            songData.trackHarm[inst.id][activeBankIdx][currentStep]
                         );
                         const cellEl = document.getElementById(`cell-${inst.id}-${activeBankIdx}-${currentStep}`);
                         if(cellEl) cellEl.classList.add('current-playing');
@@ -485,8 +657,10 @@
 
         function initApp() {
             instruments.forEach(inst => ensureBankArray(inst.id, 0));
+            initSolfaKeyboard();
             renderTracks();
-            setStatus('🟢 ULTIMATE MASTER DAW v37.0 初期化完了・リアル発音準備OK');
+            renderAlbumList();
+            setStatus('🟢 ULTIMATE MASTER DAW v38.0 初期化完了・リアル発音準備OK');
         }
 
         window.onload = initApp;
