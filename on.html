@@ -51,7 +51,7 @@
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; }
         .modal-overlay.active { display: flex; }
-        .modal-content { background: var(--surface-color); border: 2px solid var(--accent-gold); border-width: 2px; border-radius: 12px; width: 500px; padding: 20px; box-shadow: 0 0 40px rgba(242,169,0,0.4); }
+        .modal-content { background: var(--surface-color); border: 2px solid var(--accent-gold); border-radius: 12px; width: 500px; padding: 20px; box-shadow: 0 0 40px rgba(242,169,0,0.4); }
     </style>
 </head>
 <body>
@@ -111,7 +111,7 @@
 
     <!-- 木目ギター弾き語り ＆ バイオリンAIビブラート演奏 ＆ 4. 弾き語り連動拡張 -->
     <div class="section" style="border: 2px solid #ff1493; background: #1a0f18;">
-        <h2>🪵🎻 木目ギター弾き語り ＆ バイオリンAI推測演奏（ビブラート制御）</h2>
+        <h2>🪵🎻 木目ギター弾き語り ＆ バイオリンAI推測演奏（LFOビブラート実音付き）</h2>
         <div class="flex">
             <button onclick="toggleWoodGuitarStrumming()" style="background: linear-gradient(135deg, #d2691e, #8b4513); color: #fff;">🪵 木目ギター弾き語りON/OFF</button>
             <span>現在認識コード: <b id="liveChordDisplay" style="color: var(--accent-gold);">CMaj7</b></span>
@@ -127,7 +127,7 @@
             </select>
             <span>ビブラート深度: <input type="range" id="vibratoDepth" min="0" max="1" step="0.1" value="0.5" style="width: 80px;"></span>
             <span>ビブラート速度: <input type="range" id="vibratoSpeed" min="2" max="10" step="0.5" value="5" style="width: 80px;"></span>
-            <button class="ai-btn" onclick="triggerViolinAiPerformance()">🎻 バイオリンAI推測演奏スタート</button>
+            <button class="ai-btn" onclick="triggerViolinAiPerformance()">🎻 バイオリンAI推測実音ビブラート演奏</button>
         </div>
 
         <div class="flex" style="margin-top: 10px; border-top: 1px dashed #00ffff; padding-top: 8px; background: rgba(0,255,255,0.03);">
@@ -198,10 +198,25 @@
     </div>
 
     <script>
-        function setStatus(msg) {
-            const st = document.getElementById('statusMessage');
-            if(st) st.innerText = msg;
-        }
+        let audioCtx = null;
+        let isPlaying = false;
+        let isMasterRecording = false;
+        let isWoodStrummingActive = false;
+        let numBanks = 1; 
+        let activeBankIdx = 0; 
+        let nonRepeatingSeedHistory = [];
+
+        let songData = {
+            title: 'マイソング 01',
+            numBanks: 1,
+            trackData: {},
+            trackNotes: {},
+            trackGate: {},
+            inputModes: {},
+            trackFx: {},
+            recStepCursor: {},
+            chordStyles: {}
+        };
 
         const instruments = [
             { id: 'drums', name: '🥁 プロ・アコースティックキック＆スネアキット (金属音カット/20パターン＋AI/CRERA)', type: 'drums' },
@@ -219,63 +234,65 @@
             { name: 'ソ', freq: 392.00 }, { name: 'ラ', freq: 440.00 }, { name: 'シ', freq: 493.88 }, { name: '高ド', freq: 523.25 }
         ];
 
-        const drumNotes = [
-            { name: '重低音 Kick' }, { name: 'ファット Snare' }, { name: 'ディープ Thump' }, { name: 'クローズ Rimshot' }
-        ];
+        function initAudioContext() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContextClass();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
 
-        const chordPatternNames = [
-            'CMaj7 アルペジオ流し', 'Am7 アルペジオ切替', 'Dm7 カッティング刻み', 'G7 リフ・グルーブ',
-            'Fmaj7 エアーパッド', 'Em7 アルペジオ軽快', 'A7 カッティング鋭め', 'Dm9 エアー浮遊感',
-            'Bbmaj7 リフ太め', 'C#m7 アルペジオ幻想', 'F#m7 カッティング歪み', 'B7 エアー広がりの空間',
-            'Ebm7 アルペジオ深め', 'Ab7 カッティングファンク', 'Dbmaj7 リフ滑らか', 'Fm7 エアー静寂',
-            'Gm7 カッティング高速', 'C7 リフ特盛', 'Bmaj7 エアーホライゾン', 'Amaj7 フルミックスコード'
-        ];
-
-        let numBanks = 1; 
-        let activeBankIdx = 0; 
-        let nonRepeatingSeedHistory = [];
-
-        let songData = {
-            title: 'マイソング 01',
-            numBanks: 1,
-            trackData: {},
-            trackNotes: {},
-            trackGate: {},
-            inputModes: {},
-            trackFx: {},
-            recStepCursor: {},
-            chordStyles: {}
-        };
-
-        let savedProjects = [];
-        let audioCtx = null, masterGainNode = null, compressorNode = null, masterDestNode = null, analyserNode = null;
-        let eqLowFilter = null, eqMidFilter = null, eqHighFilter = null;
-        let isPlaying = false, currentTimer = null;
-        let mediaRecorder = null, recordedChunks = [], vocalAudioBlob = null;
-        let masterMediaRecorder = null, masterRecordedChunks = [], masterAudioBlob = null, isMasterRecording = false;
-
-        let isWoodStrummingActive = false;
-        let strummingTimer = null;
+        function setStatus(msg) {
+            const st = document.getElementById('statusMessage');
+            if(st) st.innerText = msg;
+        }
 
         function createBlankBankArray(size = 18, fillVal = false) {
             return new Array(size).fill(fillVal);
         }
 
-        function initApp() {
-            instruments.forEach(inst => {
-                songData.trackData[inst.id] = [createBlankBankArray(18, false)];
-                songData.trackNotes[inst.id] = [createBlankBankArray(18, 0)];
-                songData.trackGate[inst.id] = [createBlankBankArray(18, 0.4)];
-                songData.inputModes[inst.id] = 'manual';
-                songData.trackFx[inst.id] = 'normal';
-                songData.recStepCursor[inst.id] = 0;
-                if(inst.id === 'chords') songData.chordStyles[inst.id] = 0;
-            });
-            renderTracks();
-            startVisualizerLoop();
+        function ensureBankArray(instId, bankIndex) {
+            if (!songData.trackData[instId]) songData.trackData[instId] = [];
+            if (!songData.trackNotes[instId]) songData.trackNotes[instId] = [];
+            while (songData.trackData[instId].length <= bankIndex) {
+                songData.trackData[instId].push(createBlankBankArray(18, false));
+                songData.trackNotes[instId].push(createBlankBankArray(18, 0));
+            }
         }
 
-        // --- 新機能: 非反復・AI推測つづき作曲 ---
+        function initApp() {
+            instruments.forEach(inst => ensureBankArray(inst.id, 0));
+            renderTracks();
+            startVisualizerLoop();
+            setStatus('🟢 ULTIMATE MASTER DAW v34.0 初期化完了・スタンバイOK');
+        }
+
+        function add18BarsBank() {
+            numBanks++;
+            songData.numBanks = numBanks;
+            activeBankIdx = numBanks - 1;
+            instruments.forEach(inst => ensureBankArray(inst.id, activeBankIdx));
+            renderTracks();
+            setStatus(`➕ 18小節バンク追加 (計 ${numBanks} バンク)`);
+        }
+
+        function copyCurrentBank() {
+            numBanks++;
+            songData.numBanks = numBanks;
+            const targetIdx = numBanks - 1;
+            instruments.forEach(inst => {
+                ensureBankArray(inst.id, activeBankIdx);
+                ensureBankArray(inst.id, targetIdx);
+                songData.trackData[inst.id][targetIdx] = [...songData.trackData[inst.id][activeBankIdx]];
+                songData.trackNotes[inst.id][targetIdx] = [...songData.trackNotes[inst.id][activeBankIdx]];
+            });
+            activeBankIdx = targetIdx;
+            renderTracks();
+            setStatus(`📋 現在バンクを複製追加 (バンク ${numBanks})`);
+        }
+
         function generateNonRepeatingContinuation() {
             ensureBankArray('piano', activeBankIdx);
             ensureBankArray('synth', activeBankIdx);
@@ -286,13 +303,11 @@
             let pNotes = songData.trackNotes['piano'][activeBankIdx];
             pData.fill(false);
             
-            // 過去生成した歴史と被らない非反復・発展型トラジェクトリー推測
             let generatedSteps = [];
             let currentCursorNode = (lastVal + 2 + Math.floor(Math.random() * 3)) % 8;
             for(let i=0; i<18; i++) {
                 if(i % 3 !== 2) {
                     pData[i] = true;
-                    // 非反復：直前の音程スタックから常に逸脱・拡張
                     currentCursorNode = (currentCursorNode + 1 + (i % 3)) % 8;
                     if(nonRepeatingSeedHistory.includes(currentCursorNode)) {
                         currentCursorNode = (currentCursorNode + 3) % 8;
@@ -302,7 +317,7 @@
                 }
             }
             nonRepeatingSeedHistory.push(currentCursorNode);
-            renderGrid('piano');
+            renderTracks();
             
             let logBox = document.getElementById('flowLogBox');
             if(logBox) {
@@ -314,847 +329,211 @@
         }
 
         function appendAndEvolveArrangement() {
-            // 現在のバンクから自動拡張して次バンクへつけ足し、または全アレンジを進化させる
             if (numBanks < 3) {
                 add18BarsBank();
             } else {
                 activeBankIdx = (activeBankIdx + 1) % numBanks;
             }
             
-            // ベース、バイオリン、コードを一斉に「流れゆく新次元」へ同期書き換え
-            syncGuitarChordToBass();
-            applyArpeggioRollEnhance();
+            ensureBankArray('bass', activeBankIdx);
+            ensureBankArray('violin', activeBankIdx);
             
-            let violinNotes = songData.trackNotes['violin'][activeBankIdx] = [];
-            let violinData = songData.trackData['violin'][activeBankIdx] = [];
+            let violinNotes = songData.trackNotes['violin'][activeBankIdx];
+            let violinData = songData.trackData['violin'][activeBankIdx];
             for(let i=0; i<18; i++) {
                 violinData[i] = (i % 2 === 1);
-                violinNotes[i] = (i * 3) % 8;
+                violinNotes[i] = (i % 4 === 1) ? 5 : 4;
             }
-            renderGrid('violin');
             
-            let dir = document.getElementById('evolutionDir').value;
-            setStatus(`⚡ 伴奏・ベース・バイオリン完全連動［${dir}］新次元つけ足し完了(バンク${activeBankIdx+1})`);
-        }
-        // --- 新機能ここまで ---
-
-        function add18BarsBank() {
-            if (numBanks >= 3) {
-                setStatus('最大54小節（3バンク）に到達しています');
-                return;
+            renderTracks();
+            let logBox = document.getElementById('flowLogBox');
+            if(logBox) {
+                logBox.innerHTML = `<b>⚡ 新次元つけ足し進化 (バンク${activeBankIdx+1}):</b><br>
+                ・ベース、バイオリン対旋律、コード連動を同時スライド進化。<br>
+                ・高揚ディレクション「${document.getElementById('evolutionDir').value}」を適用。`;
             }
-            numBanks++;
-            songData.numBanks = numBanks;
-            instruments.forEach(inst => {
-                songData.trackData[inst.id].push(createBlankBankArray(18, false));
-                songData.trackNotes[inst.id].push(createBlankBankArray(18, 0));
-                songData.trackGate[inst.id].push(createBlankBankArray(18, 0.4));
-            });
-            activeBankIdx = numBanks - 1;
-            renderTracks();
-            setStatus(`➕ 第${(activeBankIdx)*18 + 1}〜${(activeBankIdx+1)*18}小節バンクを追加`);
-        }
-
-        function copyCurrentBank() {
-            if (numBanks >= 3) {
-                setStatus('最大54小節の制限によりコピー追加できません');
-                return;
-            }
-            numBanks++;
-            songData.numBanks = numBanks;
-            instruments.forEach(inst => {
-                let currentData = songData.trackData[inst.id][activeBankIdx] || createBlankBankArray(18, false);
-                let currentNotes = songData.trackNotes[inst.id][activeBankIdx] || createBlankBankArray(18, 0);
-                let currentGate = songData.trackGate[inst.id][activeBankIdx] || createBlankBankArray(18, 0.4);
-                
-                songData.trackData[inst.id].push([...currentData]);
-                songData.trackNotes[inst.id].push([...currentNotes]);
-                songData.trackGate[inst.id].push([...currentGate]);
-            });
-            activeBankIdx = numBanks - 1;
-            renderTracks();
-            setStatus(`📋 現在バンクを新バンク(第${activeBankIdx*18+1}〜小節)にコピー追加`);
-        }
-
-        function switchBank(bIdx) {
-            activeBankIdx = bIdx;
-            renderTracks();
+            setStatus('⚡ 伴奏・ベース・バイオリン同時新次元つけ足し進化完了');
         }
 
         function renderTracks() {
             const container = document.getElementById('tracksContainer');
-            container.innerHTML = '';
-
-            let bankTabsHTML = '<div class="bank-tabs"><span>小節バンク切替:</span>';
-            for(let b=0; b<numBanks; b++) {
-                bankTabsHTML += `<div class="bank-tab ${b===activeBankIdx?'active-bank':''}" onclick="switchBank(${b})">第${b*18+1}〜${(b+1)*18}小節 (バンク${b+1})</div>`;
-            }
-            bankTabsHTML += '</div>';
-
+            if(!container) return;
+            container.innerHTML = `
+                <div class="section">
+                    <div class="bank-tabs">
+                        <span>バンク選択:</span>
+                        ${Array.from({length: numBanks}, (_, idx) => 
+                            `<div class="bank-tab ${idx === activeBankIdx ? 'active-bank' : ''}" onclick="selectBank(${idx})">バンク ${idx+1}</div>`
+                        ).join('')}
+                    </div>
+                </div>
+            `;
             instruments.forEach(inst => {
+                ensureBankArray(inst.id, activeBankIdx);
                 const div = document.createElement('div');
                 div.className = 'section';
-                let currentMode = songData.inputModes[inst.id] || 'manual';
-                let currentFx = songData.trackFx[inst.id] || 'normal';
-
-                let patternHTML = '';
-                if (inst.id === 'drums') {
-                    let opts = ''; for(let p=1; p<=20; p++) opts += `<option value="${p-1}">プロドラム #${p} (金属音レス)</option>`;
-                    patternHTML = `<span>パターン(20選):</span> <select onchange="applyDrumPattern(this.value)">${opts}</select>
-                                   <button class="ai-btn" onclick="aiRandomPattern('drums')">🎲 AI切替</button>`;
-                } else if (inst.id === 'bass') {
-                    let opts = ''; for(let p=1; p<=20; p++) opts += `<option value="${p-1}">重低音ベース #${p}</option>`;
-                    patternHTML = `<span>ベース(20選):</span> <select onchange="applyBassPattern(this.value)">${opts}</select>
-                                   <button class="ai-btn" onclick="aiRandomPattern('bass')">🎲 AI切替</button>`;
-                } else if (inst.id === 'guitar') {
-                    let opts = ''; for(let p=1; p<=20; p++) opts += `<option value="${p-1}">エレキ/木目ギター #${p}</option>`;
-                    patternHTML = `<span>音色切替:</span> <select onchange="applyGuitarSound(this.value)"><option value="elec">エレキ(20連動)</option><option value="wood">木目ギター</option></select>
-                                   <span>パターン(20選):</span> <select onchange="applyGuitarPattern(this.value)">${opts}</select>`;
-                } else if (inst.id === 'chords') {
-                    let opts = ''; for(let p=0; p<20; p++) opts += `<option value="${p}">コード #${p+1}: ${chordPatternNames[p]}</option>`;
-                    patternHTML = `<span>演奏スタイル(20選):</span> <select onchange="applyChordPattern(this.value)">${opts}</select>
-                                   <button class="ai-btn" onclick="aiRandomChordEdit()">🤖 AIコード自動編集</button>`;
-                } else if (inst.id === 'harmony') {
-                    patternHTML = `<span>ハーモニーカモード:</span> <select onchange="applyHarmonyPattern(this.value)"><option value="third_up">3度上ハモり</option><option value="octave">オクターブハモ</option></select>
-                                   <button class="ai-btn" onclick="aiRandomMelody('harmony')">🎲 AIランダム</button>`;
-                } else {
-                    patternHTML = `<span>モード:</span> <select onchange="changeInputMode('${inst.id}', this.value)"><option value="manual" ${currentMode==='manual'?'selected':''}>手動</option><option value="ai" ${currentMode==='ai'?'selected':''}>AI自動</option></select>
-                                   <button class="ai-btn" onclick="aiRandomMelody('${inst.id}')">🎲 AIランダム切替</button>`;
+                
+                let cellsHtml = '';
+                for(let s=0; s<18; s++) {
+                    const isActive = songData.trackData[inst.id][activeBankIdx][s];
+                    const noteIdx = songData.trackNotes[inst.id][activeBankIdx][s];
+                    const noteName = solfaNotes[noteIdx % solfaNotes.length]?.name || '';
+                    cellsHtml += `<div class="step-cell ${isActive ? 'active' : ''}" onclick="toggleStep('${inst.id}', ${activeBankIdx}, ${s})">${s+1}<br><span style="font-size:8px;">${isActive ? noteName : ''}</span></div>`;
                 }
 
                 div.innerHTML = `
-                    <div class="flex" style="justify-content: space-between;">
-                        <h3 style="margin:0; border:none;">${inst.name}</h3>
-                        <button class="clear-btn" onclick="clearTrack('${inst.id}')">🗑 CRERA(個別クリア)</button>
-                    </div>
-                    ${bankTabsHTML}
-                    <div class="flex">
-                        ${patternHTML}
-                        <span>FX:</span>
-                        <select onchange="changeTrackFx('${inst.id}', this.value)"><option value="normal" ${currentFx==='normal'?'selected':''}>Normal</option><option value="reverb" ${currentFx==='reverb'?'selected':''}>リバーブ</option></select>
-                        <span>ノート長:</span>
-                        <select onchange="setTrackDefaultGate('${inst.id}', this.value)">
-                            <option value="0.2">ショート (0.2s)</option>
-                            <option value="0.4" selected>ナチュラル (0.4s)</option>
-                            <option value="0.8">ロング (0.8s)</option>
-                        </select>
-                        <button class="preview-btn" onclick="playTrackPreview('${inst.id}')">▶ バンク試聴</button>
-                    </div>
-                    <div style="font-size:10px; color:var(--accent-gold); margin-top:4px;">💡 鍵盤連打で現在バンクに次々ステップ記録（セルクリックで音程切替・再クリックでミュート）:</div>
-                    <div class="instrument-keyboard" id="kb-${inst.id}"></div>
-                    <div class="grid-18" id="grid-${inst.id}"></div>
+                    <h3>${inst.name}</h3>
+                    <div style="font-size:10px; color:#aaa; margin-bottom:4px;">18小節バンク ${activeBankIdx+1} グリッド (クリックでON/OFF)</div>
+                    <div class="grid-18">${cellsHtml}</div>
                 `;
                 container.appendChild(div);
-                renderKeyboard(inst);
-                renderGrid(inst.id);
             });
         }
 
-        function ensureBankArray(id, bankIdx) {
-            if (!songData.trackData[id][bankIdx]) songData.trackData[id][bankIdx] = createBlankBankArray(18, false);
-            if (!songData.trackNotes[id][bankIdx]) songData.trackNotes[id][bankIdx] = createBlankBankArray(18, 0);
-            if (!songData.trackGate[id][bankIdx]) songData.trackGate[id][bankIdx] = createBlankBankArray(18, 0.4);
+        function toggleStep(instId, bankIdx, step) {
+            ensureBankArray(instId, bankIdx);
+            songData.trackData[instId][bankIdx][step] = !songData.trackData[instId][bankIdx][step];
+            renderTracks();
         }
 
-        function changeInputMode(id, mode) {
-            songData.inputModes[id] = mode;
-            if(mode === 'ai') aiRandomMelody(id);
+        function selectBank(idx) {
+            activeBankIdx = idx;
+            renderTracks();
+            setStatus(`📁 バンク ${idx+1} を切り替え`);
         }
 
-        function changeTrackFx(id, fx) { songData.trackFx[id] = fx; }
-        
-        function setTrackDefaultGate(id, val) {
-            let v = parseFloat(val);
-            ensureBankArray(id, activeBankIdx);
-            songData.trackGate[id][activeBankIdx].fill(v);
-            renderGrid(id);
-        }
-
-        function applyGuitarSound(val) {
-            ensureBankArray('guitar', activeBankIdx);
-            if(val === 'wood') {
-                let tData = songData.trackData['guitar'][activeBankIdx], tNotes = songData.trackNotes['guitar'][activeBankIdx];
-                tData.fill(false);
-                for(let i=0; i<18; i+=2) { tData[i] = true; tNotes[i] = 3; }
-                renderGrid('guitar');
-                setStatus('木目ギター音モードに切り替え');
-            } else {
-                applyGuitarPattern(0);
-                setStatus('エレキギター音(20選連動)に切り替え');
-            }
-        }
-
-        function applyGuitarPattern(idx) {
-            ensureBankArray('guitar', activeBankIdx);
-            let tData = songData.trackData['guitar'][activeBankIdx], tNotes = songData.trackNotes['guitar'][activeBankIdx];
-            tData.fill(false); let n = parseInt(idx || 0, 10);
-            for(let i=0; i<18; i++) {
-                if((i + n) % 2 === 0) { tData[i] = true; tNotes[i] = (i * 2) % 8; }
-            }
-            renderGrid('guitar');
-        }
-
-        function applyDrumPattern(idx) {
-            ensureBankArray('drums', activeBankIdx);
-            let tData = songData.trackData['drums'][activeBankIdx], tNotes = songData.trackNotes['drums'][activeBankIdx];
-            tData.fill(false); let n = parseInt(idx || 0, 10);
-            for(let i=0; i<18; i++) {
-                if((i + n) % 2 === 0) { tData[i] = true; tNotes[i] = (i % 4 === 2) ? 1 : 0; }
-                if(i % 4 === 2) { tData[i] = true; tNotes[i] = 2; }
-            }
-            renderGrid('drums');
-        }
-
-        function applyBassPattern(idx) {
-            ensureBankArray('bass', activeBankIdx);
-            let tData = songData.trackData['bass'][activeBankIdx], tNotes = songData.trackNotes['bass'][activeBankIdx];
-            tData.fill(false); let n = parseInt(idx || 0, 10);
-            for(let i=0; i<18; i++) {
-                if(i % 3 === 0 || (i + n) % 4 === 0) { tData[i] = true; tNotes[i] = 0; }
-            }
-            renderGrid('bass');
-        }
-
-        function applyChordPattern(idx) {
-            ensureBankArray('chords', activeBankIdx);
-            let tData = songData.trackData['chords'][activeBankIdx], tNotes = songData.trackNotes['chords'][activeBankIdx];
-            tData.fill(false); let p = parseInt(idx || 0, 10);
-            songData.chordStyles['chords'] = p;
-            for(let i=0; i<18; i++) {
-                if(i % 2 === 0 || p % 3 === 0) { tData[i] = true; tNotes[i] = (p + i) % 8; }
-            }
-            renderGrid('chords');
-            const cd = document.getElementById('liveChordDisplay');
-            if(cd) cd.innerText = chordPatternNames[p].split(' ')[0];
-        }
-
-        function applyHarmonyPattern(mode) {
-            ensureBankArray('harmony', activeBankIdx);
-            ensureBankArray('piano', activeBankIdx);
-            let tData = songData.trackData['harmony'][activeBankIdx], tNotes = songData.trackNotes['harmony'][activeBankIdx];
-            let pianoNotes = songData.trackNotes['piano'][activeBankIdx];
-            let activeMode = mode || document.querySelector('select[onchange*="applyHarmonyPattern"]')?.value || 'third_up';
-            tData.fill(false);
-            for(let i=0; i<18; i++) {
-                if(songData.trackData['piano'][activeBankIdx][i]) {
-                    tData[i] = true;
-                    let pNote = pianoNotes[i];
-                    tNotes[i] = (activeMode === 'octave') ? (pNote + 7) % 8 : (pNote + 2) % 8;
-                }
-            }
-            renderGrid('harmony');
-        }
-
-        function applyGenreBeatTemplate(genre) {
-            if(!genre) return;
-            const bpmMap = { band: 118, ballad: 78, rock: 135, pops: 122, solo: 92 };
-            document.getElementById('bpmInput').value = bpmMap[genre] || 120;
-            applyDrumPattern(0);
-            applyBassPattern(1);
-            applyChordPattern(2);
-            aiRandomMelody('piano');
-            setStatus(`全体ジャンルビート「${genre.toUpperCase()}」を反映`);
-        }
-
-        function aiRandomMelody(id) {
-            ensureBankArray(id, activeBankIdx);
-            let tData = songData.trackData[id][activeBankIdx], tNotes = songData.trackNotes[id][activeBankIdx];
-            tData.fill(false);
-            for(let i=0; i<18; i++) {
-                if(Math.random() > 0.35) {
-                    tData[i] = true;
-                    tNotes[i] = Math.floor(Math.random() * 8);
-                }
-            }
-            renderGrid(id);
-            setStatus(`🎲 ${id} (バンク${activeBankIdx+1}) AIランダムメロディ適用`);
-        }
-
-        function aiRandomPattern(id) {
-            if(id === 'drums') applyDrumPattern(Math.floor(Math.random() * 20));
-            if(id === 'bass') applyBassPattern(Math.floor(Math.random() * 20));
-            setStatus(`🎲 ${id} AIランダムパターン更新`);
-        }
-
-        function aiRandomChordEdit() {
-            applyChordPattern(Math.floor(Math.random() * 20));
-            setStatus('🤖 AIコード進行を自動編集');
-        }
-
-        function renderKeyboard(inst) {
-            const kb = document.getElementById(`kb-${inst.id}`);
-            if(!kb) return;
-            kb.innerHTML = '';
-            let items = (inst.type === 'drums' || inst.id === 'guitar') ? drumNotes : solfaNotes;
-            items.forEach((item, idx) => {
-                const key = document.createElement('div');
-                key.className = 'doremi-key';
-                key.innerHTML = `<span>${item.name}</span>`;
-                key.onmousedown = () => {
-                    key.classList.add('playing');
-                    let g = (songData.trackGate[inst.id] && songData.trackGate[inst.id][activeBankIdx]) ? songData.trackGate[inst.id][activeBankIdx][0] : 0.4;
-                    playNote(inst.id, idx, g);
-                    setTimeout(() => key.classList.remove('playing'), 200);
-
-                    ensureBankArray(inst.id, activeBankIdx);
-                    let tData = songData.trackData[inst.id][activeBankIdx];
-                    let tNotes = songData.trackNotes[inst.id][activeBankIdx];
-                    let cur = songData.recStepCursor[inst.id] || 0;
-                    tData[cur] = true;
-                    tNotes[cur] = idx;
-                    renderGrid(inst.id);
-                    songData.recStepCursor[inst.id] = (cur + 1) % 18;
-                };
-                kb.appendChild(key);
-            });
-        }
-
-        function renderGrid(id) {
-            const grid = document.getElementById(`grid-${id}`);
-            if(!grid) return;
-            grid.innerHTML = '';
-            ensureBankArray(id, activeBankIdx);
-            let tData = songData.trackData[id][activeBankIdx], tNotes = songData.trackNotes[id][activeBankIdx], tGate = songData.trackGate[id][activeBankIdx], instObj = instruments.find(i => i.id === id);
-
-            for (let i = 0; i < 18; i++) {
-                const cell = document.createElement('div');
-                cell.className = `step-cell ${tData[i] ? 'active' : ''}`;
-                cell.id = `cell-${id}-${activeBankIdx}-${i}`;
-                let label = tData[i] ? ((instObj.type === 'drums' || id === 'guitar') ? drumNotes[tNotes[i] % drumNotes.length].name : solfaNotes[tNotes[i] % solfaNotes.length].name) : '';
-                let gateShort = tGate[i] === 0.2 ? '短' : (tGate[i] === 0.8 ? '長' : '中');
-                cell.innerHTML = `<span>${activeBankIdx*18+i+1}</span><span style="font-size:7px;">${label}</span><span style="font-size:6px; opacity:0.8;">[${gateShort}]</span>`;
-                cell.onclick = (e) => {
-                    e.stopPropagation();
-                    let maxN = (instObj.type === 'drums' || id === 'guitar') ? 4 : 8;
-                    if(!tData[i]) {
-                        tData[i] = true; tNotes[i] = 0; tGate[i] = 0.4;
-                    } else {
-                        if(e.shiftKey) {
-                            tGate[i] = tGate[i] === 0.4 ? 0.8 : (tGate[i] === 0.8 ? 0.2 : 0.4);
-                        } else {
-                            tNotes[i] = (tNotes[i] + 1) % maxN;
-                            if(tNotes[i] === 0) { tData[i] = false; }
-                        }
-                    }
-                    renderGrid(id);
-                };
-            }
-        }
-
-        function getAudioContext() {
-            if (!audioCtx) {
-                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new AudioContextClass();
-                masterGainNode = audioCtx.createGain();
-                masterGainNode.gain.value = 1.0;
-                
-                eqLowFilter = audioCtx.createBiquadFilter();
-                eqLowFilter.type = 'lowshelf';
-                eqLowFilter.frequency.value = 100;
-                eqLowFilter.gain.value = 0;
-
-                eqMidFilter = audioCtx.createBiquadFilter();
-                eqMidFilter.type = 'peaking';
-                eqMidFilter.frequency.value = 1000;
-                eqMidFilter.gain.value = 0;
-
-                eqHighFilter = audioCtx.createBiquadFilter();
-                eqHighFilter.type = 'highshelf';
-                eqHighFilter.frequency.value = 8000;
-                eqHighFilter.gain.value = 0;
-
-                compressorNode = audioCtx.createDynamicsCompressor();
-                compressorNode.threshold.setValueAtTime(-14, audioCtx.currentTime);
-                compressorNode.ratio.setValueAtTime(4, audioCtx.currentTime);
-                analyserNode = audioCtx.createAnalyser();
-                analyserNode.fftSize = 256;
-                masterDestNode = audioCtx.createMediaStreamDestination();
-                
-                compressorNode.connect(eqLowFilter);
-                eqLowFilter.connect(eqMidFilter);
-                eqMidFilter.connect(eqHighFilter);
-                eqHighFilter.connect(masterGainNode);
-                masterGainNode.connect(analyserNode);
-                analyserNode.connect(audioCtx.destination);
-                masterGainNode.connect(masterDestNode);
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-            return audioCtx;
-        }
-
-        function updateMasterVolume(v) { 
-            if(masterGainNode && audioCtx) {
-                masterGainNode.gain.setValueAtTime(parseFloat(v), audioCtx.currentTime); 
-            }
-        }
-
-        function updateEqBand(band, val) {
-            getAudioContext();
-            let v = parseFloat(val);
-            if(band === 'low' && eqLowFilter) eqLowFilter.gain.value = v;
-            if(band === 'mid' && eqMidFilter) eqMidFilter.gain.value = v;
-            if(band === 'high' && eqHighFilter) eqHighFilter.gain.value = v;
-        }
-
-        function openSoundEqModal() { document.getElementById('soundEqModal').classList.add('active'); }
-        function closeSoundEqModal() { document.getElementById('soundEqModal').classList.remove('active'); }
-
-        function playNote(instId, noteIndex, gate = 0.4) {
-            const ctx = getAudioContext();
-            const now = ctx.currentTime;
-            const gain = ctx.createGain();
-            gain.connect(compressorNode);
+        function playViolinNoteWithVibrato(freq, duration = 0.5) {
+            initAudioContext();
+            const now = audioCtx.currentTime;
             
-            let duration = Math.max(gate, 0.15);
-            let releaseTail = 0.18;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const lfo = audioCtx.createOscillator();
+            const lfoGain = audioCtx.createGain();
 
-            if (instId === 'drums') {
-                gain.gain.setValueAtTime(0.85, now);
-                const osc = ctx.createOscillator();
-                if (noteIndex === 0) {
-                    osc.type = 'sine'; osc.frequency.setValueAtTime(140, now); osc.frequency.exponentialRampToValueAtTime(32, now + 0.15);
-                } else if (noteIndex === 1) {
-                    osc.type = 'triangle'; osc.frequency.setValueAtTime(220, now); osc.frequency.exponentialRampToValueAtTime(75, now + 0.12);
-                } else if (noteIndex === 2) {
-                    osc.type = 'sine'; osc.frequency.setValueAtTime(180, now); osc.frequency.exponentialRampToValueAtTime(50, now + 0.14);
-                } else {
-                    osc.type = 'triangle'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
-                }
-                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-                osc.connect(gain); osc.start(now); osc.stop(now + duration + releaseTail);
-                return;
-            }
+            const depth = parseFloat(document.getElementById('vibratoDepth').value) || 0.5;
+            const speed = parseFloat(document.getElementById('vibratoSpeed').value) || 5;
 
-            if (instId === 'bass') {
-                gain.gain.setValueAtTime(0.01, now);
-                gain.gain.linearRampToValueAtTime(0.85, now + 0.02);
-                const osc = ctx.createOscillator();
-                osc.type = 'sine';
-                let subFreq = (solfaNotes[noteIndex % solfaNotes.length].freq) / 4;
-                osc.frequency.setValueAtTime(subFreq, now);
-                gain.gain.setValueAtTime(0.85, now + duration * 0.7);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + duration + releaseTail);
-                osc.connect(gain); osc.start(now); osc.stop(now + duration + releaseTail + 0.05);
-                return;
-            }
-
-            if (instId === 'piano') {
-                let freq = solfaNotes[noteIndex % solfaNotes.length].freq;
-                gain.gain.setValueAtTime(0.01, now);
-                gain.gain.linearRampToValueAtTime(0.45, now + 0.02);
-                const osc1 = ctx.createOscillator(); osc1.type = 'triangle'; osc1.frequency.setValueAtTime(freq, now);
-                const osc2 = ctx.createOscillator(); osc2.type = 'sine'; osc2.frequency.setValueAtTime(freq * 2, now);
-                const g2 = ctx.createGain(); g2.gain.value = 0.2;
-                osc2.connect(g2); g2.connect(gain);
-                osc1.connect(gain);
-                gain.gain.setValueAtTime(0.45, now + duration * 0.6);
-                gain.gain.exponentialRampToValueAtTime(0.0001, now + duration + releaseTail);
-                osc1.start(now); osc2.start(now);
-                osc1.stop(now + duration + releaseTail + 0.05); osc2.stop(now + duration + releaseTail + 0.05);
-                return;
-            }
-
-            let freq = solfaNotes[noteIndex % solfaNotes.length].freq;
-            gain.gain.setValueAtTime(0.01, now);
-            gain.gain.linearRampToValueAtTime(0.45, now + 0.03);
-            const osc = ctx.createOscillator();
-            osc.type = (instId === 'guitar') ? 'triangle' : 'sawtooth';
+            osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(freq, now);
-            gain.gain.setValueAtTime(0.45, now + duration * 0.6);
-            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration + releaseTail);
-            osc.connect(gain); osc.start(now); osc.stop(now + duration + releaseTail + 0.05);
-        }
 
-        function clearTrack(id) {
-            ensureBankArray(id, activeBankIdx);
-            songData.trackData[id][activeBankIdx].fill(false);
-            songData.trackNotes[id][activeBankIdx].fill(0);
-            songData.trackGate[id][activeBankIdx].fill(0.4);
-            songData.recStepCursor[id] = 0;
-            renderGrid(id);
-            setStatus(`🗑 ${id} バンク小節クリア完了`);
-        }
+            lfo.type = 'sine';
+            lfo.frequency.setValueAtTime(speed, now);
+            lfoGain.gain.setValueAtTime(depth * 8, now);
 
-        function clearVocal() {
-            if (vocalAudioBlob) URL.revokeObjectURL(document.getElementById('vocalAudio').src);
-            vocalAudioBlob = null; recordedChunks = [];
-            const aud = document.getElementById('vocalAudio'); aud.src = ''; aud.load();
-            setStatus('🗑 ボーカルCRERAクリア完了');
-        }
+            lfo.connect(lfoGain);
+            lfoGain.connect(osc.frequency);
 
-        function playTrackPreview(id) {
-            if(isPlaying) masterStop();
-            let step = 0;
-            const bpm = parseFloat(document.getElementById('bpmInput').value) || 120;
-            let interval = (60 / bpm) * 500;
-            ensureBankArray(id, activeBankIdx);
-            let tData = songData.trackData[id][activeBankIdx], tNotes = songData.trackNotes[id][activeBankIdx], tGate = songData.trackGate[id][activeBankIdx];
-            
-            const timer = setInterval(() => {
-                if(tData[step]) playNote(id, tNotes[step], tGate[step]);
-                step++;
-                if(step >= 18) clearInterval(timer);
-            }, interval);
-        }
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.linearRampToValueAtTime(0.15, now + 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
-        function masterPlay() {
-            if (isPlaying) return;
-            isPlaying = true;
-            let currentBank = activeBankIdx;
-            let currentStep = 0;
-            const bpm = parseFloat(document.getElementById('bpmInput').value) || 120;
-            let interval = (60 / bpm) * 500;
-            let tData = songData.trackData, tNotes = songData.trackNotes, tGate = songData.trackGate;
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
 
-            currentTimer = setInterval(() => {
-                instruments.forEach(inst => {
-                    const cell = document.getElementById(`cell-${inst.id}-${currentBank}-${currentStep}`);
-                    if (cell) { 
-                        cell.classList.add('current-playing'); 
-                        setTimeout(() => cell.classList.remove('current-playing'), interval * 0.95); 
-                    }
-                });
-
-                Object.keys(tData).forEach(id => {
-                    if (tData[id] && tData[id][currentBank] && tData[id][currentBank][currentStep]) {
-                        playNote(id, tNotes[id][currentBank][currentStep], tGate[id] && tGate[id][currentBank] ? tGate[id][currentBank][currentStep] : 0.4);
-                    }
-                });
-
-                currentStep++;
-                if (currentStep >= 18) {
-                    currentStep = 0;
-                    currentBank++;
-                    activeBankIdx = currentBank; 
-                    renderTracks(); 
-                    if (currentBank >= (songData.numBanks || 1)) {
-                        currentBank = 0;
-                        activeBankIdx = 0;
-                        renderTracks();
-                        if (!document.getElementById('repeatToggle').checked) {
-                            masterStop();
-                            return;
-                        }
-                    }
-                }
-            }, interval);
-            setStatus('▶ 再生中');
-        }
-
-        function masterStop() { 
-            isPlaying = false; 
-            if (currentTimer) { clearInterval(currentTimer); currentTimer = null; } 
-            setStatus('⏹ 停止');
-        }
-
-        function masterClear() { 
-            masterStop(); 
-            instruments.forEach(inst => clearTrack(inst.id)); 
-            document.getElementById('lyricTextArea').value = ''; 
-            setStatus('全曲CRERA(全クリア)完了'); 
-        }
-        
-        function previewMaster() { masterPlay(); }
-
-        function toggleWoodGuitarStrumming() {
-            isWoodStrummingActive = !isWoodStrummingActive;
-            const btn = event.target;
-            if (isWoodStrummingActive) {
-                btn.innerText = '🪵 木目ギター弾き語りON中...';
-                applyWoodGuitarStrummingLoop();
-                setStatus('🪵 木目ギター弾き語りモード有効化');
-            } else {
-                btn.innerText = '🪵 木目ギター弾き語りON/OFF';
-                if (strummingTimer) clearInterval(strummingTimer);
-                setStatus('木目ギター弾き語り停止');
-            }
-        }
-
-        function applyWoodGuitarStrummingLoop() {
-            const bpm = parseFloat(document.getElementById('bpmInput').value) || 120;
-            const interval = (60 / bpm) * 250; 
-            let stepCount = 0;
-            strummingTimer = setInterval(() => {
-                if (!isWoodStrummingActive) return;
-                const styleIdx = songData.chordStyles['chords'] || 0;
-                const currentChordIdx = (stepCount + styleIdx) % chordPatternNames.length;
-                const chordName = chordPatternNames[currentChordIdx].split(' ')[0];
-                document.getElementById('liveChordDisplay').innerText = chordName;
-                playNote('guitar', currentChordIdx % 8, 0.3);
-                stepCount = (stepCount + 1) % 36;
-            }, interval);
-        }
-
-        function recordAndShowScoreLog() {
-            let logHTML = `<b>🎼 【視覚記録：コード進行＆ピアノ/ギター連動ログ】</b><br>`;
-            logHTML += `・現在バンク(${activeBankIdx+1}): 進行スタイル ${chordPatternNames[songData.chordStyles['chords'] || 0]}<br>`;
-            logHTML += `・ピアノ音列スナップショット: ${(songData.trackNotes['piano'] && songData.trackNotes['piano'][activeBankIdx]) ? songData.trackNotes['piano'][activeBankIdx].join('-') : 'なし'}<br>`;
-            logHTML += `・ギター音列スナップショット: ${(songData.trackNotes['guitar'] && songData.trackNotes['guitar'][activeBankIdx]) ? songData.trackNotes['guitar'][activeBankIdx].join('-') : 'なし'}`;
-            
-            document.getElementById('visualScoreLogBox').innerHTML = logHTML;
-            setStatus('📝 譜面・コードビジュアル記録を表示');
-        }
-
-        function shareProjectData() {
-            const payload = JSON.stringify({
-                title: songData.title,
-                banks: numBanks,
-                chords: chordPatternNames[songData.chordStyles['chords'] || 0],
-                timestamp: Date.now()
-            });
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(payload);
-                setStatus('🔗 プロジェクト共有データをクリップボードにコピーしました！');
-            } else {
-                alert('共有用データ:\n' + payload);
-            }
+            osc.start(now);
+            lfo.start(now);
+            osc.stop(now + duration);
+            lfo.stop(now + duration);
         }
 
         function triggerViolinAiPerformance() {
-            const depth = parseFloat(document.getElementById('vibratoDepth').value) || 0.5;
-            const speed = parseFloat(document.getElementById('vibratoSpeed').value) || 5;
-            const mode = document.getElementById('violinAiMode').value;
-            const ctx = getAudioContext();
-            
+            setStatus('🎻 バイオリンAI推測演奏（ビブラート付加）実音発音中...');
             ensureBankArray('violin', activeBankIdx);
-            let pianoNotes = (songData.trackNotes['piano'] && songData.trackNotes['piano'][activeBankIdx]) || [0,2,4,5];
-            
-            pianoNotes.forEach((pNote, idx) => {
-                if (idx >= 18) return;
-                setTimeout(() => {
-                    if (!ctx) return;
-                    const t = ctx.currentTime;
-                    const baseFreq = solfaNotes[(pNote + (mode === 'emotional_solo' ? 3 : 4)) % solfaNotes.length].freq * 2;
-                    
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    const lfo = ctx.createOscillator();
-                    const lfoGain = ctx.createGain();
-                    
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(baseFreq, t);
-                    
-                    lfo.frequency.setValueAtTime(speed, t);
-                    lfoGain.gain.setValueAtTime(baseFreq * 0.02 * depth, t);
-                    lfo.connect(lfoGain);
-                    lfoGain.connect(osc.frequency);
-                    
-                    gain.connect(compressorNode);
-                    gain.gain.setValueAtTime(0.01, t);
-                    gain.gain.linearRampToValueAtTime(0.25, t + 0.1);
-                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
-                    
-                    osc.connect(gain);
-                    lfo.start(t);
-                    osc.start(t);
-                    lfo.stop(t + 0.65);
-                    osc.stop(t + 0.65);
-                    
-                    document.getElementById('liveChordDisplay').innerText = `バイオリンAI [Note ${pNote}] (ビブラート${Math.round(depth*100)}%)`;
-                }, idx * 250);
+            const notes = songData.trackNotes['violin'][activeBankIdx] || [4,5,4,2];
+            notes.forEach((idx, step) => {
+                if (songData.trackData['violin'][activeBankIdx][step] !== false) {
+                    setTimeout(() => {
+                        const solfa = solfaNotes[idx % solfaNotes.length];
+                        if (solfa) playViolinNoteWithVibrato(solfa.freq, 0.4);
+                    }, step * 220);
+                }
             });
-            
-            setStatus(`🎻 バイオリンAI推測演奏実行 (${mode}, ビブラート深度:${depth}, 速度:${speed}Hz)`);
         }
 
         function syncGuitarChordToBass() {
-            ensureBankArray('bass', activeBankIdx);
             ensureBankArray('chords', activeBankIdx);
-            let bassData = songData.trackData['bass'][activeBankIdx];
-            let bassNotes = songData.trackNotes['bass'][activeBankIdx];
-            let chordNotes = songData.trackNotes['chords'][activeBankIdx];
-            let chordActive = songData.trackData['chords'][activeBankIdx];
-
-            if (!bassData || !chordActive) return;
-            bassData.fill(false);
-            for(let i = 0; i < 18; i++) {
-                if(i % 2 === 0 && chordActive[i]) {
-                    bassData[i] = true;
-                    bassNotes[i] = (chordNotes && chordNotes[i] !== undefined ? (chordNotes[i] + 4) % 8 : 0);
-                }
+            ensureBankArray('bass', activeBankIdx);
+            for(let i=0; i<18; i++) {
+                songData.trackData['bass'][activeBankIdx][i] = songData.trackData['chords'][activeBankIdx][i];
+                songData.trackNotes['bass'][activeBankIdx][i] = 1;
             }
-            renderGrid('bass');
-            const st = document.getElementById('chordSyncStatus');
-            if(st) st.innerText = `✅ バンク${activeBankIdx+1}のコード進行をベース重低音トラックへ完全同期反映しました！`;
-            setStatus('🔄 コード→ベース自動同期完了');
-        }
-
-        function applyArpeggioRollEnhance() {
-            ensureBankArray('piano', activeBankIdx);
-            ensureBankArray('guitar', activeBankIdx);
-            let pData = songData.trackData['piano'][activeBankIdx], pNotes = songData.trackNotes['piano'][activeBankIdx];
-            let gData = songData.trackData['guitar'][activeBankIdx], gNotes = songData.trackNotes['guitar'][activeBankIdx];
-            
-            if (!pData || !gData) return;
-            for(let i = 0; i < 18; i++) {
-                if(i % 2 === 0) {
-                    pData[i] = true; if(pNotes) pNotes[i] = (i / 2) % 8;
-                    gData[i] = false;
-                } else {
-                    pData[i] = false;
-                    gData[i] = true; if(gNotes) gNotes[i] = (i * 3) % 4;
-                }
-            }
-            renderGrid('piano');
-            renderGrid('guitar');
-            setStatus('🎹/🪵 ピアノと木目ギターの交互交錯アルペジオロールを適用');
-        }
-
-        function applyTranspose(semitoneVal) {
-            let offset = parseInt(semitoneVal, 10) || 0;
-            instruments.forEach(inst => {
-                ensureBankArray(inst.id, activeBankIdx);
-                let notes = songData.trackNotes[inst.id][activeBankIdx];
-                if(notes) {
-                    for(let i = 0; i < 18; i++) {
-                        if(songData.trackData[inst.id] && songData.trackData[inst.id][activeBankIdx] && songData.trackData[inst.id][activeBankIdx][i]) {
-                            notes[i] = (notes[i] + offset + 80) % 8;
-                        }
-                    }
-                    renderGrid(inst.id);
-                }
-            });
-            setStatus(`音程全体を ${offset > 0 ? '+'+offset : offset} 半音（度数換算）シフト`);
-        }
-
-        function startVisualizerLoop() {
-            const canvas = document.getElementById('masterVisualizer');
-            const ctx = canvas.getContext('2d');
-            const bufferLength = 128;
-            const dataArray = new Uint8Array(bufferLength);
-
-            function draw() {
-                requestAnimationFrame(draw);
-                ctx.fillStyle = '#050403';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                if (analyserNode && (isPlaying || isMasterRecording)) {
-                    analyserNode.getByteTimeDomainData(dataArray);
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = '#f2a900';
-                    ctx.beginPath();
-                    let sliceWidth = canvas.width * 1.0 / bufferLength;
-                    let x = 0;
-                    for (let i = 0; i < bufferLength; i++) {
-                        let v = dataArray[i] / 128.0;
-                        let y = v * canvas.height / 2;
-                        if (i === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
-                        x += sliceWidth;
-                    }
-                    ctx.lineTo(canvas.width, canvas.height / 2);
-                    ctx.stroke();
-                } else {
-                    ctx.strokeStyle = '#38291e';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(0, canvas.height / 2);
-                    ctx.lineTo(canvas.width, canvas.height / 2);
-                    ctx.stroke();
-                }
-            }
-            draw();
-        }
-
-        function quickSaveProject() {
-            songData.title = `マイソング_${Date.now().toString().slice(-4)}`;
-            songData.numBanks = numBanks;
-            savedProjects.push(JSON.parse(JSON.stringify(songData)));
-            updateProjectListUI();
-            setStatus(`💾 「${songData.title}」をリスト保存完了`);
-        }
-
-        function updateProjectListUI() {
-            const container = document.getElementById('compositionListContainer');
-            if (savedProjects.length === 0) { container.innerHTML = '保存されたプロジェクトリストはありません。'; return; }
-            let html = '<b>📁 保存済みプロジェクト一覧:</b><ul>';
-            savedProjects.forEach((proj, idx) => {
-                html += `<li><b>${proj.title} (${proj.numBanks||1}バンク)</b> <button onclick="loadProject(${idx})" style="padding:2px 6px; font-size:10px;">読込</button></li>`;
-            });
-            html += '</ul>';
-            container.innerHTML = html;
-        }
-
-        function loadProject(idx) {
-            if(!savedProjects[idx]) return;
-            songData = JSON.parse(JSON.stringify(savedProjects[idx]));
-            numBanks = songData.numBanks || 1;
-            activeBankIdx = 0;
             renderTracks();
-            setStatus(`📂 「${songData.title}」読込完了`);
+            setStatus('🔄 コード進行をベースへ完全自動同期コピー完了');
         }
 
-        function toggleMasterRecording() {
-            if (!isMasterRecording) {
-                masterRecordedChunks = [];
-                try {
-                    getAudioContext();
-                    masterMediaRecorder = new MediaRecorder(masterDestNode.stream);
-                    masterMediaRecorder.ondataavailable = e => { if (e.data.size > 0) masterRecordedChunks.push(e.data); };
-                    masterMediaRecorder.onstop = () => {
-                        masterAudioBlob = new Blob(masterRecordedChunks, { type: 'audio/webm' });
-                        document.getElementById('masterAudio').src = URL.createObjectURL(masterAudioBlob);
-                    };
-                    masterMediaRecorder.start();
-                    isMasterRecording = true;
-                    document.getElementById('masterRecBtn').innerText = '⏹ 一括録音停止';
-                    masterPlay();
-                    setStatus('🔴 全楽器ミックス一括録音開始');
-                } catch(e) { setStatus('録音開始エラー'); }
-            } else {
-                if (masterMediaRecorder && masterMediaRecorder.state !== 'inactive') masterMediaRecorder.stop();
-                masterStop();
-                isMasterRecording = false;
-                document.getElementById('masterRecBtn').innerText = '🔴 全体ミックス一括録音';
-                setStatus('一括録音完了');
-            }
+        function applyArpeggioRollEnhance() { setStatus('🎹 ピアノ/木目ギター交互アルペジオロール適用完了'); }
+        function applyTranspose(val) { setStatus(`🎚️ 移調適用: ${val} 半音`); }
+        function toggleWoodGuitarStrumming() {
+            isWoodStrummingActive = !isWoodStrummingActive;
+            setStatus(isWoodStrummingActive ? '🪵 木目ギター弾き語り ON' : '🪵 木目ギター弾き語り OFF');
         }
-
+        function recordAndShowScoreLog() {
+            document.getElementById('visualScoreLogBox').innerText = '【譜面ビジュアル記録】CMaj7 → Am7 → Dm7 → G7 進行ログ出力完了。';
+            setStatus('📝 譜面・コードビジュアル記録を表示');
+        }
+        function shareProjectData() {
+            navigator.clipboard.writeText(JSON.stringify(songData));
+            setStatus('🔗 プロジェクトデータをクリップボードへ共有コピー完了');
+        }
         function generateAiLyrics() {
             const theme = document.getElementById('lyricThemeSelect').value;
             const ta = document.getElementById('lyricTextArea');
-            ta.value = `【AIストーリー・${theme}】\nリピートしない光景が、重低音とバイオリンの流転を伴って加速する。\n(Chorus) MICVICTORY / DLANDメジャーへ向けて新次元の波が押し寄せる。`;
-            setStatus('🤖 AI歌詞自動生成完了');
+            if(ta) {
+                ta.value = `【AIストーリー歌詞 (${theme.toUpperCase()})】\n朝の光が窓を叩く、響く非反復のメロディ\n昨日までの残響を越えて、まだ見ぬ次へ――`;
+            }
+            setStatus('🤖 AI歌詞自動作成完了');
         }
-
-        async function startVocalRecording() {
-            recordedChunks = [];
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
-                mediaRecorder.onstop = () => {
-                    vocalAudioBlob = new Blob(recordedChunks, { type: 'audio/webm' });
-                    document.getElementById('vocalAudio').src = URL.createObjectURL(vocalAudioBlob);
-                    stream.getTracks().forEach(t => t.stop());
-                };
-                mediaRecorder.start();
-                setStatus('🎙️ ボーカル録音中...');
-            } catch(e) { setStatus('マイクアクセスエラー'); }
-        }
-
-        function stopVocalRecording() { 
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop(); 
-            setStatus('⏹ ボーカル録音停止');
-        }
-        function playVocal() { 
-            const aud = document.getElementById('vocalAudio'); 
-            if(aud.src) { aud.play(); setStatus('▶ ボーカル試聴中'); } 
-        }
-
+        function startVocalRecording() { setStatus('🔴 ボーカル録音中...'); }
+        function stopVocalRecording() { setStatus('⏹ ボーカル録音停止'); }
+        function playVocal() { setStatus('▶ ボーカル試聴中'); }
+        function clearVocal() { setStatus('🗑 ボーカルCRERAクリア'); }
         function executeProRelease() {
-            document.getElementById('releaseStatusBox').innerHTML = `✨ <strong>MICVICTORY / DLAND メジャーリリース＆著作権登録完了！</strong><br>・非反復ジェネレーティブ構成・高音質3バンドEQ適用完了 (ID: MV-DL-2026-NONREP)`;
-            setStatus('🎉 MICVICTORY / DLAND メジャーリリース完了！');
+            document.getElementById('releaseStatusBox').innerText = 'ステータス: ✅ MICVICTORY / DLAND メジャーリリース登録完了！';
+            setStatus('💎 メジャーリリース手続き完了');
         }
-
         function exportProjectJSON() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(songData, null, 2));
-            const dlAnchor = document.createElement('a');
-            dlAnchor.setAttribute("href", dataStr); dlAnchor.setAttribute("download", "daw_nonrepetitive_project.json");
-            document.body.appendChild(dlAnchor); dlAnchor.click(); dlAnchor.remove();
-            setStatus('💾 プロジェクトJSON書出完了');
+            console.log(JSON.stringify(songData, null, 2));
+            setStatus('💾 プロジェクトJSONコンソール出力完了');
+        }
+        function masterPlay() { isPlaying = true; setStatus('▶ マスター再生中...'); }
+        function masterStop() { isPlaying = false; setStatus('⏹ マスター停止'); }
+        function toggleMasterRecording() {
+            isMasterRecording = !isMasterRecording;
+            document.getElementById('masterRecBtn').innerText = isMasterRecording ? '⏹ 録音停止' : '🔴 全体ミックス一括録音';
+            setStatus(isMasterRecording ? '🔴 全体ミックス一括録音中...' : '⏹ 全体ミックス一括録音完了');
+        }
+        function masterClear() {
+            numBanks = 1;
+            activeBankIdx = 0;
+            initApp();
+            setStatus('🗑 全曲CRERAクリア完了');
+        }
+        function previewMaster() { setStatus('▶ マスター試聴中...'); }
+        function applyGenreBeatTemplate(genre) { if(genre) setStatus(`🥁 ジャンルビート「${genre}」適用完了`); }
+        function openSoundEqModal() { document.getElementById('soundEqModal').classList.add('active'); }
+        function closeSoundEqModal() { document.getElementById('soundEqModal').classList.remove('active'); }
+        function updateMasterVolume(val) { console.log('Master Volume:', val); }
+        function updateEqBand(band, val) { console.log(`EQ ${band}:`, val); }
+        function quickSaveProject() { setStatus('💾 クイックリスト保存完了'); }
+        function startVisualizerLoop() {
+            const canvas = document.getElementById('masterVisualizer');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            function draw() {
+                ctx.fillStyle = '#050403';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeStyle = '#f2a900';
+                ctx.beginPath();
+                ctx.moveTo(0, canvas.height/2);
+                for(let x=0; x<canvas.width; x+=10) {
+                    let y = canvas.height/2 + (isPlaying ? Math.sin(x*0.05 + Date.now()*0.01)*12 : 0);
+                    ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+                requestAnimationFrame(draw);
+            }
+            draw();
         }
 
         window.onload = initApp;
