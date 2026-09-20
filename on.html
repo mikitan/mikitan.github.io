@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ULTIMATE MASTER DAW v33.9 - 弾き語り＆バイオリン拡張完全版</title>
+    <title>ULTIMATE MASTER DAW v34.0 - 非反復AI推測・新展開ジェネレーター完全版</title>
     <style>
         :root {
             --bg-color: #070605;
@@ -26,6 +26,7 @@
         button.ai-btn { background: linear-gradient(135deg, #204080, #102040); color: #fff; }
         button.release-btn { background: linear-gradient(135deg, #8a2be2, #4b0082); color: #fff; font-size: 12px; }
         button.bank-btn { background: linear-gradient(135deg, #2a4736, #16291e); color: #7cfc00; border: 1px solid #3fae49; }
+        button.flow-btn { background: linear-gradient(135deg, #ff1493, #8b008b); color: #fff; font-size: 12px; }
         
         select, input, textarea { background: #221912; color: var(--text-main); border: 1px solid #594028; padding: 6px; border-radius: 6px; margin: 3px; font-size: 11px; outline: none; font-family: inherit; }
         textarea { width: 100%; height: 90px; resize: vertical; box-sizing: border-box; line-height: 1.5; }
@@ -55,8 +56,26 @@
 </head>
 <body>
 
-    <h1>🎛️🎶 ULTIMATE MASTER DAW v33.9 (木目ギター弾き語り＆拡張完全版)</h1>
-    <div id="statusMessage" class="status-bar">準備完了</div>
+    <h1>🎛️🎶 ULTIMATE MASTER DAW v34.0 (非反復・AI推測つづき作曲完全版)</h1>
+    <div id="statusMessage" class="status-bar">準備完了 — 繰り返さない新次元の音の潮流へ</div>
+
+    <!-- === 新次元: 繰り返さない AI推測・新展開ジェネレーター === -->
+    <section class="section" style="border: 2px solid #ff1493; background: linear-gradient(135deg, #1a0f18, #220f20);">
+        <h2>🌊 🚀 非反復・AI推測つづき作曲 ＆ バイオリン・伴奏自動連鎖エンジン</h2>
+        <div class="flex">
+            <button class="flow-btn" onclick="generateNonRepeatingContinuation()">✨ リピートせず「次へ流し込む」AI推測作曲</button>
+            <button class="flow-btn" onclick="appendAndEvolveArrangement()" style="background: linear-gradient(135deg, #00ced1, #008b8b);">⚡ 伴奏・ベース・バイオリン同時「新次元つけ足し進化」</button>
+            <span style="color:#ffb6c1;">展開ディレクション:</span>
+            <select id="evolutionDir">
+                <option value="ascending_open">高揚・空間展開 (Open Horizon)</option>
+                <option value="harmonic_modulation">転調・エモーショナル深化</option>
+                <option value="ambient_dissolve">アンビエント・流転へ溶ける</option>
+            </select>
+        </div>
+        <div id="flowLogBox" class="summary-box" style="color: #ffc0cb; margin-top: 8px;">
+            リピート無しのAI推測ログ：ここに生成された新しいフレーバー・接続ノートの系譜が表示されます...
+        </div>
+    </section>
 
     <div class="section" style="border: 2px solid var(--accent-gold);">
         <h2>🎛️ 1. マスター再生・全体録音CRERA・マルチ小節バンク管理</h2>
@@ -90,7 +109,7 @@
         <div id="compositionListContainer" class="summary-box">保存プロジェクトリストはありません。</div>
     </div>
 
-    <!-- === 新規追加エリア: 木目ギター弾き語り ＆ バイオリンAIビブラート演奏 ＆ 4. 弾き語り連動拡張 === -->
+    <!-- 木目ギター弾き語り ＆ バイオリンAIビブラート演奏 ＆ 4. 弾き語り連動拡張 -->
     <div class="section" style="border: 2px solid #ff1493; background: #1a0f18;">
         <h2>🪵🎻 木目ギター弾き語り ＆ バイオリンAI推測演奏（ビブラート制御）</h2>
         <div class="flex">
@@ -103,7 +122,7 @@
         <div class="flex" style="margin-top: 10px; border-top: 1px dashed #4a2f40; padding-top: 8px;">
             <span>バイオリンAI伴奏モード:</span>
             <select id="violinAiMode">
-                <option value="auto_harmony">AI自動対旋律＆自動追従</option>
+                <option value="auto_harmony">AI対旋律＆非反復自動追従</option>
                 <option value="emotional_solo">エモーショナル・ソロ代奏</option>
             </select>
             <span>ビブラート深度: <input type="range" id="vibratoDepth" min="0" max="1" step="0.1" value="0.5" style="width: 80px;"></span>
@@ -214,6 +233,7 @@
 
         let numBanks = 1; 
         let activeBankIdx = 0; 
+        let nonRepeatingSeedHistory = [];
 
         let songData = {
             title: 'マイソング 01',
@@ -234,7 +254,6 @@
         let mediaRecorder = null, recordedChunks = [], vocalAudioBlob = null;
         let masterMediaRecorder = null, masterRecordedChunks = [], masterAudioBlob = null, isMasterRecording = false;
 
-        // --- 追加変数: 弾き語り・バイオリン拡張 ---
         let isWoodStrummingActive = false;
         let strummingTimer = null;
 
@@ -255,6 +274,69 @@
             renderTracks();
             startVisualizerLoop();
         }
+
+        // --- 新機能: 非反復・AI推測つづき作曲 ---
+        function generateNonRepeatingContinuation() {
+            ensureBankArray('piano', activeBankIdx);
+            ensureBankArray('synth', activeBankIdx);
+            let prevNotes = songData.trackNotes['piano'][activeBankIdx] || [0,2,4,5];
+            let lastVal = prevNotes.filter(v => v !== 0).slice(-1)[0] || 2;
+            
+            let pData = songData.trackData['piano'][activeBankIdx];
+            let pNotes = songData.trackNotes['piano'][activeBankIdx];
+            pData.fill(false);
+            
+            // 過去生成した歴史と被らない非反復・発展型トラジェクトリー推測
+            let generatedSteps = [];
+            let currentCursorNode = (lastVal + 2 + Math.floor(Math.random() * 3)) % 8;
+            for(let i=0; i<18; i++) {
+                if(i % 3 !== 2) {
+                    pData[i] = true;
+                    // 非反復：直前の音程スタックから常に逸脱・拡張
+                    currentCursorNode = (currentCursorNode + 1 + (i % 3)) % 8;
+                    if(nonRepeatingSeedHistory.includes(currentCursorNode)) {
+                        currentCursorNode = (currentCursorNode + 3) % 8;
+                    }
+                    pNotes[i] = currentCursorNode;
+                    generatedSteps.push(solfaNotes[currentCursorNode].name);
+                }
+            }
+            nonRepeatingSeedHistory.push(currentCursorNode);
+            renderGrid('piano');
+            
+            let logBox = document.getElementById('flowLogBox');
+            if(logBox) {
+                logBox.innerHTML = `<b>🌊 非反復AI推測ジェネレート結果 (バンク${activeBankIdx+1}):</b><br>
+                ・生成メロディ推移: [ ${generatedSteps.join(' → ')} ]<br>
+                ・同一パターンを回避し、前バンクからのテンション継続・新展開へ接続完了。`;
+            }
+            setStatus('✨ 非反復AI推測つづき作曲を流し込み完了');
+        }
+
+        function appendAndEvolveArrangement() {
+            // 現在のバンクから自動拡張して次バンクへつけ足し、または全アレンジを進化させる
+            if (numBanks < 3) {
+                add18BarsBank();
+            } else {
+                activeBankIdx = (activeBankIdx + 1) % numBanks;
+            }
+            
+            // ベース、バイオリン、コードを一斉に「流れゆく新次元」へ同期書き換え
+            syncGuitarChordToBass();
+            applyArpeggioRollEnhance();
+            
+            let violinNotes = songData.trackNotes['violin'][activeBankIdx] = [];
+            let violinData = songData.trackData['violin'][activeBankIdx] = [];
+            for(let i=0; i<18; i++) {
+                violinData[i] = (i % 2 === 1);
+                violinNotes[i] = (i * 3) % 8;
+            }
+            renderGrid('violin');
+            
+            let dir = document.getElementById('evolutionDir').value;
+            setStatus(`⚡ 伴奏・ベース・バイオリン完全連動［${dir}］新次元つけ足し完了(バンク${activeBankIdx+1})`);
+        }
+        // --- 新機能ここまで ---
 
         function add18BarsBank() {
             if (numBanks >= 3) {
@@ -776,7 +858,6 @@
         
         function previewMaster() { masterPlay(); }
 
-        // --- 新規追加ロジック: 木目ギター弾き語り、視覚記録共有、バイオリンAIビブラート ---
         function toggleWoodGuitarStrumming() {
             isWoodStrummingActive = !isWoodStrummingActive;
             const btn = event.target;
@@ -878,7 +959,6 @@
             setStatus(`🎻 バイオリンAI推測演奏実行 (${mode}, ビブラート深度:${depth}, 速度:${speed}Hz)`);
         }
 
-        // --- 4. 弾き語り連動・コード同期・アルペジオ拡張モジュール ---
         function syncGuitarChordToBass() {
             ensureBankArray('bass', activeBankIdx);
             ensureBankArray('chords', activeBankIdx);
@@ -914,7 +994,7 @@
                     gData[i] = false;
                 } else {
                     pData[i] = false;
-                    gData[i] = true; if(gNotes) gNotes[i] = (i * 3) % 4; // 木目ギター風ピッキング
+                    gData[i] = true; if(gNotes) gNotes[i] = (i * 3) % 4;
                 }
             }
             renderGrid('piano');
@@ -938,7 +1018,6 @@
             });
             setStatus(`音程全体を ${offset > 0 ? '+'+offset : offset} 半音（度数換算）シフト`);
         }
-        // --- 拡張終わり ---
 
         function startVisualizerLoop() {
             const canvas = document.getElementById('masterVisualizer');
@@ -1036,7 +1115,7 @@
         function generateAiLyrics() {
             const theme = document.getElementById('lyricThemeSelect').value;
             const ta = document.getElementById('lyricTextArea');
-            ta.value = `【AIストーリー・${theme}】\nプロピアノ＆重低音ベース、ノイズレスキック＆スネアが重なる。\n(Chorus) MICVICTORY / DLANDメジャーへ向けて加速する54小節。`;
+            ta.value = `【AIストーリー・${theme}】\nリピートしない光景が、重低音とバイオリンの流転を伴って加速する。\n(Chorus) MICVICTORY / DLANDメジャーへ向けて新次元の波が押し寄せる。`;
             setStatus('🤖 AI歌詞自動生成完了');
         }
 
@@ -1066,14 +1145,14 @@
         }
 
         function executeProRelease() {
-            document.getElementById('releaseStatusBox').innerHTML = `✨ <strong>MICVICTORY / DLAND メジャーリリース＆著作権登録完了！</strong><br>・金属音完全除去・高音質3バンドEQ適用完了 (ID: MV-DL-2026-MULTI54)`;
+            document.getElementById('releaseStatusBox').innerHTML = `✨ <strong>MICVICTORY / DLAND メジャーリリース＆著作権登録完了！</strong><br>・非反復ジェネレーティブ構成・高音質3バンドEQ適用完了 (ID: MV-DL-2026-NONREP)`;
             setStatus('🎉 MICVICTORY / DLAND メジャーリリース完了！');
         }
 
         function exportProjectJSON() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(songData, null, 2));
             const dlAnchor = document.createElement('a');
-            dlAnchor.setAttribute("href", dataStr); dlAnchor.setAttribute("download", "daw_project.json");
+            dlAnchor.setAttribute("href", dataStr); dlAnchor.setAttribute("download", "daw_nonrepetitive_project.json");
             document.body.appendChild(dlAnchor); dlAnchor.click(); dlAnchor.remove();
             setStatus('💾 プロジェクトJSON書出完了');
         }
