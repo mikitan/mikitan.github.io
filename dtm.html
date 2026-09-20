@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - DLAND DTM v56.4 CRERA EDITION</title>
+    <title>MIC VICTORY - DLAND DTM v56.4 CRERA EDITION PLUS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -22,7 +22,7 @@
             const [bpm, setBpm] = React.useState(116);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("✨ micvictorydland DTM v56.4 CRERA 起動完了！");
+            const [status, setStatus] = React.useState("✨ micvictorydland DTM v56.4 CRERA 拡張起動完了！");
 
             const BARS = 8;
             const BAR_STEPS = 16;
@@ -30,7 +30,7 @@
 
             const [selectedInstrument, setSelectedInstrument] = React.useState("synth");
             const [selectedNote, setSelectedNote] = React.useState("C4");
-            const [selectedDuration, setSelectedDuration] = React.useState("8n"); // 音の長さ調整機能
+            const [selectedDuration, setSelectedDuration] = React.useState("8n");
             const [selectedDrumPart, setSelectedDrumPart] = React.useState("kick");
             const [inputMode, setInputMode] = React.useState("keyboard");
 
@@ -44,7 +44,7 @@
             const [dlandMode, setDlandMode] = React.useState(true);
             const [screenSaverActive, setScreenSaverActive] = React.useState(false);
 
-            const [slotName, setSlotName] = React.useState("MIC_DLAND_DTM_v56_CRERA");
+            const [slotName, setSlotName] = React.useState("MIC_DLAND_DTM_v56_CRERA_PLUS");
 
             const INSTRUMENTS = [
                 { id: "drums", label: "🥁 ドラム (20入)", color: "from-red-600 to-amber-600" },
@@ -119,7 +119,7 @@
                     africa1: new Tone.MembraneSynth({ pitchDecay: 0.02, octaves: 4, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.3, sustain: 0.01, release: 0.2 } }).connect(cGains.africa1),
                     africa2: new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.001, decay: 0.25, sustain: 0.1, release: 0.3 } }).connect(cGains.africa2),
                     piano: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.4, sustain: 0.3, release: 0.6 } }).connect(cGains.piano),
-                    violin: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.15, decay: 0.4, sustain: 0.8, release: 0.5 } }).connect(cGains.violin),
+                    violin: new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.12, decay: 0.3, sustain: 0.9, release: 0.6 } }).connect(cGains.violin),
                     flute: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.08, decay: 0.3, sustain: 0.7, release: 0.4 } }).connect(cGains.flute),
                     drums: {
                         kick: new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 8, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.6, sustain: 0.01, release: 0.4 } }).connect(cGains.drums),
@@ -164,13 +164,13 @@
 
                             if (instKey === "drums") {
                                 if (typeof item === "object") {
-                                    if (item.kick) syns.drums.kick.triggerAttackRelease("C1", "8n", time);
+                                    if (item.kick) syns.drums.kick.triggerAttackRelease(item.subBoost ? "C0" : "C1", "8n", time);
                                     if (item.snare) syns.drums.snare.triggerAttackRelease("8n", time);
                                     if (item.hihat) syns.drums.hihat.triggerAttackRelease("32n", time, 0.7);
                                     if (item.clap) syns.drums.clap.triggerAttackRelease("8n", time);
                                 }
                             } else if (instKey === "subBass") {
-                                syns.subBass.triggerAttackRelease("C1", dur, time);
+                                syns.subBass.triggerAttackRelease(item.subBoost ? "C0" : "C1", dur, time);
                             } else if (syns[instKey]) {
                                 syns[instKey].triggerAttackRelease(note || "C4", dur, time);
                             }
@@ -198,6 +198,56 @@
                 if (isRecording) {
                     setRecordedTakes(prev => [...prev, { id: Date.now(), title: `CRERA テイク ${prev.length + 1}`, bpm, date: new Date().toLocaleTimeString() }]);
                 }
+            };
+
+            // シンセ/ベース専用：重低音オクターブ連打・リズムAI注入クレラ
+            const applyHeavySubManualAi = (instKey, modeType) => {
+                const newArr = new Array(TOTAL_STEPS).fill(null);
+                for (let i = 0; i < TOTAL_STEPS; i++) {
+                    const isBeat = modeType === 'roll' ? (i % 2 === 0) : (i % 4 === 0 || i % 16 === 14);
+                    if (isBeat) {
+                        newArr[i] = {
+                            note: instKey === "subBass" ? "C1" : "C2",
+                            dur: modeType === 'roll' ? "16n" : "8n",
+                            subBoost: true
+                        };
+                    }
+                }
+                setInstrumentSteps(prev => ({ ...prev, [instKey]: newArr }));
+                setStatus(`🔊 【${instKey}】重低音AIテンポクレラ連打 #${modeType} 注入完了！`);
+            };
+
+            // ドラム専用：更なる重低音＆テンポ・リズムクレラ連打AI生成
+            const applyHeavyDrumManualAi = (modeName) => {
+                const newArr = new Array(TOTAL_STEPS).fill(null);
+                for (let i = 0; i < TOTAL_STEPS; i++) {
+                    const isKick = modeName === 'heavy_roll' ? (i % 2 === 0) : (i % 4 === 0 || i === 10 || i === 14);
+                    const isSnare = i % 8 === 4;
+                    const isHihat = true;
+                    const isClap = modeName === 'heavy_roll' ? (i % 4 === 2) : (i % 16 === 12);
+                    newArr[i] = { kick: isKick, snare: isSnare, hihat: isHihat, clap: isClap, subBoost: true };
+                }
+                setInstrumentSteps(prev => ({ ...prev, drums: newArr }));
+                setStatus(`🥁 ドラム重低音クレラ連打AI [${modeName}] 反映完了！`);
+            };
+
+            // ヴァイオリン専用：短長音ミックス推測ランダムメロディ生成
+            const generateViolinAiMelody = (variant) => {
+                const scales = ["D4", "E4", "F#4", "G4", "A4", "B4", "C#5", "D5"];
+                const durMix = ["16n", "8n", "4n", "2n"];
+                const newArr = new Array(TOTAL_STEPS).fill(null);
+                
+                for (let i = 0; i < TOTAL_STEPS; i++) {
+                    // 短音・長音を推測アルゴリズムで配置
+                    if (Math.random() < (variant === 'staccato_heavy' ? 0.6 : 0.4)) {
+                        const note = scales[Math.floor(Math.random() * scales.length)];
+                        const durWeights = variant === 'staccato_heavy' ? ["16n", "16n", "8n", "4n"] : ["8n", "4n", "2n"];
+                        const dur = durWeights[Math.floor(Math.random() * durWeights.length)];
+                        newArr[i] = { note, dur };
+                    }
+                }
+                setInstrumentSteps(prev => ({ ...prev, violin: newArr }));
+                setStatus(`🎻 ヴァイオリン推測AI短長音メロディ切り替え [${variant}] 完了！`);
             };
 
             const generateAiPattern20 = (instKey, patternNum) => {
@@ -257,7 +307,6 @@
                     syns[selectedInstrument].triggerAttackRelease(note, selectedDuration);
                 }
 
-                // 録音中 または 再生中に鍵盤を叩いた場合、現在のステップ位置に自動記録する (手動記録・再生クレラ機能)
                 if (currentStep !== -1) {
                     const stepIdx = currentBar * BAR_STEPS + currentStep;
                     toggleStepWithDuration(selectedInstrument, stepIdx, note, selectedDuration);
@@ -315,8 +364,6 @@
                 reader.readAsText(file);
             };
 
-            const currentInstObj = INSTRUMENTS.find(i => i.id === selectedInstrument);
-
             return (
                 <div className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col text-xs font-sans select-none pb-24 overflow-x-hidden border-8 transition-colors duration-300 ${flashColor}`}>
                     {/* スクリーンセーバー */}
@@ -345,7 +392,7 @@
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-40 shadow-lg">
                         <div className="flex items-center gap-2">
                             <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                MIC VICTORY <span className="text-[10px] text-pink-400 font-bold">v56.4 CRERA</span>
+                                MIC VICTORY <span className="text-[10px] text-pink-400 font-bold">v56.4 CRERA+</span>
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -367,8 +414,8 @@
 
                     <nav className="bg-slate-900/90 border-b border-slate-800 px-2 py-1.5 flex gap-1 overflow-x-auto">
                         {[
-                            { id: "DUAL_EDIT", label: "🎛️ 鍵盤 & 音長調整・エディタ" },
-                            { id: "RAP_AI", label: "🎤 ラップAI" },
+                            { id: "DUAL_EDIT", label: "🎛️ 鍵盤 & 重低音クレラ" },
+                            { id: "RAP_AI", label: "🎤 ラップAI & 🎻 ヴァイオリン推測" },
                             { id: "MASTER_EQ", label: "🔊 重低音調整" },
                             { id: "MIXER", label: "🎚️ ミキサー" },
                             { id: "RECORDINGS", label: "📁 記録リスト" },
@@ -396,7 +443,7 @@
                                 {/* 楽器選択 */}
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-2.5 shadow">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-xs font-bold text-pink-400">① 楽器選択 & AI生成</span>
+                                        <span className="text-xs font-bold text-pink-400">① 楽器選択 & クレラ専用拡張パネル</span>
                                         <button onClick={() => clearSpecificInstrument(selectedInstrument)} className="px-2.5 py-1 bg-red-950 text-red-300 font-bold rounded text-[10px]">クリア</button>
                                     </div>
                                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-1.5">
@@ -405,6 +452,31 @@
                                                 {inst.label}
                                             </button>
                                         ))}
+                                    </div>
+
+                                    {/* 専用重低音・テンポクレラ連打アクションエリア */}
+                                    <div className="bg-amber-950/40 p-2 rounded border border-amber-800/60 flex flex-wrap gap-2 items-center justify-between">
+                                        <span className="text-[10px] font-bold text-amber-300">⚡ [{selectedInstrument}] 専用重低音クレラAI連打:</span>
+                                        <div className="flex gap-1.5 flex-wrap">
+                                            {(selectedInstrument === "synth" || selectedInstrument === "bass" || selectedInstrument === "subBass") && (
+                                                <>
+                                                    <button onClick={() => applyHeavySubManualAi(selectedInstrument, 'heavy')} className="px-2.5 py-1 bg-amber-600 text-slate-950 font-bold rounded text-[10px]">重低音リズムAI</button>
+                                                    <button onClick={() => applyHeavySubManualAi(selectedInstrument, 'roll')} className="px-2.5 py-1 bg-pink-600 text-white font-bold rounded text-[10px]">高速クレラ連打AI</button>
+                                                </>
+                                            )}
+                                            {selectedInstrument === "drums" && (
+                                                <>
+                                                    <button onClick={() => applyHeavyDrumManualAi('heavy_beat')} className="px-2.5 py-1 bg-red-600 text-white font-bold rounded text-[10px]">重低音ドラムAI</button>
+                                                    <button onClick={() => applyHeavyDrumManualAi('heavy_roll')} className="px-2.5 py-1 bg-amber-500 text-slate-950 font-bold rounded text-[10px]">ドラム連打クレラAI</button>
+                                                </>
+                                            )}
+                                            {selectedInstrument === "violin" && (
+                                                <>
+                                                    <button onClick={() => generateViolinAiMelody('staccato_heavy')} className="px-2.5 py-1 bg-amber-500 text-slate-950 font-bold rounded text-[10px]">短長音スタッカートAI</button>
+                                                    <button onClick={() => generateViolinAiMelody('legato_blend')} className="px-2.5 py-1 bg-cyan-600 text-white font-bold rounded text-[10px]">ロングレガート推測AI</button>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
 
                                     <div className="bg-slate-950 p-2.5 rounded border border-slate-800 flex flex-col gap-1.5 mt-1">
@@ -422,7 +494,7 @@
                                     </div>
                                 </div>
 
-                                {/* 鍵盤 & 音長調整エリア (崩れない設計) */}
+                                {/* 鍵盤 & 音長調整エリア */}
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3 shadow">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
                                         <span className="text-xs font-bold text-cyan-400">② 鍵盤 & 音の長さ（短・長）調整機能</span>
@@ -436,7 +508,6 @@
                                         </div>
                                     </div>
 
-                                    {/* ドレミファ鍵盤 */}
                                     <div className="grid grid-cols-8 gap-1.5">
                                         {NOTES.map(note => (
                                             <button key={note} onClick={() => playNoteKeyboard(note)} className={`py-4 rounded font-bold text-center border shadow transition-all active:scale-95 ${selectedNote === note ? "bg-amber-500 text-slate-950 border-white ring-2 ring-amber-400" : "bg-slate-950 text-slate-100 border-slate-800 hover:bg-slate-900"}`}>
@@ -455,7 +526,6 @@
                                         </div>
                                     </div>
 
-                                    {/* ステップグリッド */}
                                     <div className="overflow-x-auto bg-slate-950 p-2 rounded border border-slate-800">
                                         <div className="grid gap-1 min-w-[500px]" style={{ gridTemplateColumns: "repeat(16, minmax(0, 1fr))" }}>
                                             {Array.from({ length: BAR_STEPS }).map((_, i) => {
@@ -480,9 +550,18 @@
                         )}
 
                         {tab === "RAP_AI" && (
-                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
-                                <span className="text-xs font-bold text-pink-400">🎤 ラップ歌詞作成</span>
-                                <textarea value={rapLyrics} onChange={e => setRapLyrics(e.target.value)} rows="5" className="bg-slate-900 text-slate-100 p-2.5 rounded text-xs border border-slate-800 font-mono" />
+                            <div className="flex flex-col gap-3">
+                                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
+                                    <span className="text-xs font-bold text-pink-400">🎤 ラップ歌詞作成</span>
+                                    <textarea value={rapLyrics} onChange={e => setRapLyrics(e.target.value)} rows="4" className="bg-slate-900 text-slate-100 p-2.5 rounded text-xs border border-slate-800 font-mono" />
+                                </div>
+                                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
+                                    <span className="text-xs font-bold text-amber-400">🎻 ヴァイオリン専用：短長音メロディ推測・ランダム切り替え</span>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => generateViolinAiMelody('staccato_heavy')} className="px-3 py-2 bg-amber-500 text-slate-950 font-bold rounded text-xs flex-1">短音スタッカート重視</button>
+                                        <button onClick={() => generateViolinAiMelody('legato_blend')} className="px-3 py-2 bg-cyan-600 text-white font-bold rounded text-xs flex-1">長音トレモロレガート推測</button>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
