@@ -148,14 +148,13 @@
         </div>
     </div>
 
-    <!-- 1. ドレミファ鍵盤 & CRERAリアルタイム崩さないつけ足しレコーダー -->
+    <!-- 1. ドレミファ鍵盤 & CRERAリアルタイムレコーダー -->
     <section class="section" style="border: 2px solid #ff4500;">
         <h2>🎹 ドレミファ鍵盤ボタン ＆ 崩さないCRERAリアルタイム録音パレット</h2>
         <div class="flex">
             <span>対象トラック: 
                 <select id="creraTargetTrack">
                     <option value="electric_guitar">⚡ エレキギター</option>
-                    <option value="acoustic_strum">🪵 弾き語りカッティング</option>
                     <option value="piano">🎹 ピアノ</option>
                     <option value="violin">🎻 バイオリン</option>
                 </select>
@@ -179,13 +178,11 @@
         <div class="solfa-keys" id="solfaKeyboardContainer"></div>
     </section>
 
-    <!-- 2. ハーモニー彩色・ギター叩いた音・全体リズム切り替え -->
+    <!-- 2. ハーモニー彩色・全体リズム切り替え -->
     <section class="section" style="border: 2px solid var(--accent-gold);">
-        <h2>🎨 ハーモニー彩色・ギター叩いた音・全体リズムテンポ連打調整</h2>
+        <h2>🎨 ハーモニー彩色・全体リズムテンポ連打調整</h2>
         <div class="flex">
             <button class="ai-btn" style="background: linear-gradient(135deg, #da70d6, #8b008b);" onclick="addHarmonyColoringLayer('electric_guitar', +2)">🌈 ハーモニー彩色(+3度ハモリ重畳)</button>
-            <button class="add-play-btn" onclick="playGuitarBodyPalmHit()">🪵 ギター版「叩いた音(パームミュート打音)」単体テスト</button>
-            <button class="add-play-btn" onclick="insertGuitarBodyHitToGrid()">🪵 グリッドへ「叩いた音」つけ足し挿入</button>
             <span>全体リズム連打パターン: 
                 <select id="globalGrooveSelect" onchange="applyGlobalGroovePreset(this.value)">
                     <option value="standard">スタンダード 4/4</option>
@@ -262,7 +259,6 @@
 
         const instruments = [
             { id: 'electric_guitar', name: '⚡ エレキギター (歪み/クランチ/リード切替)', type: 'melody' },
-            { id: 'acoustic_strum', name: '🪵 弾き語りアコースティック・カッティング＋叩いた音', type: 'chords' },
             { id: 'piano', name: '🎹 ピアノ (上質アコースティック)', type: 'melody' },
             { id: 'violin', name: '🎻 バイオリン (LFOビブラート専用)', type: 'melody' }
         ];
@@ -324,8 +320,6 @@
             const now = audioCtx.currentTime + (arguments[5] || 0);
             if (instId === 'electric_guitar') {
                 playElectricGuitarNote(freq, duration, 'lead', gainScale);
-            } else if (instId === 'acoustic_strum') {
-                playAcousticStrumChord(freq, duration, gainScale);
             } else if (instId === 'violin') {
                 playViolinNoteWithVibrato(freq, duration, vibIdx, gainScale);
             } else {
@@ -370,23 +364,6 @@
                 curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
             }
             return curve;
-        }
-
-        function playAcousticStrumChord(rootFreq, duration, gainScale) {
-            const now = audioCtx.currentTime;
-            [rootFreq, rootFreq * 1.25, rootFreq * 1.5].forEach((f, idx) => {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(f, now + idx * 0.03);
-                gain.gain.setValueAtTime(0.001, now + idx * 0.03);
-                gain.gain.linearRampToValueAtTime(0.12 * gainScale, now + idx * 0.03 + 0.02);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(now + idx * 0.03);
-                osc.stop(now + duration + 0.05);
-            });
         }
 
         function playViolinNoteWithVibrato(freq, duration, vibIdx, gainScale) {
@@ -557,31 +534,7 @@
             setStatus('🗑 ベースグリッド初期化');
         }
 
-        // ================= ギター版パームミュート打音・ドレミファ鍵盤 =================
-        function playGuitarBodyPalmHit() {
-            initAudioContext();
-            const now = audioCtx.currentTime;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(95, now);
-            osc.frequency.exponentialRampToValueAtTime(25, now + 0.08);
-            gain.gain.setValueAtTime(0.45, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(now); osc.stop(now + 0.1);
-            setStatus('🪵 ギターボディ叩いた音（パームミュート打音）発音');
-        }
-
-        function insertGuitarBodyHitToGrid() {
-            ensureBankArray('acoustic_strum', activeBankIdx);
-            const data = songData.trackData['acoustic_strum'][activeBankIdx];
-            for (let i = 0; i < 18; i += 4) { data[i] = true; }
-            playGuitarBodyPalmHit();
-            renderTracks();
-            setStatus('🪵 ギター叩いた音裏拍挿入');
-        }
-
+        // ================= ドレミファ鍵盤 =================
         function initSolfaKeyboard() {
             const kb = document.getElementById('solfaKeyboardContainer');
             if(!kb) return;
