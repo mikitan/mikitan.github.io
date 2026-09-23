@@ -3,70 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MIC VICTORY - POPPING DLAND EVO v59.0</title>
+    <title>MIC VICTORY - AFRO TAIKO DLAND EVO v60.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
-        @keyframes illumiFlow {
-            0% { border-color: #ef4444; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
-            33% { border-color: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.5); }
-            66% { border-color: #06b6d4; box-shadow: 0 0 15px rgba(6, 182, 212, 0.5); }
-            100% { border-color: #ef4444; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+        @keyframes afroGlow {
+            0% { border-color: #f59e0b; box-shadow: 0 0 15px rgba(245, 158, 11, 0.4); }
+            50% { border-color: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
+            100% { border-color: #f59e0b; box-shadow: 0 0 15px rgba(245, 158, 11, 0.4); }
         }
-        .illumi-live { animation: illumiFlow 2s infinite linear; }
+        .illumi-live { animation: afroGlow 2.5s infinite linear; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans select-none pb-32 overflow-x-hidden text-sm">
     <div id="root"></div>
 
     <script type="text/babel">
-        function MicVictoryPopingEvo() {
+        function AfroTaikoVictoryEvo() {
             const [tab, setTab] = React.useState("MOBILE_20GRID");
             const [playing, setPlaying] = React.useState(false);
             const [illumiActive, setIllumiActive] = React.useState(true);
             const [manualRec, setManualRec] = React.useState(true);
-            const [beatMode, setBeatMode] = React.useState("STANDARD_16"); // "STANDARD_16" | "BEAT_18" | "HIGH_TEMPO_EVO"
-            const [bpm, setBpm] = React.useState(108); // ポッピング最適BPM
-            const [creraParam, setCreraParam] = React.useState({ cutoff: 6500, resonance: 8, crush: 15 });
+            const [beatMode, setBeatMode] = React.useState("BEAT_18"); // アフリカ音楽は変拍子・18ビート/ポリリズム相性良
+            const [bpm, setBpm] = React.useState(112);
+            const [creraParam, setCreraParam] = React.useState({ cutoff: 5500, resonance: 6, crush: 10 });
             const [currentStep, setCurrentStep] = React.useState(0);
             const [currentBar, setCurrentBar] = React.useState(0);
-            const [popSection, setPopSection] = React.useState("DROP"); // INTRO, BUILD, DROP, VACUUM_HIT
-            const [status, setStatus] = React.useState("🕺 ポッピング同期 v59.0 待機中（真空スペース対応）");
+            const [status, setStatus] = React.useState("🌍 アフリカ太鼓・民族楽器AI v60.0 待機中");
 
             const BARS = 8;
             const STEPS_PER_BAR = beatMode === "BEAT_18" ? 18 : 16;
             const TOTAL_STEPS = BARS * STEPS_PER_BAR;
 
             const INSTS = [
-                { id: "drums20", name: "🥁 ドラム(20入)", color: "from-red-600 to-amber-600" },
-                { id: "subBass", name: "🔊 重低音C0(ヒット)", color: "from-amber-600 to-orange-700" },
-                { id: "bass20", name: "🎸 ベース(20入)", color: "from-emerald-600 to-teal-600" },
-                { id: "synth20", name: "🎹 シンセスタッカート(20入)", color: "from-cyan-600 to-blue-700" },
-                { id: "trumpet20", name: "🎺 トランペット(20入)", color: "from-yellow-500 to-amber-600" },
-                { id: "guitar20", name: "🎸 エレキギター(20入)", color: "from-orange-600 to-red-700" },
+                { id: "djembe20", name: "🥁 ジェンベ太鼓(20入)", color: "from-amber-600 to-red-700" },
+                { id: "dondun", name: "🪘 ドンドゥン低音太鼓", color: "from-yellow-700 to-stone-800" },
+                { id: "kalimba20", name: "🎹 カリンバ/コラ(20入)", color: "from-emerald-600 to-teal-700" },
+                { id: "afroBass", name: "🔊 アフログルーヴ低音", color: "from-orange-600 to-amber-700" },
+                { id: "flute20", name: "🎋 エスニック笛(20入)", color: "from-cyan-600 to-blue-700" },
+                { id: "shaker20", name: "🌿 シェーカー/パーカ(20入)", color: "from-lime-600 to-emerald-700" },
             ];
 
-            const [selectedInst, setSelectedInst] = React.useState("synth20");
-            const [selected20Index, setSelected20Index] = React.useState(2);
+            const [selectedInst, setSelectedInst] = React.useState("djembe20");
+            const [selected20Index, setSelected20Index] = React.useState(0);
             const [noteDuration, setNoteDuration] = React.useState("16n");
 
-            // ポッピング特化型ファンク・ペンタトニックAIパレット(20種)
+            // アフリカ・ペンタトニック/ポリリズムAIパレット(20種)
             const [ai20Library, setAi20Library] = React.useState(() => {
                 const lib = {};
                 INSTS.forEach(i => {
                     lib[i.id] = Array.from({ length: 20 }, (_, pIdx) => {
                         const arr = new Array(TOTAL_STEPS).fill(null);
-                        const safe = ["C4", "Eb4", "F4", "G4", "Bb4", "C5"];
+                        const scale = ["C4", "Eb4", "F4", "G4", "Bb4", "C5"];
                         for (let s = 0; s < TOTAL_STEPS; s++) {
-                            // 後半（14-18ステップ）はポッピング用「真空スペース（無音）」としてあえて抜く
-                            const stepInBar = s % STEPS_PER_BAR;
-                            if (stepInBar < STEPS_PER_BAR - 2) {
-                                // 2拍目・4拍目やヒットウラに配置
-                                if ((s + pIdx) % 2 === 0 || stepInBar === 4 || stepInBar === 12) {
-                                    arr[s] = { note: safe[s % safe.length], dur: "16n", slot: pIdx + 1 };
+                            const sInBar = s % STEPS_PER_BAR;
+                            // ポリリズム的グルーヴ（3/4 or 6/8ウラ拍ヒット）
+                            if ((s + pIdx * 2) % 3 === 0 || sInBar === 0 || sInBar === 6 || sInBar === 12) {
+                                if (sInBar < STEPS_PER_BAR - 1) {
+                                    arr[s] = {
+                                        note: i.id.includes("bass") || i.id.includes("dondun") ? "C1" : scale[s % scale.length],
+                                        dur: "16n",
+                                        slot: pIdx + 1
+                                    };
                                 }
                             }
                         }
@@ -76,20 +77,16 @@
                 return lib;
             });
 
-            // メイン演奏用アクティブグリッドデータ
             const [activeGrid, setActiveGrid] = React.useState(() => {
                 const init = {};
                 INSTS.forEach(i => {
                     init[i.id] = new Array(TOTAL_STEPS).fill(null);
-                    // 初期ポッピングサンプル注入
                     for (let s = 0; s < TOTAL_STEPS; s++) {
                         const sInBar = s % STEPS_PER_BAR;
-                        if (sInBar < STEPS_PER_BAR - 2 && (sInBar === 0 || sInBar === 4 || sInBar === 8 || sInBar === 12)) {
-                            if (i.id === "subBass") {
-                                init[i.id][s] = { note: "C0", dur: "8n" };
-                            } else if (i.id === "synth20" && sInBar === 4) {
-                                init[i.id][s] = { note: "G4", dur: "16n" };
-                            }
+                        if (sInBar % 3 === 0 && sInBar < STEPS_PER_BAR - 1) {
+                            if (i.id === "djembe20") init[i.id][s] = { note: sInBar === 0 ? "C1" : "G1", dur: "16n" };
+                            if (i.id === "dondun") init[i.id][s] = { note: "C1", dur: "8n" };
+                            if (i.id === "kalimba20" && sInBar === 6) init[i.id][s] = { note: "G4", dur: "16n" };
                         }
                     }
                 });
@@ -103,30 +100,29 @@
             const SOLFEGE = { "C4": "ド", "D4": "レ", "E4": "ミ", "F4": "ファ", "G4": "ソ", "A4": "ラ", "B4": "シ", "C5": "ド" };
 
             React.useLayoutEffect(() => {
-                const master = new Tone.Gain(1.18).toDestination();
-                const filter = new Tone.Filter({ type: "lowpass", frequency: 6500, Q: 8 }).connect(master);
-                const bitCrush = new Tone.BitCrusher(14).connect(filter);
-                const reverb = new Tone.Reverb({ decay: 0.9, wet: 0.15 }).connect(bitCrush);
+                const master = new Tone.Gain(1.15).toDestination();
+                const filter = new Tone.Filter({ type: "lowpass", frequency: 5500, Q: 6 }).connect(master);
+                const bitCrush = new Tone.BitCrusher(15).connect(filter);
+                const reverb = new Tone.Reverb({ decay: 1.3, wet: 0.22 }).connect(bitCrush);
 
                 synthsRef.current = {
                     filter, bitCrush, reverb,
                     lead: new Tone.PolySynth(Tone.Synth, {
-                        oscillator: { type: "sawtooth" },
-                        envelope: { attack: 0.002, decay: 0.1, sustain: 0.2, release: 0.08 }
+                        oscillator: { type: "triangle" },
+                        envelope: { attack: 0.003, decay: 0.14, sustain: 0.25, release: 0.1 }
                     }).connect(reverb),
                     sub: new Tone.MonoSynth({
                         oscillator: { type: "sine" },
-                        envelope: { attack: 0.002, decay: 0.2, sustain: 0.5, release: 0.1 }
+                        envelope: { attack: 0.003, decay: 0.25, sustain: 0.5, release: 0.15 }
                     }).connect(reverb),
-                    drum: new Tone.MembraneSynth({ pitchDecay: 0.03, octaves: 4 }).connect(reverb),
+                    drum: new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4.5 }).connect(reverb),
                 };
 
                 return () => { Tone.Transport.stop(); Tone.Transport.cancel(); };
             }, []);
 
-            // 輸送再生エンジン（18ビート・ハイテンポ進化対応）
             React.useEffect(() => {
-                const effectiveBpm = beatMode === "HIGH_TEMPO_EVO" ? bpm * 1.4 : bpm;
+                const effectiveBpm = beatMode === "HIGH_TEMPO_EVO" ? bpm * 1.5 : bpm;
                 Tone.Transport.bpm.value = Math.max(50, effectiveBpm);
                 Tone.Transport.cancel();
 
@@ -147,17 +143,17 @@
                             const val = activeGrid[inst.id][step];
                             if (val) {
                                 activeCount++;
-                                if (inst.id === "subBass") {
-                                    syns.sub.triggerAttackRelease("C0", val.dur || "8n", time);
-                                } else if (inst.id === "drums20") {
-                                    syns.drum.triggerAttackRelease(sInBar === 0 ? "C1" : "G1", "16n", time);
+                                if (inst.id.includes("bass") || inst.id === "dondun") {
+                                    syns.sub.triggerAttackRelease("C1", val.dur || "8n", time);
+                                } else if (inst.id.includes("djembe") || inst.id.includes("shaker")) {
+                                    syns.drum.triggerAttackRelease(sInBar % 2 === 0 ? "C1" : "G1", "16n", time);
                                 } else {
                                     syns.lead.triggerAttackRelease(val.note || "C4", val.dur || "16n", time);
                                 }
                             }
                         });
 
-                        setTachoHistory(prev => [...prev.slice(1), activeCount * 22 + Math.round(Math.random() * 20)]);
+                        setTachoHistory(prev => [...prev.slice(1), activeCount * 24 + Math.round(Math.random() * 20)]);
                         counter++;
                     }, "16n").start(0);
 
@@ -170,10 +166,9 @@
             const togglePlay = async () => {
                 await Tone.start();
                 setPlaying(!playing);
-                setStatus(playing ? "⏸ 一時停止" : `▶ 再生中 (${beatMode} | BPM ${Math.round(beatMode === "HIGH_TEMPO_EVO" ? bpm * 1.4 : bpm)})`);
+                setStatus(playing ? "⏸ 一時停止" : `▶ 再生中 (${beatMode} | BPM ${Math.round(beatMode === "HIGH_TEMPO_EVO" ? bpm * 1.5 : bpm)})`);
             };
 
-            // AI推測新メロディ全体生成（ポッピング真空スペース付き崩れない構築）
             const aiInferenceNewOverallMelody = () => {
                 setActiveGrid(() => {
                     const next = {};
@@ -182,10 +177,9 @@
                         const scale = ["C4", "Eb4", "F4", "G4", "Bb4", "C5"];
                         for (let s = 0; s < TOTAL_STEPS; s++) {
                             const sInBar = s % STEPS_PER_BAR;
-                            // 後方2ステップは真空スペース（無音）
-                            if (sInBar < STEPS_PER_BAR - 2 && Math.random() < 0.38) {
+                            if (sInBar < STEPS_PER_BAR - 1 && (sInBar % 3 === 0 || sInBar % 4 === 0)) {
                                 arr[s] = {
-                                    note: scale[Math.floor(Math.random() * scale.length)],
+                                    note: inst.id.includes("bass") || inst.id === "dondun" ? "C1" : scale[Math.floor(Math.random() * scale.length)],
                                     dur: "16n",
                                     inferred: true
                                 };
@@ -195,36 +189,7 @@
                     });
                     return next;
                 });
-                setStatus("🧠 ポッピング特化・真空スペース付きAI新曲を一括構築！");
-            };
-
-            // ポッピングセクション別プリセット一括アプライ
-            const applyPopSectionPreset = (sec) => {
-                setPopSection(sec);
-                setActiveGrid(prev => {
-                    const next = { ...prev };
-                    const scale = ["C4", "Eb4", "F4", "G4", "Bb4", "C5"];
-                    INSTS.forEach(inst => {
-                        const arr = new Array(TOTAL_STEPS).fill(null);
-                        for (let s = 0; s < TOTAL_STEPS; s++) {
-                            const sInBar = s % STEPS_PER_BAR;
-                            // 最後尾2ステップは必ず真空（無音）
-                            if (sInBar >= STEPS_PER_BAR - 2) continue;
-
-                            if (sec === "INTRO" && sInBar === 0) {
-                                arr[s] = { note: inst.id === "subBass" ? "C0" : "C4", dur: "8n" };
-                            } else if (sec === "DROP" && (sInBar === 0 || sInBar === 4 || sInBar === 8 || sInBar === 12)) {
-                                arr[s] = {
-                                    note: inst.id === "subBass" ? "C0" : scale[sInBar % scale.length],
-                                    dur: "16n"
-                                };
-                            }
-                        }
-                        next[inst.id] = arr;
-                    });
-                    return next;
-                });
-                setStatus(`🕺 セクション [${sec}] 適用：最後尾真空スペースでヒット強調！`);
+                setStatus("🌍 アフリカ太鼓ポリリズムAI新曲を一括構築完了！");
             };
 
             const loadAi20PatternToActive = (instId, patternIndex) => {
@@ -242,8 +207,8 @@
                 const syns = synthsRef.current;
                 if (!syns) return;
 
-                if (selectedInst === "subBass") syns.sub.triggerAttackRelease("C0", noteDuration);
-                else if (selectedInst === "drums20") syns.drum.triggerAttackRelease("C1", "16n");
+                if (selectedInst.includes("bass") || selectedInst === "dondun") syns.sub.triggerAttackRelease("C1", noteDuration);
+                else if (selectedInst.includes("djembe") || selectedInst.includes("shaker")) syns.drum.triggerAttackRelease("C1", "16n");
                 else syns.lead.triggerAttackRelease(note, noteDuration);
 
                 if (manualRec && currentStep !== -1) {
@@ -270,64 +235,52 @@
                     {/* TOP HEADER */}
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2.5 flex items-center justify-between gap-2 sticky top-0 z-50">
                         <div className="flex flex-col">
-                            <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                POPPING DLAND EVO
+                            <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                                AFRO TAIKO DLAND EVO
                             </span>
-                            <span className="text-[10px] text-pink-400 font-bold">ALL-IN-ONE v59.0</span>
+                            <span className="text-[10px] text-amber-400 font-bold">ETHNIC POLY-RHYTHM v60.0</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <button onClick={() => setManualRec(!manualRec)} className={`px-2 py-1.5 rounded font-bold text-[11px] border ${manualRec ? "bg-red-950 border-red-500 text-red-200" : "bg-slate-900 border-slate-700 text-slate-400"}`}>
                                 {manualRec ? "🔴手動記" : "⚪試聴"}
                             </button>
-                            <button onClick={() => setIllumiActive(!illumiActive)} className={`px-2 py-1.5 rounded font-bold text-[11px] border ${illumiActive ? "bg-pink-600 text-white" : "bg-slate-900 border-purple-500 text-purple-300"}`}>
-                                🌈イルミ
+                            <button onClick={() => setIllumiActive(!illumiActive)} className={`px-2 py-1.5 rounded font-bold text-[11px] border ${illumiActive ? "bg-amber-600 text-slate-950" : "bg-slate-900 border-amber-500 text-amber-300"}`}>
+                                🌍イルミ
                             </button>
-                            <button onClick={togglePlay} className={`px-3 py-1.5 rounded font-bold text-xs shadow-lg ${playing ? "bg-amber-400 text-slate-950 animate-pulse" : "bg-pink-600 text-white"}`}>
+                            <button onClick={togglePlay} className={`px-3 py-1.5 rounded font-bold text-xs shadow-lg ${playing ? "bg-amber-400 text-slate-950 animate-pulse" : "bg-emerald-600 text-white"}`}>
                                 {playing ? "■ 停止" : "▶ 再生"}
                             </button>
                         </div>
                     </header>
 
-                    {/* POPPING SECTION / BEAT EVO QUICK BAR */}
-                    <div className="bg-slate-900/95 px-3 py-2 border-b border-slate-800 flex flex-col gap-1.5">
-                        <div className="flex items-center justify-between gap-1 overflow-x-auto">
-                            <span className="text-[11px] text-amber-400 font-bold shrink-0">ダンサー向けセクション:</span>
-                            <div className="flex gap-1 shrink-0">
-                                {["INTRO", "BUILD", "DROP", "VACUUM_HIT"].map(sec => (
-                                    <button key={sec} onClick={() => applyPopSectionPreset(sec)} className={`px-2 py-0.5 rounded text-[10px] font-bold ${popSection === sec ? "bg-pink-600 text-white" : "bg-slate-800 text-slate-400"}`}>
-                                        {sec}
-                                    </button>
-                                ))}
-                            </div>
+                    {/* BEAT EVO / AI QUICK BAR */}
+                    <div className="bg-slate-900/95 px-3 py-2 border-b border-slate-800 flex items-center justify-between gap-1 overflow-x-auto">
+                        <div className="flex gap-1 shrink-0">
+                            {[
+                                { id: "STANDARD_16", label: "標準16" },
+                                { id: "BEAT_18", label: "🔥18ビート" },
+                                { id: "HIGH_TEMPO_EVO", label: "⚡ハイテンポ進化" }
+                            ].map(b => (
+                                <button key={b.id} onClick={() => setBeatMode(b.id)} className={`px-2.5 py-1 rounded text-xs font-bold ${beatMode === b.id ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-400"}`}>
+                                    {b.label}
+                                </button>
+                            ))}
                         </div>
-                        <div className="flex items-center justify-between gap-1 overflow-x-auto">
-                            <div className="flex gap-1 shrink-0">
-                                {[
-                                    { id: "STANDARD_16", label: "標準16ビート" },
-                                    { id: "BEAT_18", label: "🔥18ビート" },
-                                    { id: "HIGH_TEMPO_EVO", label: "⚡ハイテンポ進化" }
-                                ].map(b => (
-                                    <button key={b.id} onClick={() => setBeatMode(b.id)} className={`px-2.5 py-1 rounded text-xs font-bold ${beatMode === b.id ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-400"}`}>
-                                        {b.label}
-                                    </button>
-                                ))}
-                            </div>
-                            <button onClick={aiInferenceNewOverallMelody} className="px-3 py-1 bg-gradient-to-r from-cyan-500 to-indigo-500 text-slate-950 font-bold rounded text-xs shrink-0 shadow">
-                                🧠AI推測新曲構築
-                            </button>
-                        </div>
+                        <button onClick={aiInferenceNewOverallMelody} className="px-3 py-1 bg-gradient-to-r from-emerald-500 to-amber-500 text-slate-950 font-bold rounded text-xs shrink-0 shadow">
+                            🧠AI推測アフロ新曲構築
+                        </button>
                     </div>
 
                     {/* STATUS BAR */}
-                    <div className="bg-slate-900/50 px-3 py-1.5 text-xs text-cyan-400 border-b border-slate-900 flex justify-between items-center">
+                    <div className="bg-slate-900/50 px-3 py-1.5 text-xs text-amber-400 border-b border-slate-900 flex justify-between items-center">
                         <span className="truncate">💡 {status}</span>
-                        {playing && <span className="text-[11px] text-pink-300 font-mono shrink-0 ml-2">BAR {currentBar + 1}/8 : STEP {currentStep + 1}/{STEPS_PER_BAR}</span>}
+                        {playing && <span className="text-[11px] text-emerald-300 font-mono shrink-0 ml-2">BAR {currentBar + 1}/8 : STEP {currentStep + 1}/{STEPS_PER_BAR}</span>}
                     </div>
 
                     {/* MOBILE TAB NAV */}
                     <nav className="bg-slate-900/95 border-b border-slate-800 px-2 py-2 grid grid-cols-4 gap-1">
                         {[
-                            { id: "MOBILE_20GRID", label: "🎹 20入&手動鍵盤" },
+                            { id: "MOBILE_20GRID", label: "🎹 太鼓&鍵盤" },
                             { id: "AI_20_ALL", label: "🤖 各楽器20入AI" },
                             { id: "OVERALL_TACHO", label: "📊 全体タコグラフ" },
                             { id: "CRERA_REALTIME", label: "🎛️ CRERA微調整" },
@@ -342,7 +295,7 @@
                         {tab === "MOBILE_20GRID" && (
                             <div className="flex flex-col gap-3">
                                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
-                                    <span className="text-xs font-bold text-pink-400">① 楽器選択（ポッピング全レイヤー）</span>
+                                    <span className="text-xs font-bold text-amber-400">① アフリカ太鼓・民族楽器レイヤー選択</span>
                                     <div className="grid grid-cols-2 gap-2">
                                         {INSTS.map(inst => (
                                             <button key={inst.id} onClick={() => setSelectedInst(inst.id)} className={`py-2.5 px-2 rounded-lg font-bold text-xs border flex items-center justify-center shadow ${selectedInst === inst.id ? `bg-gradient-to-r ${inst.color} border-white text-white` : "bg-slate-950 border-slate-800 text-slate-400"}`}>
@@ -354,7 +307,7 @@
 
                                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-3">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-xs font-bold text-cyan-400">② スタッカート/ヒット鍵盤（指押し）</span>
+                                        <span className="text-xs font-bold text-emerald-400">② 太鼓／カリンバ音階・打刻鍵盤</span>
                                         <div className="flex gap-1 bg-slate-950 p-1 rounded border border-slate-800">
                                             {["16n", "8n", "4n", "2n"].map(d => (
                                                 <button key={d} onClick={() => setNoteDuration(d)} className={`px-2 py-0.5 rounded text-[11px] font-bold ${noteDuration === d ? "bg-amber-500 text-slate-950" : "text-slate-400"}`}>
@@ -374,7 +327,7 @@
                                     </div>
 
                                     <div className="flex items-center justify-between bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                                        <span className="text-xs text-slate-300">小節: <strong className="text-pink-400">{currentBar + 1} / {BARS}</strong></span>
+                                        <span className="text-xs text-slate-300">小節: <strong className="text-amber-400">{currentBar + 1} / {BARS}</strong></span>
                                         <div className="flex gap-1.5">
                                             {Array.from({ length: BARS }).map((_, b) => (
                                                 <button key={b} onClick={() => setCurrentBar(b)} className={`w-7 h-7 rounded-full text-xs font-bold ${currentBar === b ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-400"}`}>{b + 1}</button>
@@ -394,7 +347,7 @@
                                                             arr[sIdx] = arr[sIdx] ? null : { note: "C4", dur: noteDuration };
                                                             return { ...prev, [selectedInst]: arr };
                                                         });
-                                                    }} className={`aspect-square rounded text-[10px] font-bold border flex items-center justify-center ${stepVal ? "bg-pink-600 border-white text-white" : "bg-slate-900 border-slate-800 text-slate-500"} ${isCurrent ? "ring-2 ring-cyan-400" : ""}`}>
+                                                    }} className={`aspect-square rounded text-[10px] font-bold border flex items-center justify-center ${stepVal ? "bg-amber-600 border-white text-white" : "bg-slate-900 border-slate-800 text-slate-500"} ${isCurrent ? "ring-2 ring-emerald-400" : ""}`}>
                                                         {i + 1}
                                                     </button>
                                                 );
@@ -407,11 +360,11 @@
 
                         {tab === "AI_20_ALL" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-3">
-                                <span className="text-xs font-bold text-amber-400">🤖 各楽器 20入り AIメロディパターン一括選択</span>
+                                <span className="text-xs font-bold text-amber-400">🤖 アフリカ楽器 20入り AIポリリズムパターン一括選択</span>
                                 <div className="flex flex-col gap-3">
                                     {INSTS.map(inst => (
                                         <div key={inst.id} className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex flex-col gap-2">
-                                            <span className="text-xs font-bold text-cyan-300">{inst.name} (真空スペース20入)</span>
+                                            <span className="text-xs font-bold text-emerald-300">{inst.name} (20ポリリズム入)</span>
                                             <div className="grid grid-cols-5 gap-1.5">
                                                 {Array.from({ length: 20 }, (_, idx) => (
                                                     <button key={idx} onClick={() => loadAi20PatternToActive(inst.id, idx)} className={`py-2 rounded font-bold text-xs border ${selectedInst === inst.id && selected20Index === idx ? "bg-amber-500 text-slate-950 border-white" : "bg-slate-900 border-slate-800 text-slate-300"}`}>
@@ -428,13 +381,13 @@
                         {tab === "OVERALL_TACHO" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-3">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-purple-400">📊 全体音楽タコグラフ ＆ リアルタイム推移グリッド</span>
+                                    <span className="text-xs font-bold text-purple-400">📊 全体音楽タコグラフ ＆ 太鼓稼働推移</span>
                                     <span className="text-[10px] text-slate-400 font-mono">BEAT: {beatMode}</span>
                                 </div>
                                 <div className="h-32 bg-slate-950 rounded-xl border border-slate-800 p-2.5 flex items-end gap-1">
                                     {tachoHistory.map((val, idx) => (
                                         <div key={idx} className="flex-1 flex flex-col justify-end h-full">
-                                            <div style={{ height: `${Math.min(100, Math.max(5, val))}%` }} className="bg-gradient-to-t from-pink-500 to-amber-400 rounded-t-[1px]" />
+                                            <div style={{ height: `${Math.min(100, Math.max(5, val))}%` }} className="bg-gradient-to-t from-emerald-500 to-amber-400 rounded-t-[1px]" />
                                         </div>
                                     ))}
                                 </div>
@@ -458,19 +411,19 @@
 
                         {tab === "CRERA_REALTIME" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-4">
-                                <span className="text-xs font-bold text-cyan-400">🎛️ CRERAリアルタイム周波数・ビットクラッシュ（ポッピング・エッジ強化）</span>
+                                <span className="text-xs font-bold text-cyan-400">🎛️ CRERAリアルタイム周波数・ウッド/アコースティック歪み</span>
                                 <div className="flex flex-col gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
                                     <div className="flex flex-col gap-1">
                                         <span className="text-xs text-amber-400">フィルターカットオフ: {creraParam.cutoff} Hz</span>
-                                        <input type="range" min="1000" max="12000" step="300" value={creraParam.cutoff} onChange={e => applyCrera(Number(e.target.value), creraParam.resonance, creraParam.crush)} className="accent-amber-500" />
+                                        <input type="range" min="1000" max="10000" step="300" value={creraParam.cutoff} onChange={e => applyCrera(Number(e.target.value), creraParam.resonance, creraParam.crush)} className="accent-amber-500" />
                                     </div>
                                     <div className="flex flex-col gap-1">
-                                        <span className="text-xs text-pink-400">レゾナンス Q: {creraParam.resonance}</span>
-                                        <input type="range" min="1" max="16" step="1" value={creraParam.resonance} onChange={e => applyCrera(creraParam.cutoff, Number(e.target.value), creraParam.crush)} className="accent-pink-500" />
+                                        <span className="text-xs text-emerald-400">レゾナンス Q: {creraParam.resonance}</span>
+                                        <input type="range" min="1" max="14" step="1" value={creraParam.resonance} onChange={e => applyCrera(creraParam.cutoff, Number(e.target.value), creraParam.crush)} className="accent-emerald-500" />
                                     </div>
                                     <div className="flex flex-col gap-1">
                                         <span className="text-xs text-cyan-400">CRERAローファイ歪み: {creraParam.crush}%</span>
-                                        <input type="range" min="0" max="60" step="5" value={creraParam.crush} onChange={e => applyCrera(creraParam.cutoff, creraParam.resonance, Number(e.target.value))} className="accent-cyan-500" />
+                                        <input type="range" min="0" max="50" step="5" value={creraParam.crush} onChange={e => applyCrera(creraParam.cutoff, creraParam.resonance, Number(e.target.value))} className="accent-cyan-500" />
                                     </div>
                                 </div>
                             </div>
@@ -479,14 +432,14 @@
 
                     {/* FOOTER */}
                     <footer className="fixed bottom-0 left-0 right-0 bg-slate-950/95 border-t border-slate-800 px-3 py-2 flex justify-between items-center text-[10px] text-slate-500 z-50">
-                        <span className="font-bold text-slate-300">MIC VICTORY POPPING DLAND</span>
-                        <span className="text-pink-400 font-bold">18-BEAT EVO v59.0</span>
+                        <span className="font-bold text-slate-300">MIC VICTORY AFRO DLAND</span>
+                        <span className="text-amber-400 font-bold">ETHNIC EVO v60.0</span>
                     </footer>
                 </div>
             );
         }
 
-        ReactDOM.createRoot(document.getElementById('root')).render(<MicVictoryPopingEvo />);
+        ReactDOM.createRoot(document.getElementById('root')).render(<AfroTaikoVictoryEvo />);
     </script>
 </body>
 </html>
