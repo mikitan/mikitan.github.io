@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - DLAND DTM v56.6 CRERA CLEAR SUB-RHYTHM PUNCH EDITION</title>
+    <title>MIC VICTORY - DLAND DTM v56.7 CRERA POPING DANCE OVERDUB EDITION</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -18,11 +18,12 @@
             const [tab, setTab] = React.useState("DUAL_EDIT");
             const [playing, setPlaying] = React.useState(false);
             const [isRecording, setIsRecording] = React.useState(false);
+            const [overdubMode, setOverdubMode] = React.useState(true); // ★つけ足しオーバーダビング
             const [flashColor, setFlashColor] = React.useState("border-cyan-500");
             const [bpm, setBpm] = React.useState(116);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("✨ v56.6 クリア重低音＆ドラム・ハリ/パンチ強化ロジック統合完了！");
+            const [status, setStatus] = React.useState("✨ v56.7 ポッピンダンス＆崩れないAI・つけ足しオーバーダビング統合完了！");
 
             const BARS = 8;
             const BAR_STEPS = 16;
@@ -42,7 +43,7 @@
             const [masterVolume, setMasterVolume] = React.useState(1.3);
             const [dlandMode, setDlandMode] = React.useState(true);
             const [screenSaverActive, setScreenSaverActive] = React.useState(false);
-            const [slotName, setSlotName] = React.useState("MIC_DLAND_DTM_v56_6_PUNCH_CLEAR");
+            const [slotName, setSlotName] = React.useState("MIC_DLAND_DTM_v56_7_POP_OVERDUB");
 
             const INSTRUMENTS = [
                 { id: "drums", label: "🥁 ドラム (20入)", color: "from-red-600 to-amber-600" },
@@ -95,11 +96,9 @@
                 const masterGain = new Tone.Gain(masterVolume).toDestination();
                 masterGainRef.current = masterGain;
 
-                // 低域の濁りを削りつつC0/C1土台を活かすクロスオーバーEQ (160Hz)
                 const eq = new Tone.EQ3({ low: masterBassBoost, lowFrequency: 160, mid: 1.5, high: 2.5 }).connect(masterGain);
                 const reverb = new Tone.Reverb({ decay: 1.4, wet: 0.12 }).connect(eq);
                 const delay = new Tone.FeedbackDelay({ delayTime: "8n.", feedback: 0.2, wet: 0.1 }).connect(reverb);
-                // サチュレーション（ハリ・パンチ強化用ソフトクリップ）を0.08に増量
                 const distortion = new Tone.Distortion(0.08).connect(delay);
 
                 const cGains = {};
@@ -108,7 +107,6 @@
                     cGains[key] = cg;
                 });
 
-                // 【ドラムのアタック・ハリ・パンチ特化エンベロープ最適化】
                 synthsRef.current = {
                     subBass: new Tone.MonoSynth({
                         oscillator: { type: "sine" },
@@ -129,11 +127,8 @@
                     violin: new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.08, decay: 0.25, sustain: 0.8, release: 0.4 } }).connect(cGains.violin),
                     flute: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.06, decay: 0.25, sustain: 0.7, release: 0.3 } }).connect(cGains.flute),
                     drums: {
-                        // アタック極小(0.0001)＆ディケイ短縮(0.3)で太さとパンチを両立
                         kick: new Tone.MembraneSynth({ pitchDecay: 0.06, octaves: 6, oscillator: { type: "sine" }, envelope: { attack: 0.0001, decay: 0.3, sustain: 0.01, release: 0.15 } }).connect(cGains.drums),
-                        // スネア：超高速アタック(0.0001)で頭の芯を立てる
                         snare: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.0001, decay: 0.18, sustain: 0 } }).connect(cGains.drums),
-                        // ハイハット：金属的な抜けを強調
                         hihat: new Tone.MetalSynth({ frequency: 900, envelope: { attack: 0.0005, decay: 0.025, release: 0.01 }, harmonicity: 5.1, modulationIndex: 32, resonance: 7000, octaves: 1.5 }).connect(cGains.drums),
                         clap: new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.005, decay: 0.14, sustain: 0 } }).connect(cGains.drums),
                     },
@@ -210,89 +205,146 @@
                 }
             };
 
-            const applyHeavySubManualAi = (instKey, modeType) => {
-                const newArr = new Array(TOTAL_STEPS).fill(null);
-                for (let i = 0; i < TOTAL_STEPS; i++) {
-                    const isBeat = modeType === 'roll' ? (i % 2 === 0) : (i % 4 === 0 || i % 16 === 10 || i % 16 === 14);
-                    if (isBeat) {
-                        newArr[i] = { note: "C0", dur: modeType === 'roll' ? "16n" : "8n", subBoost: true };
+            // ★崩れないポッピンダンス専用AI生成 (Harmonic Safe + Pop Hit / Robot Lock)
+            const generatePopingDanceAi = (style = "pop_hit") => {
+                const safeScale = ["C4", "Eb4", "F4", "G4", "Bb4", "C5"]; // 崩れないヒップホップ/ファンクマイナーペンタ
+                setInstrumentSteps(prev => {
+                    const newSteps = { ...prev };
+                    const total = TOTAL_STEPS;
+
+                    // 1. ドラム：ポッピン・ヒット（頭強打＋16分ウラブースト）
+                    const drumArr = new Array(total).fill(null);
+                    for (let i = 0; i < total; i++) {
+                        const isKick = i % 4 === 0 || (style === "pop_hit" && i % 16 === 10);
+                        const isSnare = i % 8 === 4 || i % 16 === 14;
+                        const isHihat = i % 2 === 0;
+                        const isClap = i % 8 === 4;
+                        if (isKick || isSnare || isHihat || isClap) {
+                            drumArr[i] = { kick: isKick, snare: isSnare, hihat: isHihat, clap: isClap, subBoost: true };
+                        }
                     }
-                }
-                setInstrumentSteps(prev => ({ ...prev, [instKey]: newArr }));
-                setStatus(`🔊 【${instKey}】C0超重低音クリアリズムAI #${modeType} 反映！`);
+                    newSteps.drums = drumArr;
+
+                    // 2. 重低音サブベース
+                    const subArr = new Array(total).fill(null);
+                    for (let i = 0; i < total; i++) {
+                        if (i % 4 === 0) {
+                            subArr[i] = { note: "C0", dur: "16n", subBoost: true };
+                        }
+                    }
+                    newSteps.subBass = subArr;
+
+                    // 3. 崩れないシンセ・ヒットリフ
+                    const synthArr = new Array(total).fill(null);
+                    const patternMask = style === "pop_hit"
+                        ? [1, 0, 0, 1,  0, 1, 0, 0,  1, 0, 1, 0,  0, 0, 1, 0]
+                        : [1, 1, 0, 0,  1, 0, 1, 1,  0, 1, 0, 0,  1, 1, 0, 0];
+
+                    for (let bar = 0; bar < BARS; bar++) {
+                        for (let s = 0; s < BAR_STEPS; s++) {
+                            const idx = bar * BAR_STEPS + s;
+                            if (patternMask[s % 16]) {
+                                const note = safeScale[(s + bar) % safeScale.length];
+                                synthArr[idx] = { note, dur: "16n", subBoost: false };
+                            }
+                        }
+                    }
+                    newSteps.synth = synthArr;
+                    return newSteps;
+                });
+                setStatus(`🕺 ポッピンダンス専用 [${style}] 崩れないヒット・グルーヴ生成完了！`);
+            };
+
+            const applyHeavySubManualAi = (instKey, modeType) => {
+                setInstrumentSteps(prev => {
+                    const newArr = overdubMode ? [...prev[instKey]] : new Array(TOTAL_STEPS).fill(null);
+                    for (let i = 0; i < TOTAL_STEPS; i++) {
+                        const isBeat = modeType === 'roll' ? (i % 2 === 0) : (i % 4 === 0 || i % 16 === 10 || i % 16 === 14);
+                        if (isBeat) {
+                            newArr[i] = { note: "C0", dur: modeType === 'roll' ? "16n" : "8n", subBoost: true };
+                        }
+                    }
+                    return { ...prev, [instKey]: newArr };
+                });
+                setStatus(`🔊 【${instKey}】C0超重低音クリアリズムAI (${overdubMode ? 'つけ足し' : '上書'}) 反映！`);
             };
 
             const applyHeavyDrumManualAi = (modeName) => {
-                const newArr = new Array(TOTAL_STEPS).fill(null);
-                for (let i = 0; i < TOTAL_STEPS; i++) {
-                    const isKick = modeName === 'heavy_roll' ? (i % 2 === 0) : (i % 4 === 0 || i === 10 || i === 14);
-                    const isSnare = i % 8 === 4;
-                    const isHihat = true; // 16分等でハリ・抜けを作るため常時レイヤー化も可能
-                    const isClap = modeName === 'heavy_roll' ? (i % 4 === 2) : (i % 16 === 12);
-                    newArr[i] = { kick: isKick, snare: isSnare, hihat: isHihat, clap: isClap, subBoost: true };
-                }
-                setInstrumentSteps(prev => ({ ...prev, drums: newArr }));
+                setInstrumentSteps(prev => {
+                    const newArr = overdubMode ? [...prev.drums] : new Array(TOTAL_STEPS).fill(null);
+                    for (let i = 0; i < TOTAL_STEPS; i++) {
+                        const isKick = modeName === 'heavy_roll' ? (i % 2 === 0) : (i % 4 === 0 || i === 10 || i === 14);
+                        const isSnare = i % 8 === 4;
+                        const isHihat = true;
+                        const isClap = modeName === 'heavy_roll' ? (i % 4 === 2) : (i % 16 === 12);
+                        if (isKick || isSnare || isHihat || isClap) {
+                            newArr[i] = { kick: isKick, snare: isSnare, hihat: isHihat, clap: isClap, subBoost: true };
+                        }
+                    }
+                    return { ...prev, drums: newArr };
+                });
                 setStatus(`🥁 ドラムC0超重低音クレラ連打AI [${modeName}] 反映完了！`);
             };
 
             const generateViolinAiMelody = (variant) => {
-                const scales = ["D4", "E4", "F#4", "G4", "A4", "B4", "C#5", "D5"];
-                const newArr = new Array(TOTAL_STEPS).fill(null);
-                for (let i = 0; i < TOTAL_STEPS; i++) {
-                    if (Math.random() < (variant === 'staccato_heavy' ? 0.6 : 0.4)) {
-                        const note = scales[Math.floor(Math.random() * scales.length)];
-                        const durWeights = variant === 'staccato_heavy' ? ["16n", "16n", "8n", "4n"] : ["8n", "4n", "2n"];
-                        const dur = durWeights[Math.floor(Math.random() * durWeights.length)];
-                        newArr[i] = { note, dur };
-                    }
-                }
-                setInstrumentSteps(prev => ({ ...prev, violin: newArr }));
-                setStatus(`🎻 ヴァイオリン推測AI短長音メロディ切り替え [${variant}] 完了！`);
-            };
-
-            const generateAiPattern20 = (instKey, patternNum) => {
-                const newArr = new Array(TOTAL_STEPS).fill(null);
-                const scales = {
-                    synth: ["C4", "E4", "G4", "A4", "C5", "E5"],
-                    bass: ["C2", "G2", "A2", "C3"],
-                    subBass: ["C0", "C1"],
-                    loopTrack: ["C4", "E4", "G4", "B4", "C5"],
-                    trumpet: ["C4", "E4", "G4", "C5", "E5"],
-                    guitar: ["E3", "G3", "B3", "E4", "A4"],
-                    drums: [],
-                    africa1: ["C3", "G3", "D4"],
-                    africa2: ["C4", "D4", "F4", "G4", "A4"]
-                };
-
-                const scale = scales[instKey] || ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
-
-                for (let i = 0; i < TOTAL_STEPS; i++) {
-                    if (instKey === "drums") {
-                        const isKick = i % (4 + (patternNum % 3)) === 0 || (patternNum > 10 && i % 8 === 2);
-                        const isSnare = i % 8 === 4 || (patternNum > 15 && i % 4 === 2);
-                        const isHihat = true;
-                        const isClap = patternNum > 5 && i % 16 === 14;
-                        if (isKick || isSnare || isHihat || isClap) {
-                            newArr[i] = { kick: isKick, snare: isSnare, hihat: isHihat, clap: isClap, subBoost: true };
-                        }
-                    } else if (instKey === "subBass") {
-                        if (i % 4 === 0 || i % 16 === 10) {
-                            newArr[i] = { note: "C0", dur: selectedDuration, subBoost: true };
-                        }
-                    } else {
-                        let density = 0.25 + (patternNum * 0.015);
-                        if (Math.random() < density) {
-                            const noteIdx = (i * 2 + patternNum) % scale.length;
-                            const note = scale[noteIdx];
-                            const dur = selectedDuration;
+                const safeScale = ["D4", "E4", "F#4", "G4", "A4", "B4", "D5"]; // 崩れないペンタ
+                setInstrumentSteps(prev => {
+                    const newArr = overdubMode ? [...prev.violin] : new Array(TOTAL_STEPS).fill(null);
+                    for (let i = 0; i < TOTAL_STEPS; i++) {
+                        if (Math.random() < (variant === 'staccato_heavy' ? 0.6 : 0.4)) {
+                            const note = safeScale[Math.floor(Math.random() * safeScale.length)];
+                            const durWeights = variant === 'staccato_heavy' ? ["16n", "16n", "8n", "4n"] : ["8n", "4n", "2n"];
+                            const dur = durWeights[Math.floor(Math.random() * durWeights.length)];
                             newArr[i] = { note, dur };
                         }
                     }
-                }
+                    return { ...prev, violin: newArr };
+                });
+                setStatus(`🎻 ヴァイオリン崩れない推測AI短長音メロディ切り替え [${variant}] 完了！`);
+            };
 
-                setInstrumentSteps(prev => ({ ...prev, [instKey]: newArr }));
+            const generateAiPattern20 = (instKey, patternNum) => {
+                const safeScales = {
+                    synth: ["C4", "Eb4", "F4", "G4", "Bb4", "C5"],
+                    bass: ["C2", "G2", "Bb2", "C3"],
+                    subBass: ["C0", "C1"],
+                    loopTrack: ["C4", "Eb4", "G4", "Bb4", "C5"],
+                    trumpet: ["C4", "Eb4", "G4", "Bb4", "C5"],
+                    guitar: ["C3", "Eb3", "G3", "Bb3", "C4"],
+                    drums: [],
+                    africa1: ["C3", "G3", "D4"],
+                    africa2: ["C4", "Eb4", "F4", "G4", "Bb4"]
+                };
+                const scale = safeScales[instKey] || ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
+
+                setInstrumentSteps(prev => {
+                    const newArr = overdubMode ? [...prev[instKey]] : new Array(TOTAL_STEPS).fill(null);
+                    for (let i = 0; i < TOTAL_STEPS; i++) {
+                        if (instKey === "drums") {
+                            const isKick = i % (4 + (patternNum % 3)) === 0 || (patternNum > 10 && i % 8 === 2);
+                            const isSnare = i % 8 === 4 || (patternNum > 15 && i % 4 === 2);
+                            const isHihat = true;
+                            const isClap = patternNum > 5 && i % 16 === 14;
+                            if (isKick || isSnare || isHihat || isClap) {
+                                newArr[i] = { kick: isKick, snare: isSnare, hihat: isHihat, clap: isClap, subBoost: true };
+                            }
+                        } else if (instKey === "subBass") {
+                            if (i % 4 === 0 || i % 16 === 10) {
+                                newArr[i] = { note: "C0", dur: selectedDuration, subBoost: true };
+                            }
+                        } else {
+                            let density = 0.25 + (patternNum * 0.015);
+                            if (Math.random() < density) {
+                                const noteIdx = (i * 2 + patternNum) % scale.length;
+                                const note = scale[noteIdx];
+                                newArr[i] = { note, dur: selectedDuration };
+                            }
+                        }
+                    }
+                    return { ...prev, [instKey]: newArr };
+                });
                 setActivePatternIndex(patternNum);
-                setStatus(`🤖 AI パターン #${patternNum} （重低音・リズム共存型）生成完了！`);
+                setStatus(`🤖 AI パターン #${patternNum} （崩れないスケール共存型）生成完了！`);
             };
 
             const playNoteKeyboard = (note) => {
@@ -326,7 +378,8 @@
                         const hasAny = Object.values(updatedObj).some(Boolean);
                         currentArr[idx] = hasAny ? updatedObj : null;
                     } else {
-                        currentArr[idx] = currentArr[idx] ? null : { note, dur, subBoost: instKey === "subBass" };
+                        // オーバーダビングモード時は既存がある場合に追加またはトグル
+                        currentArr[idx] = currentArr[idx] && overdubMode ? currentArr[idx] : (currentArr[idx] ? null : { note, dur, subBoost: instKey === "subBass" });
                     }
                     return { ...prev, [instKey]: currentArr };
                 });
@@ -395,10 +448,13 @@
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-40 shadow-lg">
                         <div className="flex items-center gap-2">
                             <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                MIC VICTORY <span className="text-[10px] text-pink-400 font-bold">v56.6 パンチ/ハリ強化版</span>
+                                MIC VICTORY <span className="text-[10px] text-pink-400 font-bold">v56.7 ポッピン/オーバーダブ</span>
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap">
+                            <button onClick={() => setOverdubMode(!overdubMode)} className={`px-2.5 py-1 rounded font-bold text-[10px] border shadow ${overdubMode ? "bg-purple-900 border-purple-500 text-purple-200" : "bg-slate-900 border-slate-700 text-slate-400"}`}>
+                                {overdubMode ? "➕ つけ足し(Overdub)ON" : "✏️ 上書きモード"}
+                            </button>
                             <button onClick={() => setScreenSaverActive(true)} className="px-2.5 py-1 bg-cyan-900 border border-cyan-700 text-cyan-200 font-bold rounded text-[10px] shadow">
                                 📺 セーバー
                             </button>
@@ -418,6 +474,7 @@
                     <nav className="bg-slate-900/90 border-b border-slate-800 px-2 py-1.5 flex gap-1 overflow-x-auto">
                         {[
                             { id: "DUAL_EDIT", label: "🎛️ 鍵盤 & 重低音クレラ" },
+                            { id: "POP_DANCE", label: "🕺 ポッピン崩れないAI" },
                             { id: "RAP_AI", label: "🎤 ラップAI & 🎻 ヴァイオリン推測" },
                             { id: "MASTER_EQ", label: "🔊 低域EQリリース調整" },
                             { id: "MIXER", label: "🎚️ ミキサー" },
@@ -431,7 +488,7 @@
                     </nav>
 
                     <div className="bg-slate-900/50 px-3 py-1 text-[11px] text-cyan-400 border-b border-slate-900 truncate flex justify-between items-center">
-                        <span>💡 {status} | キック/スネア アタック極鋭化 & サチュレーション適用中</span>
+                        <span>💡 {status} | 崩れないマイナーペンタガード有効・つけ足し: {overdubMode ? "ON" : "OFF"}</span>
                         {playing && (
                             <div className="flex items-center gap-1">
                                 <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
@@ -441,6 +498,17 @@
                     </div>
 
                     <main className="p-2 flex flex-col gap-3">
+                        {tab === "POP_DANCE" && (
+                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
+                                <span className="text-xs font-bold text-purple-400">🕺 ポッピン・ロックダンス専用 崩れないヒットAI生成</span>
+                                <p className="text-[11px] text-slate-400">16分ウラのヒット感とC0重低音を、音程破綻しないスケール（マイナーペンタ）で完全固定一括生成します。</p>
+                                <div className="flex gap-2 flex-wrap">
+                                    <button onClick={() => generatePopingDanceAi('pop_hit')} className="px-3 py-2 bg-purple-600 text-white font-bold rounded text-xs">パンチヒット固定AI生成</button>
+                                    <button onClick={() => generatePopingDanceAi('robot_lock')} className="px-3 py-2 bg-fuchsia-600 text-white font-bold rounded text-xs">ロボットロック16分AI生成</button>
+                                </div>
+                            </div>
+                        )}
+
                         {tab === "DUAL_EDIT" && (
                             <div className="flex flex-col gap-3">
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-2.5 shadow">
@@ -481,7 +549,7 @@
                                     </div>
 
                                     <div className="bg-slate-950 p-2.5 rounded border border-slate-800 flex flex-col gap-1.5 mt-1">
-                                        <span className="text-[11px] font-bold text-amber-400">🤖 AI パターン一括生成 (20種類・低音リズム共存)</span>
+                                        <span className="text-[11px] font-bold text-amber-400">🤖 AI パターン一括生成 (20種類・崩れない安全スケール共存型)</span>
                                         <div className="grid grid-cols-5 sm:grid-cols-10 gap-1">
                                             {Array.from({ length: 20 }).map((_, idx) => {
                                                 const pNum = idx + 1;
@@ -567,7 +635,7 @@
                                     <textarea value={rapLyrics} onChange={e => setRapLyrics(e.target.value)} rows="4" className="bg-slate-900 text-slate-100 p-2.5 rounded text-xs border border-slate-800 font-mono" />
                                 </div>
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
-                                    <span className="text-xs font-bold text-amber-400">🎻 ヴァイオリン専用：短長音メロディ推測・ランダム切り替え</span>
+                                    <span className="text-xs font-bold text-amber-400">🎻 ヴァイオリン専用：崩れない短長音メロディ推測</span>
                                     <div className="flex gap-2">
                                         <button onClick={() => generateViolinAiMelody('staccato_heavy')} className="px-3 py-2 bg-amber-500 text-slate-950 font-bold rounded text-xs flex-1">短音スタッカート重視</button>
                                         <button onClick={() => generateViolinAiMelody('legato_blend')} className="px-3 py-2 bg-cyan-600 text-white font-bold rounded text-xs flex-1">長音トレモロレガート推測</button>
