@@ -3,68 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MIC VICTORY - AFRO TAIKO DLAND EVO v60.0</title>
+    <title>MIC VICTORY - AFRO POLYRHYTHM EVO v62.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
-        @keyframes afroGlow {
-            0% { border-color: #f59e0b; box-shadow: 0 0 15px rgba(245, 158, 11, 0.4); }
-            50% { border-color: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
-            100% { border-color: #f59e0b; box-shadow: 0 0 15px rgba(245, 158, 11, 0.4); }
+        @keyframes afroPulse {
+            0% { border-color: #d97706; box-shadow: 0 0 18px rgba(217, 119, 6, 0.5); }
+            50% { border-color: #059669; box-shadow: 0 0 18px rgba(5, 150, 105, 0.5); }
+            100% { border-color: #d97706; box-shadow: 0 0 18px rgba(217, 119, 6, 0.5); }
         }
-        .illumi-live { animation: afroGlow 2.5s infinite linear; }
+        .illumi-live { animation: afroPulse 2.2s infinite linear; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans select-none pb-32 overflow-x-hidden text-sm">
     <div id="root"></div>
 
     <script type="text/babel">
-        function AfroTaikoVictoryEvo() {
+        function AfroPolyVictoryEvo() {
             const [tab, setTab] = React.useState("MOBILE_20GRID");
             const [playing, setPlaying] = React.useState(false);
             const [illumiActive, setIllumiActive] = React.useState(true);
             const [manualRec, setManualRec] = React.useState(true);
-            const [beatMode, setBeatMode] = React.useState("BEAT_18"); // アフリカ音楽は変拍子・18ビート/ポリリズム相性良
-            const [bpm, setBpm] = React.useState(112);
-            const [creraParam, setCreraParam] = React.useState({ cutoff: 5500, resonance: 6, crush: 10 });
+            const [beatMode, setBeatMode] = React.useState("BEAT_18"); // アフリカ音楽変拍子・ポリリズム特化18ビート
+            const [bpm, setBpm] = React.useState(116);
+            const [creraParam, setCreraParam] = React.useState({ cutoff: 5800, resonance: 7, crush: 14 });
             const [currentStep, setCurrentStep] = React.useState(0);
             const [currentBar, setCurrentBar] = React.useState(0);
-            const [status, setStatus] = React.useState("🌍 アフリカ太鼓・民族楽器AI v60.0 待機中");
+            const [status, setStatus] = React.useState("🌍 アフリカ太鼓・ポリリズムAI v62.0 待機中");
 
             const BARS = 8;
             const STEPS_PER_BAR = beatMode === "BEAT_18" ? 18 : 16;
             const TOTAL_STEPS = BARS * STEPS_PER_BAR;
 
             const INSTS = [
-                { id: "djembe20", name: "🥁 ジェンベ太鼓(20入)", color: "from-amber-600 to-red-700" },
-                { id: "dondun", name: "🪘 ドンドゥン低音太鼓", color: "from-yellow-700 to-stone-800" },
-                { id: "kalimba20", name: "🎹 カリンバ/コラ(20入)", color: "from-emerald-600 to-teal-700" },
-                { id: "afroBass", name: "🔊 アフログルーヴ低音", color: "from-orange-600 to-amber-700" },
-                { id: "flute20", name: "🎋 エスニック笛(20入)", color: "from-cyan-600 to-blue-700" },
-                { id: "shaker20", name: "🌿 シェーカー/パーカ(20入)", color: "from-lime-600 to-emerald-700" },
+                { id: "djembeLow20", name: "🥁 ジェンベ低音(ドン20入)", color: "from-amber-600 to-red-800" },
+                { id: "djembeHigh20", name: "🪘 ジェンベ高音(カッ20入)", color: "from-yellow-600 to-amber-700" },
+                { id: "dondunDeep", name: "🔊 ドンドゥン重低音太鼓", color: "from-orange-700 to-stone-900" },
+                { id: "kalimba20", name: "🎹 カリンバ/コラ安全音階(20入)", color: "from-emerald-600 to-teal-700" },
+                { id: "shakerPoly20", name: "🌿 ポリリズム・シェーカー(20入)", color: "from-lime-600 to-green-700" },
+                { id: "fluteEthnic20", name: "🎋 エスニック安全笛(20入)", color: "from-cyan-600 to-blue-700" },
             ];
 
-            const [selectedInst, setSelectedInst] = React.useState("djembe20");
+            const [selectedInst, setSelectedInst] = React.useState("djembeLow20");
             const [selected20Index, setSelected20Index] = React.useState(0);
             const [noteDuration, setNoteDuration] = React.useState("16n");
 
-            // アフリカ・ペンタトニック/ポリリズムAIパレット(20種)
+            // ポリリズム×崩れないペンタトニックAIパレット(20種)
             const [ai20Library, setAi20Library] = React.useState(() => {
                 const lib = {};
                 INSTS.forEach(i => {
                     lib[i.id] = Array.from({ length: 20 }, (_, pIdx) => {
                         const arr = new Array(TOTAL_STEPS).fill(null);
-                        const scale = ["C4", "Eb4", "F4", "G4", "Bb4", "C5"];
+                        const safeScale = ["C4", "Eb4", "F4", "G4", "Bb4", "C5"];
                         for (let s = 0; s < TOTAL_STEPS; s++) {
                             const sInBar = s % STEPS_PER_BAR;
-                            // ポリリズム的グルーヴ（3/4 or 6/8ウラ拍ヒット）
-                            if ((s + pIdx * 2) % 3 === 0 || sInBar === 0 || sInBar === 6 || sInBar === 12) {
-                                if (sInBar < STEPS_PER_BAR - 1) {
+                            // 3/4 or 6/8ウラ拍のポリリズム交差（最後尾真空スロット適度に確保）
+                            if (sInBar < STEPS_PER_BAR - 1 && ((s + pIdx * 2) % 3 === 0 || sInBar === 0 || sInBar === 6 || sInBar === 12)) {
+                                if (i.id.includes("Low") || i.id.includes("dondun")) {
+                                    arr[s] = { note: "C1", dur: "16n", slot: pIdx + 1 };
+                                } else if (i.id.includes("High")) {
+                                    arr[s] = { note: "G1", dur: "16n", slot: pIdx + 1 };
+                                } else {
                                     arr[s] = {
-                                        note: i.id.includes("bass") || i.id.includes("dondun") ? "C1" : scale[s % scale.length],
+                                        note: safeScale[(s + pIdx) % safeScale.length],
                                         dur: "16n",
                                         slot: pIdx + 1
                                     };
@@ -83,10 +87,14 @@
                     init[i.id] = new Array(TOTAL_STEPS).fill(null);
                     for (let s = 0; s < TOTAL_STEPS; s++) {
                         const sInBar = s % STEPS_PER_BAR;
-                        if (sInBar % 3 === 0 && sInBar < STEPS_PER_BAR - 1) {
-                            if (i.id === "djembe20") init[i.id][s] = { note: sInBar === 0 ? "C1" : "G1", dur: "16n" };
-                            if (i.id === "dondun") init[i.id][s] = { note: "C1", dur: "8n" };
-                            if (i.id === "kalimba20" && sInBar === 6) init[i.id][s] = { note: "G4", dur: "16n" };
+                        if (sInBar < STEPS_PER_BAR - 1) {
+                            if (i.id === "djembeLow20" && sInBar % 3 === 0) {
+                                init[i.id][s] = { note: "C1", dur: "16n" };
+                            } else if (i.id === "djembeHigh20" && (sInBar === 2 || sInBar === 8 || sInBar === 14)) {
+                                init[i.id][s] = { note: "G1", dur: "16n" };
+                            } else if (i.id === "kalimba20" && sInBar === 6) {
+                                init[i.id][s] = { note: "G4", dur: "16n" };
+                            }
                         }
                     }
                 });
@@ -101,28 +109,28 @@
 
             React.useLayoutEffect(() => {
                 const master = new Tone.Gain(1.15).toDestination();
-                const filter = new Tone.Filter({ type: "lowpass", frequency: 5500, Q: 6 }).connect(master);
-                const bitCrush = new Tone.BitCrusher(15).connect(filter);
-                const reverb = new Tone.Reverb({ decay: 1.3, wet: 0.22 }).connect(bitCrush);
+                const filter = new Tone.Filter({ type: "lowpass", frequency: 5800, Q: 7 }).connect(master);
+                const bitCrush = new Tone.BitCrusher(14).connect(filter);
+                const reverb = new Tone.Reverb({ decay: 1.4, wet: 0.25 }).connect(bitCrush);
 
                 synthsRef.current = {
                     filter, bitCrush, reverb,
                     lead: new Tone.PolySynth(Tone.Synth, {
                         oscillator: { type: "triangle" },
-                        envelope: { attack: 0.003, decay: 0.14, sustain: 0.25, release: 0.1 }
+                        envelope: { attack: 0.003, decay: 0.12, sustain: 0.22, release: 0.09 }
                     }).connect(reverb),
                     sub: new Tone.MonoSynth({
                         oscillator: { type: "sine" },
-                        envelope: { attack: 0.003, decay: 0.25, sustain: 0.5, release: 0.15 }
+                        envelope: { attack: 0.002, decay: 0.22, sustain: 0.45, release: 0.12 }
                     }).connect(reverb),
-                    drum: new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4.5 }).connect(reverb),
+                    drum: new Tone.MembraneSynth({ pitchDecay: 0.04, octaves: 4.2 }).connect(reverb),
                 };
 
                 return () => { Tone.Transport.stop(); Tone.Transport.cancel(); };
             }, []);
 
             React.useEffect(() => {
-                const effectiveBpm = beatMode === "HIGH_TEMPO_EVO" ? bpm * 1.5 : bpm;
+                const effectiveBpm = beatMode === "HIGH_TEMPO_EVO" ? bpm * 1.45 : bpm;
                 Tone.Transport.bpm.value = Math.max(50, effectiveBpm);
                 Tone.Transport.cancel();
 
@@ -143,9 +151,9 @@
                             const val = activeGrid[inst.id][step];
                             if (val) {
                                 activeCount++;
-                                if (inst.id.includes("bass") || inst.id === "dondun") {
-                                    syns.sub.triggerAttackRelease("C1", val.dur || "8n", time);
-                                } else if (inst.id.includes("djembe") || inst.id.includes("shaker")) {
+                                if (inst.id.includes("Low") || inst.id.includes("Deep")) {
+                                    syns.sub.triggerAttackRelease("C1", val.dur || "16n", time);
+                                } else if (inst.id.includes("High") || inst.id.includes("Poly")) {
                                     syns.drum.triggerAttackRelease(sInBar % 2 === 0 ? "C1" : "G1", "16n", time);
                                 } else {
                                     syns.lead.triggerAttackRelease(val.note || "C4", val.dur || "16n", time);
@@ -153,7 +161,7 @@
                             }
                         });
 
-                        setTachoHistory(prev => [...prev.slice(1), activeCount * 24 + Math.round(Math.random() * 20)]);
+                        setTachoHistory(prev => [...prev.slice(1), activeCount * 25 + Math.round(Math.random() * 20)]);
                         counter++;
                     }, "16n").start(0);
 
@@ -166,7 +174,7 @@
             const togglePlay = async () => {
                 await Tone.start();
                 setPlaying(!playing);
-                setStatus(playing ? "⏸ 一時停止" : `▶ 再生中 (${beatMode} | BPM ${Math.round(beatMode === "HIGH_TEMPO_EVO" ? bpm * 1.5 : bpm)})`);
+                setStatus(playing ? "⏸ 一時停止" : `▶ 再生中 (${beatMode} | BPM ${Math.round(beatMode === "HIGH_TEMPO_EVO" ? bpm * 1.45 : bpm)})`);
             };
 
             const aiInferenceNewOverallMelody = () => {
@@ -174,12 +182,12 @@
                     const next = {};
                     INSTS.forEach(inst => {
                         const arr = new Array(TOTAL_STEPS).fill(null);
-                        const scale = ["C4", "Eb4", "F4", "G4", "Bb4", "C5"];
+                        const safeScale = ["C4", "Eb4", "F4", "G4", "Bb4", "C5"];
                         for (let s = 0; s < TOTAL_STEPS; s++) {
                             const sInBar = s % STEPS_PER_BAR;
                             if (sInBar < STEPS_PER_BAR - 1 && (sInBar % 3 === 0 || sInBar % 4 === 0)) {
                                 arr[s] = {
-                                    note: inst.id.includes("bass") || inst.id === "dondun" ? "C1" : scale[Math.floor(Math.random() * scale.length)],
+                                    note: inst.id.includes("Low") || inst.id.includes("Deep") ? "C1" : safeScale[Math.floor(Math.random() * safeScale.length)],
                                     dur: "16n",
                                     inferred: true
                                 };
@@ -200,15 +208,15 @@
                 }));
                 setSelectedInst(instId);
                 setSelected20Index(patternIndex);
-                setStatus(`🤖 ${instId} のAIパターン #${patternIndex + 1}（20入）を展開！`);
+                setStatus(`🤖 ${instId} のAIポリリズムパターン #${patternIndex + 1}（20入）を展開！`);
             };
 
             const manualPressNote = (note) => {
                 const syns = synthsRef.current;
                 if (!syns) return;
 
-                if (selectedInst.includes("bass") || selectedInst === "dondun") syns.sub.triggerAttackRelease("C1", noteDuration);
-                else if (selectedInst.includes("djembe") || selectedInst.includes("shaker")) syns.drum.triggerAttackRelease("C1", "16n");
+                if (selectedInst.includes("Low") || selectedInst.includes("Deep")) syns.sub.triggerAttackRelease("C1", noteDuration);
+                else if (selectedInst.includes("High") || selectedInst.includes("Poly")) syns.drum.triggerAttackRelease("C1", "16n");
                 else syns.lead.triggerAttackRelease(note, noteDuration);
 
                 if (manualRec && currentStep !== -1) {
@@ -235,10 +243,10 @@
                     {/* TOP HEADER */}
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2.5 flex items-center justify-between gap-2 sticky top-0 z-50">
                         <div className="flex flex-col">
-                            <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                                AFRO TAIKO DLAND EVO
+                            <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-emerald-400 to-yellow-300 bg-clip-text text-transparent">
+                                AFRO POLYRHYTHM DLAND
                             </span>
-                            <span className="text-[10px] text-amber-400 font-bold">ETHNIC POLY-RHYTHM v60.0</span>
+                            <span className="text-[10px] text-amber-400 font-bold">ETHNIC TAIKO v62.0</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <button onClick={() => setManualRec(!manualRec)} className={`px-2 py-1.5 rounded font-bold text-[11px] border ${manualRec ? "bg-red-950 border-red-500 text-red-200" : "bg-slate-900 border-slate-700 text-slate-400"}`}>
@@ -258,7 +266,7 @@
                         <div className="flex gap-1 shrink-0">
                             {[
                                 { id: "STANDARD_16", label: "標準16" },
-                                { id: "BEAT_18", label: "🔥18ビート" },
+                                { id: "BEAT_18", label: "🔥18ビートポリ" },
                                 { id: "HIGH_TEMPO_EVO", label: "⚡ハイテンポ進化" }
                             ].map(b => (
                                 <button key={b.id} onClick={() => setBeatMode(b.id)} className={`px-2.5 py-1 rounded text-xs font-bold ${beatMode === b.id ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-400"}`}>
@@ -274,7 +282,7 @@
                     {/* STATUS BAR */}
                     <div className="bg-slate-900/50 px-3 py-1.5 text-xs text-amber-400 border-b border-slate-900 flex justify-between items-center">
                         <span className="truncate">💡 {status}</span>
-                        {playing && <span className="text-[11px] text-emerald-300 font-mono shrink-0 ml-2">BAR {currentBar + 1}/8 : STEP {currentStep + 1}/{STEPS_PER_BAR}</span>}
+                        {playing && <span className="text-[11px] text-emerald-300 font-mono shrink-0 ml-2">BAR {currentBar + 1}/8 : STEP {currentStep + 1}/${STEPS_PER_BAR}</span>}
                     </div>
 
                     {/* MOBILE TAB NAV */}
@@ -307,7 +315,7 @@
 
                                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-3">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-xs font-bold text-emerald-400">② 太鼓／カリンバ音階・打刻鍵盤</span>
+                                        <span className="text-xs font-bold text-emerald-400">② 太鼓／カリンバ音階・打刻鍵盤（崩れなし）</span>
                                         <div className="flex gap-1 bg-slate-950 p-1 rounded border border-slate-800">
                                             {["16n", "8n", "4n", "2n"].map(d => (
                                                 <button key={d} onClick={() => setNoteDuration(d)} className={`px-2 py-0.5 rounded text-[11px] font-bold ${noteDuration === d ? "bg-amber-500 text-slate-950" : "text-slate-400"}`}>
@@ -360,11 +368,11 @@
 
                         {tab === "AI_20_ALL" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-3">
-                                <span className="text-xs font-bold text-amber-400">🤖 アフリカ楽器 20入り AIポリリズムパターン一括選択</span>
+                                <span className="text-xs font-bold text-amber-400">🤖 アフリカ太鼓ポリリズム 20入り AIパターン一括選択</span>
                                 <div className="flex flex-col gap-3">
                                     {INSTS.map(inst => (
                                         <div key={inst.id} className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex flex-col gap-2">
-                                            <span className="text-xs font-bold text-emerald-300">{inst.name} (20ポリリズム入)</span>
+                                            <span className="text-xs font-bold text-emerald-300">{inst.name} (20ポリ入)</span>
                                             <div className="grid grid-cols-5 gap-1.5">
                                                 {Array.from({ length: 20 }, (_, idx) => (
                                                     <button key={idx} onClick={() => loadAi20PatternToActive(inst.id, idx)} className={`py-2 rounded font-bold text-xs border ${selectedInst === inst.id && selected20Index === idx ? "bg-amber-500 text-slate-950 border-white" : "bg-slate-900 border-slate-800 text-slate-300"}`}>
@@ -411,7 +419,7 @@
 
                         {tab === "CRERA_REALTIME" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-4">
-                                <span className="text-xs font-bold text-cyan-400">🎛️ CRERAリアルタイム周波数・ウッド/アコースティック歪み</span>
+                                <span className="text-xs font-bold text-cyan-400">🎛️ CRERAリアルタイム周波数・アコースティック太鼓ウッド歪み</span>
                                 <div className="flex flex-col gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
                                     <div className="flex flex-col gap-1">
                                         <span className="text-xs text-amber-400">フィルターカットオフ: {creraParam.cutoff} Hz</span>
@@ -432,14 +440,14 @@
 
                     {/* FOOTER */}
                     <footer className="fixed bottom-0 left-0 right-0 bg-slate-950/95 border-t border-slate-800 px-3 py-2 flex justify-between items-center text-[10px] text-slate-500 z-50">
-                        <span className="font-bold text-slate-300">MIC VICTORY AFRO DLAND</span>
-                        <span className="text-amber-400 font-bold">ETHNIC EVO v60.0</span>
+                        <span className="font-bold text-slate-300">MIC VICTORY AFRO POLY</span>
+                        <span className="text-amber-400 font-bold">EVO v62.0</span>
                     </footer>
                 </div>
             );
         }
 
-        ReactDOM.createRoot(document.getElementById('root')).render(<AfroTaikoVictoryEvo />);
+        ReactDOM.createRoot(document.getElementById('root')).render(<AfroPolyVictoryEvo />);
     </script>
 </body>
 </html>
