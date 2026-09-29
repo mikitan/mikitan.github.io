@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY DLAND v63.1 - 自動キャッシュクリア＆途切れない完全無音ギャップレス再生版</title>
+    <title>MIC VICTORY DLAND v64.0 - エフェクト強化＆コード進行拡大版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -23,7 +23,7 @@
             const [bpm, setBpm] = React.useState(114);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("✨ v63.1 崩れない自動キャッシュクリア＆途切れないギャップレス再生稼働中！");
+            const [status, setStatus] = React.useState("✨ v64.0 エフェクト追加＆コード進行拡張版稼働中！");
 
             const BARS = 24;
             const BAR_STEPS = 16;
@@ -34,10 +34,14 @@
             const [selectedDrumPart, setSelectedDrumPart] = React.useState("kick");
             
             const [guitarMode, setGuitarMode] = React.useState("acoustic");
-            const [playStyle, setPlayStyle] = React.useState("strum");
             const [vibratoDepth, setVibratoDepth] = React.useState(0);
             const [noteLengthMode, setNoteLengthMode] = React.useState("normal");
             const [voiceSamples, setVoiceSamples] = React.useState([]);
+
+            // 新エフェクト用ステート
+            const [filterFreq, setFilterFreq] = React.useState(2500);
+            const [bitCrushBits, setBitCrushBits] = React.useState(8);
+            const [distortionWet, setDistortionWet] = React.useState(0.15);
 
             const [showButtons, setShowButtons] = React.useState({
                 transport: true,
@@ -55,7 +59,7 @@
             const [activePatternIndex, setActivePatternIndex] = React.useState(1);
             const [masterBassBoost, setMasterBassBoost] = React.useState(14);
             const [masterVolume, setMasterVolume] = React.useState(1.2);
-            const [slotName, setSlotName] = React.useState("DLAND_v63_GAPLESS");
+            const [slotName, setSlotName] = React.useState("DLAND_v64_PRO");
             const [powerUsage, setPowerUsage] = React.useState(19);
 
             const FLASH_COLORS = [
@@ -112,6 +116,7 @@
                 { note: "C5", label: "高ド5" }
             ];
 
+            // コード進行のバリエーション拡大（定番～ポップス進行）
             const ALL_CHORDS = [
                 { name: "Am", notes: ["A2", "C3", "E3"], desc: "ラ・ド・ミ (マイナー)" },
                 { name: "C", notes: ["C2", "E2", "G2"], desc: "ド・ミ・ソ (メジャー)" },
@@ -124,7 +129,14 @@
                 { name: "B7", notes: ["B2", "D#3", "F#3", "A3"], desc: "Bセブンス" },
                 { name: "Dm7", notes: ["D2", "F2", "A2", "C3"], desc: "Dマイナー7" },
                 { name: "G7", notes: ["G2", "B2", "D3", "F3"], desc: "Gセブンス" },
-                { name: "Cmaj7", notes: ["C2", "E2", "G2", "B2"], desc: "Cメジャー7" }
+                { name: "Cmaj7", notes: ["C2", "E2", "G2", "B2"], desc: "Cメジャー7" },
+                // 追加のバリエーション
+                { name: "Fmaj7", notes: ["F2", "A2", "C3", "E3"], desc: "Fメジャー7 (J-POP定番)" },
+                { name: "Gsus4", notes: ["G2", "C3", "D3"], desc: "Gサスフォー" },
+                { name: "Am7", notes: ["A2", "C3", "E3", "G3"], desc: "Aマイナー7" },
+                { name: "Bm7-5", notes: ["B2", "D3", "F3", "A3"], desc: "ハーフディミニッシュ" },
+                { name: "C#m", notes: ["C#3", "E3", "G#3"], desc: "C#マイナー" },
+                { name: "F#m", notes: ["F#2", "A2", "C#3"], desc: "F#マイナー" }
             ];
 
             const autoPurgeAndOptimizeMemory = () => {
@@ -156,10 +168,14 @@
                 setStatus("🧹 自動キャッシュクリア＆全ステップリセット完了！");
             };
 
+            // エフェクトチェーンの構築 (BitCrusher & Filter の追加)
             React.useEffect(() => {
                 const masterGain = new Tone.Gain(masterVolume).toDestination();
                 const eq = new Tone.EQ3({ low: masterBassBoost, lowFrequency: 130, mid: 2.5, high: 2.0 }).connect(masterGain);
-                const reverb = new Tone.Reverb({ decay: 1.4, wet: 0.12 }).connect(eq);
+                const bitCrusher = new Tone.BitCrusher({ bits: bitCrushBits }).connect(eq);
+                const filter = new Tone.Filter({ frequency: filterFreq, type: "lowpass" }).connect(bitCrusher);
+                const distortion = new Tone.Distortion({ distortion: distortionWet, oversample: "2x" }).connect(filter);
+                const reverb = new Tone.Reverb({ decay: 1.4, wet: 0.12 }).connect(distortion);
                 const delay = new Tone.FeedbackDelay({ delayTime: "8n", feedback: 0.12, wet: 0.06 }).connect(reverb);
                 const vibrato = new Tone.Vibrato({ frequency: 5, depth: vibratoDepth }).connect(delay);
 
@@ -192,11 +208,11 @@
                         hihat: new Tone.MetalSynth({ frequency: 950, envelope: { attack: 0.0005, decay: 0.02, release: 0.01 }, harmonicity: 5.1, modulationIndex: 32, resonance: 7200, octaves: 1.4 }).connect(cGains.drums),
                         clap: new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.004, decay: 0.14, sustain: 0 } }).connect(cGains.drums),
                     },
-                    eq, reverb, vibrato
+                    eq, reverb, vibrato, filter, bitCrusher
                 };
 
                 return () => { Tone.Transport.stop(); Tone.Transport.cancel(); };
-            }, [guitarMode, vibratoDepth]);
+            }, [guitarMode, vibratoDepth, filterFreq, bitCrushBits, distortionWet]);
 
             React.useEffect(() => {
                 Tone.Transport.bpm.value = bpm;
@@ -434,7 +450,7 @@
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-40 shadow-lg">
                         <div className="flex flex-col">
                             <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                MIC VICTORY DLAND <span className="text-[10px] text-pink-400 font-bold">v63.1 自動キャッシュクリア＆ギャップレス再生版</span>
+                                MIC VICTORY DLAND <span className="text-[10px] text-pink-400 font-bold">v64.0 FX＆コード拡張版</span>
                             </span>
                             <span className="text-[9px] text-slate-400">© 2026 MIC VICTORY DLAND - All Rights Reserved.</span>
                         </div>
@@ -476,14 +492,14 @@
                     <nav className="bg-slate-950 border-b border-slate-800 px-2 py-1.5 flex gap-1 overflow-x-auto">
                         {[
                             { id: "KEYBOARD", label: "🎹 楽器別ドレミファ鍵盤" },
-                            { id: "CHORDS", label: "🎸 コード全表示・弾き語り" },
+                            { id: "CHORDS", label: "🎸 コード全表示・拡張進行" },
                             { id: "GUITAR", label: "🪵 ギター木目・エレキ切替" },
                             { id: "VOICE", label: "🎙️ Voice・打音録音" },
                             { id: "HUB", label: "🌟 AI伴奏＆ジャンル" },
                             { id: "DRUMS20", label: "🥁 つけ足しドラム20種" },
                             { id: "GRID", label: "🎛️ 24小節グリッド" },
                             { id: "CRERA_ARCHIVE", label: "📁 録音・再生CRERA" },
-                            { id: "MIXER", label: "🎚️ 重低音ミキサー" },
+                            { id: "MIXER", label: "🎚️ FX＆重低音ミキサー" },
                             { id: "SAVE", label: "💾 保存＆アルバム" },
                         ].map(t => (
                             <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-1 rounded text-center font-bold transition-all shrink-0 ${tab === t.id ? "bg-amber-500 text-slate-950 shadow" : "bg-slate-900 text-slate-400"}`}>
@@ -549,7 +565,7 @@
                         {(tab === "CHORDS" || showButtons.chordsPanel) && (
                             <div className="bg-slate-900 border border-amber-600/50 rounded-lg p-3 flex flex-col gap-3 shadow">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-amber-400">🎸 コード全表示・弾き語りパネル</span>
+                                    <span className="text-xs font-bold text-amber-400">🎸 拡張コード進行パネル (定番からJ-POP進行まで)</span>
                                     <span className="text-[10px] text-slate-400">選択中楽器: {selectedInstrument}</span>
                                 </div>
                                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -590,7 +606,7 @@
                         {tab === "VOICE" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-red-400">🎙️ マイク音声・ギターを叩いた音の録音・記録・再生</span>
+                                    <span className="text-xs font-bold text-red-400">🎙️️ マイク音声・ギターを叩いた音の録音・記録・再生</span>
                                     <button onClick={toggleVoiceRecording} className={`px-3 py-1 rounded font-bold text-xs ${isVoiceRecording ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-red-400 border border-red-800"}`}>
                                         {isVoiceRecording ? "⏹️ 録音停止" : "🔴 Voice/打音を録音開始"}
                                     </button>
@@ -716,9 +732,25 @@
 
                         {tab === "MIXER" && (
                             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
-                                <span className="text-xs font-bold text-amber-400">🎚️ 崩れない重低音ミキサー & 低域クロスオーバー (130Hz)</span>
+                                <span className="text-xs font-bold text-amber-400">🎚️ FX（追加エフェクト）＆ 崩れない重低音ミキサー</span>
+                                
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-950 p-3 rounded border border-slate-800">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] text-cyan-400 font-bold">ローパスフィルター: {filterFreq}Hz</span>
+                                        <input type="range" min="500" max="10000" step="100" value={filterFreq} onChange={e => setFilterFreq(Number(e.target.value))} className="accent-cyan-500" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] text-pink-400 font-bold">ビットクラッシャー(音質): {bitCrushBits}bit</span>
+                                        <input type="range" min="2" max="16" step="1" value={bitCrushBits} onChange={e => setBitCrushBits(Number(e.target.value))} className="accent-pink-500" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] text-amber-400 font-bold">ディストーション(歪み): {Math.round(distortionWet * 100)}%</span>
+                                        <input type="range" min="0" max="1" step="0.05" value={distortionWet} onChange={e => setDistortionWet(Number(e.target.value))} className="accent-amber-500" />
+                                    </div>
+                                </div>
+
                                 <div className="flex flex-col gap-2 bg-slate-950 p-3 rounded border border-slate-800">
-                                    <span className="text-[11px] text-amber-400">マスター重低音ブースト: {masterBassBoost} dB</span>
+                                    <span className="text-[11px] text-amber-400">マスター重低音ブースト (130Hz): {masterBassBoost} dB</span>
                                     <input type="range" min="0" max="24" step="1" value={masterBassBoost} onChange={e => setMasterBassBoost(Number(e.target.value))} className="accent-amber-500" />
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-950 p-3 rounded border border-slate-800">
@@ -748,7 +780,7 @@
                                 </div>
                                 <div className="text-[10px] text-slate-400 bg-slate-950 p-3 rounded border border-slate-800 flex flex-col gap-1">
                                     <span className="font-bold text-cyan-400">℗ © 2026 MIC VICTORY DLAND (All Rights Reserved)</span>
-                                    <span>Release Version: v63.1 Gapless & Auto-Purge Edition</span>
+                                    <span>Release Version: v64.0 FX & Extended Chords Edition</span>
                                 </div>
                             </div>
                         )}
@@ -758,7 +790,6 @@
             );
         }
 
-        // 修正ポイント: 確実にDOM要素を取得して正常にレンダリング
         const rootElement = document.getElementById('root');
         if (rootElement) {
             ReactDOM.createRoot(rootElement).render(<MasterSynthApp />);
