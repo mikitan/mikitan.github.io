@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY DLAND - v63.0 ULTIMATE HARMONICA & WOOD GUITAR SUITE</title>
+    <title>MIC VICTORY DLAND - v64.0 ULTIMATE SYNTH & GUITAR MASTER SUITE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -18,10 +18,10 @@
             const [tab, setTab] = React.useState("STUDIO");
             const [playing, setPlaying] = React.useState(false);
             const [isRecording, setIsRecording] = React.useState(false);
-            const [bpm, setBpm] = React.useState(116);
+            const [bpm, setBpm] = React.useState(124); // ハイテンポ対応
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("🚀 v63.0：ハーモニカ追加・ループ削除・ドラム20音・木目ギター・18小節完全稼働！");
+            const [status, setStatus] = React.useState("🚀 v64.0：シンセサイザー追加・ベース完全強化・ハイテンポ ドンパシャ＆シンバル・ギター高音質化！");
 
             // 拍子設定
             const [timeSignature, setTimeSignature] = React.useState("4/4");
@@ -34,7 +34,7 @@
             const [selectedInstrument, setSelectedInstrument] = React.useState("drums");
             const [selectedNote, setSelectedNote] = React.useState("C3");
             const [selectedDuration, setSelectedDuration] = React.useState("8n");
-            const [selectedVelocity, setSelectedVelocity] = React.useState(0.8);
+            const [selectedVelocity, setSelectedVelocity] = React.useState(0.9);
             const [vibratoDepth, setVibratoDepth] = React.useState(0.2);
 
             const [selectedDrumPart, setSelectedDrumPart] = React.useState("drum1");
@@ -69,49 +69,46 @@
             const audioChunksRef = React.useRef([]);
 
             const [saveLists, setSaveLists] = React.useState([
-                { id: 1, title: "MIC VICTORY Harmonica Anthem (#1)", type: "蓮華", format: "mp3", date: "2026-09-29", copyright: "micvictorydland" }
-            ]);
-
-            const [releaseAlbums, setReleaseAlbums] = React.useState([
-                { id: 1, title: "DLAND MASTERPIECE Vol.1", price: "¥1,500", status: "ストア配信中 (gooogldoribe連携)", copyright: "micvictorydland" }
+                { id: 1, title: "MIC VICTORY Hi-Tempo Anthem (#1)", type: "蓮華", format: "mp3", date: "2026-09-29", copyright: "micvictorydland" }
             ]);
 
             const INSTRUMENTS = [
-                { id: "drums", label: "🥁 ドラム (20入)", color: "from-red-600 to-amber-700" },
+                { id: "drums", label: "🥁 ドラム (ハイテンポ・ドンパシャ)", color: "from-red-600 to-amber-700" },
+                { id: "bass", label: "🎸 ベース (低音・グリッド/AI)", color: "from-emerald-600 to-teal-700" },
+                { id: "synth", label: "🎹 シンセサイザー", color: "from-cyan-600 to-blue-700" },
+                { id: "guitarWood", label: "🪵 木目ギター (良音)", color: "from-amber-800 via-yellow-900 to-amber-950" },
                 { id: "piano", label: "🎹 ピアノ", color: "from-blue-600 to-indigo-700" },
                 { id: "harmonica", label: "🪗 ハーモニカ", color: "from-orange-600 to-amber-700" },
-                { id: "violin", label: "🎻 バイオリン", color: "from-amber-600 to-yellow-700" },
-                { id: "bass", label: "🎸 ベース (低音)", color: "from-emerald-600 to-teal-700" },
-                { id: "guitarWood", label: "🪵 木目ギター", color: "from-amber-800 via-yellow-900 to-amber-950" },
             ];
 
             const [instrumentSteps, setInstrumentSteps] = React.useState({
                 drums: new Array(TOTAL_STEPS).fill(null),
+                bass: new Array(TOTAL_STEPS).fill(null),
+                synth: new Array(TOTAL_STEPS).fill(null),
+                guitarWood: new Array(TOTAL_STEPS).fill(null),
                 piano: new Array(TOTAL_STEPS).fill(null),
                 harmonica: new Array(TOTAL_STEPS).fill(null),
-                violin: new Array(TOTAL_STEPS).fill(null),
-                bass: new Array(TOTAL_STEPS).fill(null),
-                guitarWood: new Array(TOTAL_STEPS).fill(null),
             });
 
+            // ハイテンポ向けドンパシャ＆シンバル強化ドラム20パート
             const DRUM_20_PARTS = Array.from({ length: 20 }, (_, i) => ({
                 id: `drum${i + 1}`,
-                label: `ドラム音 #${i + 1}`
+                label: i === 0 ? "ドン (Kick)" : i === 1 ? "パシャ (Snare)" : i === 2 ? "シンバル (Cymbal)" : `ドラム音 #${i + 1}`
             }));
 
             const synthsRef = React.useRef(null);
             const loopRef = React.useRef(null);
             const masterGainRef = React.useRef(null);
 
-            const NOTES = ["C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4"];
+            const NOTES = ["C2", "E2", "G2", "B2", "C3", "E3", "G3", "C4", "E4", "G4"];
 
             React.useEffect(() => {
                 const masterGain = new Tone.Gain(1.2).toDestination();
                 masterGainRef.current = masterGain;
 
-                const eq = new Tone.EQ3({ low: 8, mid: 2, high: 3 }).connect(masterGain);
-                const reverb = new Tone.Reverb({ decay: 2.5, wet: 0.3 }).connect(eq);
-                const delay = new Tone.FeedbackDelay({ delayTime: "8n", feedback: 0.2, wet: 0.2 }).connect(reverb);
+                const eq = new Tone.EQ3({ low: 6, mid: 3, high: 4 }).connect(masterGain);
+                const reverb = new Tone.Reverb({ decay: 2.2, wet: 0.25 }).connect(eq);
+                const delay = new Tone.FeedbackDelay({ delayTime: "8n", feedback: 0.2, wet: 0.15 }).connect(reverb);
 
                 const cGains = {};
                 Object.keys(instrumentSteps).forEach(key => {
@@ -123,18 +120,22 @@
                     drums: {
                         ...Object.fromEntries(DRUM_20_PARTS.map((p, idx) => [
                             p.id,
-                            idx < 8 
-                                ? new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.2 + idx * 0.02, sustain: 0 } }).connect(cGains.drums)
-                                : idx < 14
-                                ? new Tone.NoiseSynth({ noise: { type: idx % 2 === 0 ? "white" : "pink" }, envelope: { attack: 0.001, decay: 0.12, sustain: 0 } }).connect(cGains.drums)
-                                : new Tone.MetalSynth({ frequency: 200 + idx * 50, envelope: { attack: 0.001, decay: 0.05, release: 0.05 }, harmonicity: 5.1, modulationIndex: 32 }).connect(cGains.drums)
+                            idx === 0 
+                                ? new Tone.MembraneSynth({ pitchDecay: 0.03, octaves: 6, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.25, sustain: 0 } }).connect(cGains.drums) // ドン
+                                : idx === 1 
+                                ? new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.15, sustain: 0 } }).connect(cGains.drums) // パシャ
+                                : idx === 2 
+                                ? new Tone.MetalSynth({ frequency: 300, envelope: { attack: 0.001, decay: 0.4, release: 0.3 }, harmonicity: 5.1, modulationIndex: 40 }).connect(cGains.drums) // シンバル
+                                : idx < 10
+                                ? new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4, oscillator: { type: "triangle" }, envelope: { attack: 0.001, decay: 0.2, sustain: 0 } }).connect(cGains.drums)
+                                : new Tone.MetalSynth({ frequency: 200 + idx * 40, envelope: { attack: 0.001, decay: 0.08, release: 0.08 }, harmonicity: 4, modulationIndex: 20 }).connect(cGains.drums)
                         ]))
                     },
+                    bass: new Tone.MonoSynth({ oscillator: { type: "sawtooth" }, filter: { Q: 2, type: "lowpass", rolloff: -24 }, envelope: { attack: 0.005, decay: 0.3, sustain: 0.3, release: 0.1 } }).connect(cGains.bass),
+                    synth: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.25, sustain: 0.4, release: 0.2 } }).connect(cGains.synth),
+                    guitarWood: new Tone.PluckSynth({ attackNoise: 1.8, dampening: 5200 }).connect(cGains.guitarWood), // 高音質なギター響き
                     piano: new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.005, decay: 0.4, sustain: 0.2, release: 0.3 } }).connect(cGains.piano),
                     harmonica: new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.02, decay: 0.25, sustain: 0.6, release: 0.3 } }).connect(cGains.harmonica),
-                    violin: new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.08, decay: 0.3, sustain: 0.7, release: 0.4 } }).connect(cGains.violin),
-                    bass: new Tone.MonoSynth({ oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.35, sustain: 0.4, release: 0.2 } }).connect(cGains.bass),
-                    guitarWood: new Tone.PluckSynth({ attackNoise: 1.4, dampening: 4500 }).connect(cGains.guitarWood),
                     eq, reverb, delay
                 };
 
@@ -169,17 +170,17 @@
                                         const note = chordObj.notes[sInBar % chordObj.notes.length];
                                         syns.guitarWood.triggerAttackRelease(note, "8n", time);
                                     } else {
-                                        chordObj.notes.forEach(n => syns.guitarWood.triggerAttackRelease(n, "16n", time, 0.8));
+                                        chordObj.notes.forEach(n => syns.guitarWood.triggerAttackRelease(n, "16n", time, 0.9));
                                     }
                                 }
                             } else if (instKey === "drums") {
                                 if (item.drumPart && syns.drums[item.drumPart]) {
-                                    syns.drums[item.drumPart].triggerAttackRelease("C1", item.dur || "16n", time, item.vel || 0.8);
+                                    syns.drums[item.drumPart].triggerAttackRelease("C1", item.dur || "16n", time, item.vel || 0.9);
                                 }
                             } else if (instKey === "bass") {
-                                syns.bass.triggerAttackRelease(item.note || "C2", item.dur || "8n", time, item.vel || 0.8);
+                                syns.bass.triggerAttackRelease(item.note || "C2", item.dur || "8n", time, item.vel || 0.9);
                             } else if (syns[instKey]) {
-                                syns[instKey].triggerAttackRelease(item.note || "C3", item.dur || "8n", time, item.vel || 0.8);
+                                syns[instKey].triggerAttackRelease(item.note || "C3", item.dur || "8n", time, item.vel || 0.9);
                             }
                         });
 
@@ -195,55 +196,13 @@
             const togglePlay = async () => {
                 await Tone.start();
                 setPlaying(!playing);
-                setStatus(playing ? "停止しました" : `▶ 再生中 (BPM: ${bpm}, 18小節モード)`);
+                setStatus(playing ? "停止しました" : `▶ 再生中 (BPM: ${bpm}, ハイテンポモード)`);
             };
 
             const toggleRecord = async () => {
                 await Tone.start();
                 setIsRecording(!isRecording);
-                setStatus(!isRecording ? "🔴 リアルタイム全体記録中..." : "⏹️ 記録完了！保存リストに追加されました。");
-            };
-
-            const toggleMicRecording = async () => {
-                if (!micRecording) {
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        mediaRecorderRef.current = new MediaRecorder(stream);
-                        audioChunksRef.current = [];
-
-                        mediaRecorderRef.current.ondataavailable = (event) => {
-                            if (event.data.size > 0) audioChunksRef.current.push(event.data);
-                        };
-
-                        mediaRecorderRef.current.onstop = () => {
-                            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mp3' });
-                            const audioUrl = URL.createObjectURL(audioBlob);
-                            setMicAudioUrl(audioUrl);
-                            setSaveLists(prev => [...prev, {
-                                id: Date.now(),
-                                title: `マイク音声収録 #${saveLists.length + 1}`,
-                                type: "蓮華/gooogldoribe",
-                                format: "mp3",
-                                date: new Date().toLocaleDateString(),
-                                copyright: "micvictorydland",
-                                url: audioUrl
-                            }]);
-                            setStatus("🎙️ マイク音声を正常に録音し、保存しました！");
-                        };
-
-                        mediaRecorderRef.current.start();
-                        setMicRecording(true);
-                        setStatus("🔴 マイク音声リアルタイム収音中...");
-                    } catch (err) {
-                        alert("マイクへのアクセスが拒否されました。");
-                    }
-                } else {
-                    if (mediaRecorderRef.current) {
-                        mediaRecorderRef.current.stop();
-                        mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
-                    }
-                    setMicRecording(false);
-                }
+                setStatus(!isRecording ? "🔴 ハイテンポ全体記録中..." : "⏹️ 記録完了！保存リストに追加されました。");
             };
 
             const playChordManual = (chordName) => {
@@ -259,18 +218,19 @@
 
             const generateAiPattern = (type, mode) => {
                 const newArr = new Array(TOTAL_STEPS).fill(null);
-                const scale = ["C3", "D3", "E3", "G3", "A3", "C4"];
+                const scale = type === "bass" ? ["C2", "E2", "G2", "A2"] : ["C3", "E3", "G3", "B3", "C4"];
 
                 for (let i = 0; i < TOTAL_STEPS; i++) {
                     if (type === "guitarWood") {
                         newArr[i] = { chord: GUITAR_CHORDS[i % GUITAR_CHORDS.length].name, style: guitarStyle };
                     } else if (type === "drums") {
-                        if (mode === "random" && Math.random() < 0.4) {
-                            newArr[i] = { drumPart: `drum${(i % 20) + 1}`, dur: "16n", vel: 0.8 };
-                        } else if (mode === "repeat" && i % 4 === 0) {
-                            newArr[i] = { drumPart: "drum1", dur: "16n", vel: 0.9 };
-                        } else if (mode === "renda" && i % 2 === 0) {
-                            newArr[i] = { drumPart: "drum3", dur: "32n", vel: 1.0 };
+                        if (mode === "random" && Math.random() < 0.45) {
+                            const pId = i % 4 === 0 ? "drum1" : i % 4 === 2 ? "drum2" : i % 8 === 7 ? "drum3" : `drum${(i % 20) + 1}`;
+                            newArr[i] = { drumPart: pId, dur: "16n", vel: 0.95 };
+                        } else if (mode === "repeat" && i % 2 === 0) {
+                            newArr[i] = { drumPart: i % 4 === 0 ? "drum1" : "drum2", dur: "16n", vel: 0.9 };
+                        } else if (mode === "renda") {
+                            newArr[i] = { drumPart: "drum3", dur: "32n", vel: 1.0 }; // シンバル連打
                         }
                     } else {
                         if (mode === "random" && Math.random() < 0.35) {
@@ -283,7 +243,7 @@
                     }
                 }
                 setInstrumentSteps(prev => ({ ...prev, [type]: newArr }));
-                setStatus(`✨ 【${type}】AIパターン生成完了！`);
+                setStatus(`✨ 【${type}】ハイテンポAIパターン生成完了！`);
             };
 
             const playNoteKeyboard = (note) => {
@@ -336,7 +296,7 @@
                     <header className={`border-b px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-40 shadow-xl ${isWoodGuitarSelected ? 'bg-amber-950/95 border-yellow-800' : 'bg-slate-900 border-indigo-800'}`}>
                         <div className="flex items-center gap-2">
                             <span className="font-black text-sm text-yellow-300">
-                                🪗 MIC VICTORY DLAND <span className="text-[10px] text-cyan-300 font-bold">v63.0 (ハーモニカ追加 & 18小節)</span>
+                                🎸 MIC VICTORY DLAND <span className="text-[10px] text-cyan-300 font-bold">v64.0 (シンセ・ベース強化・ドンパシャ)</span>
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -351,7 +311,7 @@
                             </button>
                             <div className="flex items-center gap-1 bg-slate-900 px-2 py-0.5 rounded border border-indigo-900">
                                 <span className="text-[9px] text-yellow-400">BPM</span>
-                                <input type="number" value={bpm} onChange={e => setBpm(Math.max(60, Math.min(220, Number(e.target.value))))} className="w-12 bg-slate-800 text-center font-bold text-yellow-300 rounded text-xs py-0.5" />
+                                <input type="number" value={bpm} onChange={e => setBpm(Math.max(60, Math.min(240, Number(e.target.value))))} className="w-12 bg-slate-800 text-center font-bold text-yellow-300 rounded text-xs py-0.5" />
                             </div>
                         </div>
                     </header>
@@ -359,8 +319,7 @@
                     <nav className={`border-b px-2 py-1.5 flex gap-1 overflow-x-auto ${isWoodGuitarSelected ? 'bg-amber-900/90 border-yellow-800' : 'bg-indigo-950/80 border-indigo-900'}`}>
                         {[
                             { id: "STUDIO", label: "🎛️ スタジオ & 18小節" },
-                            { id: "DRUMS_20", label: "🥁 ドラム20音セレクター" },
-                            { id: "MIC_RECORD", label: "🎙️ マイク音声録音" },
+                            { id: "DRUMS_20", label: "🥁 ドラム20 (ドンパシャ・シンバル)" },
                             { id: "FX_VIBRATO", label: "🎚️ FX・ビブラート調整" },
                             { id: "SAVE_RENGE", label: "💾 保存リスト (蓮華)" },
                         ].map(t => (
@@ -381,7 +340,7 @@
                                 <div className={`border rounded-lg p-3 flex flex-col gap-2 shadow-lg ${panelWoodBgStyle}`}>
                                     <div className="flex justify-between items-center flex-wrap gap-2">
                                         <span className={`text-xs font-bold ${isWoodGuitarSelected ? 'text-yellow-200' : 'text-indigo-300'}`}>
-                                            {isWoodGuitarSelected ? '🪵 木目ギターコード全表示 (Am含む)' : '① 楽器選択・手動演奏・AIパターン'}
+                                            {isWoodGuitarSelected ? '🪵 木目ギター (良音コード全表示)' : '① 楽器選択・手動演奏・ベース強化AI'}
                                         </span>
                                         <div className="flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded border border-indigo-800 text-[10px]">
                                             <span className="text-indigo-400">拍子:</span>
@@ -433,7 +392,7 @@
 
                                 <div className={`border rounded-lg p-3 flex flex-col gap-3 shadow ${panelWoodBgStyle}`}>
                                     <div className="flex justify-between items-center">
-                                        <span className="text-xs font-bold text-yellow-300">② 手動鍵盤 ＆ 18小節エディタ</span>
+                                        <span className="text-xs font-bold text-yellow-300">② 手動鍵盤 ＆ 18小節エディタ (ベース・シンセ対応)</span>
                                         <span className="text-[10px] text-yellow-200">小節: <strong className="text-yellow-400">{currentBar + 1} / 18</strong></span>
                                     </div>
 
@@ -479,26 +438,14 @@
 
                         {tab === "DRUMS_20" && (
                             <div className="bg-slate-900/90 border border-indigo-900 rounded-lg p-4 flex flex-col gap-3">
-                                <span className="text-xs font-bold text-yellow-300">🥁 ドラム 20種類セレクター</span>
-                                <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
+                                <span className="text-xs font-bold text-yellow-300">🥁 ドラム 20種類 (ドン・パシャ・シンバル強化)</span>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     {DRUM_20_PARTS.map(part => (
-                                        <button key={part.id} onClick={() => setSelectedDrumPart(part.id)} className={`py-2 px-1 rounded text-[11px] font-bold border ${selectedDrumPart === part.id ? "bg-red-600 text-white border-white" : "bg-slate-950 text-indigo-300 border-indigo-900"}`}>
-                                            #{part.id.replace('drum','')}
+                                        <button key={part.id} onClick={() => setSelectedDrumPart(part.id)} className={`py-2 px-2 rounded text-left text-[11px] font-bold border ${selectedDrumPart === part.id ? "bg-red-600 text-white border-white" : "bg-slate-950 text-indigo-300 border-indigo-900"}`}>
+                                            {part.label}
                                         </button>
                                     ))}
                                 </div>
-                            </div>
-                        )}
-
-                        {tab === "MIC_RECORD" && (
-                            <div className="bg-slate-900/90 border border-indigo-900 rounded-lg p-4 flex flex-col gap-4">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-yellow-300">🎙️ マイク音声リアルタイム録音</span>
-                                    <button onClick={toggleMicRecording} className={`px-3 py-1.5 rounded font-bold text-xs shadow ${micRecording ? "bg-red-600 text-white animate-pulse" : "bg-pink-600 text-white"}`}>
-                                        {micRecording ? "⏹️ 録音停止" : "🔴 録音開始"}
-                                    </button>
-                                </div>
-                                {micAudioUrl && <audio controls src={micAudioUrl} className="w-full h-8"></audio>}
                             </div>
                         )}
 
@@ -535,7 +482,6 @@
                                                 <div className="text-cyan-300 font-bold text-xs">{item.title}</div>
                                                 <div className="text-[10px] text-indigo-300">保存先: {item.type} | 著作権: {item.copyright}</div>
                                             </div>
-                                            {item.url && <audio controls src={item.url} className="h-6 w-20 mx-2"></audio>}
                                             <button onClick={() => setSaveLists(saveLists.filter(x => x.id !== item.id))} className="px-2 py-1 bg-red-950 text-red-300 rounded text-[10px]">削除</button>
                                         </div>
                                     ))}
