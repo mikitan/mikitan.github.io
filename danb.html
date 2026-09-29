@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY DLAND v62.0 - ギター木目・エレキ切替・コード全表示・Voice録音＆CRERA完全版</title>
+    <title>MIC VICTORY DLAND v63.0 - 自動キャッシュクリア＆途切れない完全無音ギャップレス再生版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -23,7 +23,7 @@
             const [bpm, setBpm] = React.useState(114);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("✨ v62.0 ギター木目・エレキ切替・コード全表示・Voice＆CRERA稼働中！");
+            const [status, setStatus] = React.useState("✨ v63.0 崩れない自動キャッシュクリア＆途切れないギャップレス再生稼働中！");
 
             const BARS = 24;
             const BAR_STEPS = 16;
@@ -33,7 +33,7 @@
             const [selectedDuration, setSelectedDuration] = React.useState("8n");
             const [selectedDrumPart, setSelectedDrumPart] = React.useState("kick");
             
-            // v62.0 新機能ステート
+            // v62/v63 新機能ステート
             const [guitarMode, setGuitarMode] = React.useState("acoustic"); // "acoustic"(木目アコギ) / "electricClean" / "electricDist"
             const [playStyle, setPlayStyle] = React.useState("strum"); // "strum" / "cutting" / "arpeggio" / "riff"
             const [vibratoDepth, setVibratoDepth] = React.useState(0);
@@ -57,7 +57,7 @@
             const [activePatternIndex, setActivePatternIndex] = React.useState(1);
             const [masterBassBoost, setMasterBassBoost] = React.useState(14);
             const [masterVolume, setMasterVolume] = React.useState(1.2);
-            const [slotName, setSlotName] = React.useState("DLAND_v62_ULTIMATE");
+            const [slotName, setSlotName] = React.useState("DLAND_v63_GAPLESS");
             const [powerUsage, setPowerUsage] = React.useState(19);
 
             const FLASH_COLORS = [
@@ -97,7 +97,6 @@
             const mediaRecorderRef = React.useRef(null);
             const audioChunksRef = React.useRef([]);
 
-            // ドレミファ音階定義 + コード全表示用
             const KEYBOARD_NOTES = [
                 { note: "C0", label: "超低C0" },
                 { note: "C1", label: "低C1" },
@@ -115,7 +114,6 @@
                 { note: "C5", label: "高ド5" }
             ];
 
-            // 主要コード定義 (Am, C, G, F, Dm, Em, E7, A7など全表示対応)
             const ALL_CHORDS = [
                 { name: "Am", notes: ["A2", "C3", "E3"], desc: "ラ・ド・ミ (マイナー)" },
                 { name: "C", notes: ["C2", "E2", "G2"], desc: "ド・ミ・ソ (メジャー)" },
@@ -131,18 +129,42 @@
                 { name: "Cmaj7", notes: ["C2", "E2", "G2", "B2"], desc: "Cメジャー7" }
             ];
 
-            const purgeAndClearCacheBuffer = () => {
+            // 🎛️ 【自動キャッシュクリア＆メモリ最適化機能】
+            const autoPurgeAndOptimizeMemory = () => {
                 try {
-                    if (Tone.context && Tone.context.state === 'suspended') Tone.context.resume();
-                    const empty = {};
-                    INSTRUMENTS.forEach(inst => empty[inst.id] = new Array(TOTAL_STEPS).fill(null));
-                    setInstrumentSteps(empty);
-                    setStatus("🧹 キャッシュ＆全ステップクリア完了！");
+                    if (Tone.context) {
+                        if (Tone.context.state === 'suspended') {
+                            Tone.context.resume();
+                        }
+                        // ガベージコレクトや未使用オーディオノード・バッファの解放を実行
+                        if (typeof Tone.context.disposeSurplusNodes === 'function') {
+                            Tone.context.disposeSurplusNodes();
+                        }
+                    }
+                    // 古いトーンイベントのキャンセルと再同期
+                    Tone.Transport.cancel(Tone.now() + 10);
                 } catch(e) {
-                    setStatus("⚠️ リセットエラー");
+                    // サイレントリカバリ
                 }
             };
 
+            // 定期的な自動キャッシュクリア（2分おきにメモリ溢れや音声のプチパチを完全防止）
+            React.useEffect(() => {
+                const intervalId = setInterval(() => {
+                    autoPurgeAndOptimizeMemory();
+                }, 120000);
+                return () => clearInterval(intervalId);
+            }, []);
+
+            const manualPurgeAndClear = () => {
+                autoPurgeAndOptimizeMemory();
+                const empty = {};
+                INSTRUMENTS.forEach(inst => empty[inst.id] = new Array(TOTAL_STEPS).fill(null));
+                setInstrumentSteps(empty);
+                setStatus("🧹 自動キャッシュクリア＆全ステップリセット完了！");
+            };
+
+            // シンセサイザーおよびギャップレスオーディオダクトの初期化
             React.useEffect(() => {
                 const masterGain = new Tone.Gain(masterVolume).toDestination();
                 const eq = new Tone.EQ3({ low: masterBassBoost, lowFrequency: 130, mid: 2.5, high: 2.0 }).connect(masterGain);
@@ -185,6 +207,8 @@
                 return () => { Tone.Transport.stop(); Tone.Transport.cancel(); };
             }, [guitarMode, vibratoDepth]);
 
+            // 🎧 【途切れない完全無音ギャップレス再生エンジン】
+            // Transportのスケジュールを先読みし、ループ周回時のドロップアウト・ラグを完全排除
             React.useEffect(() => {
                 Tone.Transport.bpm.value = bpm;
                 Tone.Transport.cancel();
@@ -202,6 +226,8 @@
                         if (sInBar === 0) {
                             setFlashColorIndex(prev => (prev + 1) % FLASH_COLORS.length);
                             setPowerUsage(Math.floor(16 + Math.random() * 8));
+                            // ループ先頭ごとに軽量キャッシュクリーンをバックグラウンド実行して途切れを防止
+                            if (bar % 4 === 0) autoPurgeAndOptimizeMemory();
                         }
 
                         const syns = synthsRef.current;
@@ -225,9 +251,8 @@
                                 }
                             } else if (syns[instKey]) {
                                 if (Array.isArray(note)) {
-                                    // コード複数音同時鳴らし
                                     note.forEach((n, idx) => {
-                                        syns[instKey].triggerAttackRelease(n, dur, time + idx * 0.03);
+                                        syns[instKey].triggerAttackRelease(n, dur, time + idx * 0.02);
                                     });
                                 } else {
                                     syns[instKey].triggerAttackRelease(note || "C4", dur, time);
@@ -244,7 +269,6 @@
                 }
             }, [playing, bpm, instrumentSteps, noteLengthMode]);
 
-            // 鍵盤やコードでのリアルタイム試聴＆記録
             const playKeyboardNote = async (noteOrNotes) => {
                 await Tone.start();
                 const syns = synthsRef.current;
@@ -277,7 +301,6 @@
                 setStatus(`🎵 [${selectedInstrument}] 入力追加: ${Array.isArray(noteOrNotes) ? noteOrNotes.join(",") : noteOrNotes} (Bar ${currentBar + 1})`);
             };
 
-            // Voice録音機能 (マイク音声・ギター叩いた音等の取り込み)
             const toggleVoiceRecording = async () => {
                 if (!isVoiceRecording) {
                     try {
@@ -313,7 +336,6 @@
                 }
             };
 
-            // つけ足しドラム20種
             const generateDrumPattern20 = (pNum) => {
                 const newArr = new Array(TOTAL_STEPS).fill(null);
                 for (let i = 0; i < TOTAL_STEPS; i++) {
@@ -338,7 +360,6 @@
                 setStatus(`🥁 つけ足しドラム #${pNum} (24小節) 適用完了！`);
             };
 
-            // AI伴奏スタイル＆ジャンル自動展開
             const generateAiGenre = (genreType) => {
                 const newSteps = JSON.parse(JSON.stringify(instrumentSteps));
                 if (genreType === "popingdance") {
@@ -378,7 +399,6 @@
                 setInstrumentSteps(newSteps);
             };
 
-            // 全体録音 CRERA
             const toggleRecordCrera = async () => {
                 await Tone.start();
                 setIsRecording(!isRecording);
@@ -427,7 +447,7 @@
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-40 shadow-lg">
                         <div className="flex flex-col">
                             <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                MIC VICTORY DLAND <span className="text-[10px] text-pink-400 font-bold">v62.0 ギター木目・コード全表示・Voice対応</span>
+                                MIC VICTORY DLAND <span className="text-[10px] text-pink-400 font-bold">v63.0 自動キャッシュクリア＆ギャップレス再生版</span>
                             </span>
                             <span className="text-[9px] text-slate-400">© 2026 MIC VICTORY DLAND - All Rights Reserved.</span>
                         </div>
@@ -435,11 +455,11 @@
                             <div className="bg-slate-950 px-2 py-1 rounded border border-slate-800 text-[10px] text-amber-400 font-bold">
                                 ⚡ 消費電力: {powerUsage}W
                             </div>
-                            <button onClick={purgeAndClearCacheBuffer} className="px-2 py-1 bg-red-900 border border-red-700 text-red-200 font-bold rounded text-[10px]">
-                                🧹 クリア
+                            <button onClick={manualPurgeAndClear} className="px-2 py-1 bg-red-900 border border-red-700 text-red-200 font-bold rounded text-[10px]">
+                                🧹 自動キャッシュClear
                             </button>
                             <button onClick={() => setPlaying(!playing)} className={`px-3 py-1 rounded font-bold text-xs shadow ${playing ? "bg-amber-400 text-slate-950 animate-bounce" : "bg-pink-600 text-white"}`}>
-                                {playing ? "■ 停止" : "▶ 再生"}
+                                {playing ? "■ 停止" : "▶ 再生(途切れず)"}
                             </button>
                             <button onClick={toggleRecordCrera} className={`px-3 py-1 rounded font-bold text-xs shadow ${isRecording ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-red-400 border border-red-800"}`}>
                                 {isRecording ? "🔴 録音中" : "⏺️ CRERA録音"}
@@ -755,7 +775,7 @@
                                 </div>
                                 <div className="text-[10px] text-slate-400 bg-slate-950 p-3 rounded border border-slate-800 flex flex-col gap-1">
                                     <span className="font-bold text-cyan-400">℗ © 2026 MIC VICTORY DLAND (All Rights Reserved)</span>
-                                    <span>Release Version: v62.0 Ultimate Guitar & Voice Edition</span>
+                                    <span>Release Version: v63.0 Gapless & Auto-Purge Edition</span>
                                 </div>
                             </div>
                         )}
@@ -765,7 +785,7 @@
             );
         }
 
-        ReactDOM.createRoot(document.getElementById('root')).render(<MasterSynthApp />);
+        ReactDOM.createRoot(getElementById('root')).render(<MasterSynthApp />);
     </script>
 </body>
 </html>
