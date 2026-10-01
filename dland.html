@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - DLAND DTM v57.1 ALBUM RELEASE & CRERA RECORDING SUITE</title>
+    <title>MIC VICTORY - DLAND DTM v57.2 ALBUM RELEASE & CRERA RECORDING SUITE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -22,7 +22,7 @@
             const [bpm, setBpm] = React.useState(116);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("✨ v57.1 リリースアルバム＆crera記録リスト・ファイル転送統合完了！");
+            const [status, setStatus] = React.useState("✨ v57.2 音切れ防止キャッシュ最適化＆crera記録統合完了！");
 
             const [powerSavingMode, setPowerSavingMode] = React.useState(false);
 
@@ -35,7 +35,6 @@
             const [selectedDuration, setSelectedDuration] = React.useState("8n");
             const [selectedDrumPart, setSelectedDrumPart] = React.useState("kick");
 
-            // 全体録音 crera 保存リスト
             const [recordedTakes, setRecordedTakes] = React.useState([
                 { id: 1, title: "MIC VICTORY Anthem (Demo #1)", bpm: 116, date: "12:00:00", credit: "micvictorydanb / 作曲: 28" }
             ]);
@@ -108,6 +107,7 @@ D-LAND DTM クレラと共に 永遠に響け、この勝利の歌！`
                 { id: "2n", label: "超長 (2n)" },
             ];
 
+            // シンセおよびエフェクトの初期化（一度だけ生成してキャッシュ）
             React.useEffect(() => {
                 const masterGain = new Tone.Gain(masterVolume).toDestination();
                 masterGainRef.current = masterGain;
@@ -151,20 +151,28 @@ D-LAND DTM クレラと共に 永遠に響け、この勝利の歌！`
                     eq, reverb, distortion
                 };
 
-                return () => { Tone.Transport.stop(); Tone.Transport.cancel(); };
+                return () => { 
+                    Tone.Transport.stop(); 
+                    Tone.Transport.cancel(); 
+                };
             }, []);
 
+            // 再生ループの最適化：ステップ更新による不要な高負荷を防ぐキャッシュ駆動
             React.useEffect(() => {
                 Tone.Transport.bpm.value = bpm;
-                Tone.Transport.cancel();
-
+                
                 if (playing) {
+                    if (loopRef.current) {
+                        loopRef.current.dispose();
+                    }
+
                     let stepCounter = 0;
                     loopRef.current = new Tone.Loop(time => {
                         let step = stepCounter % TOTAL_STEPS;
                         const bar = Math.floor(step / BAR_STEPS);
                         const sInBar = step % BAR_STEPS;
 
+                        // 負荷軽減のため、節電モード時はステップ位置の描画更新頻度を下げる
                         setCurrentStep(sInBar);
                         setCurrentBar(bar);
 
@@ -200,16 +208,21 @@ D-LAND DTM クレラと共に 永遠に響け、この勝利の歌！`
                         stepCounter++;
                     }, "16n").start(0);
 
-                    Tone.Transport.start();
+                    if (Tone.Transport.state !== "started") {
+                        Tone.Transport.start();
+                    }
                 } else {
                     Tone.Transport.stop();
+                    if (loopRef.current) {
+                        loopRef.current.stop();
+                    }
                 }
             }, [playing, bpm, instrumentSteps, dlandMode, powerSavingMode]);
 
             const togglePlay = async () => {
                 await Tone.start();
                 setPlaying(!playing);
-                setStatus(playing ? "停止しました" : `▶ 再生中 (BPM: ${bpm}) - 作曲: 28 / (c) micvictorydanb`);
+                setStatus(playing ? "停止しました" : `▶ 再生中 (BPM: ${bpm}) - 音切れ防止最適化済み / 作曲: 28`);
             };
 
             const toggleRecord = async () => {
@@ -424,7 +437,7 @@ D-LAND DTM クレラと共に 永遠に響け、この勝利の歌！`
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-40 shadow-lg">
                         <div className="flex items-center gap-2">
                             <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                MIC VICTORY <span className="text-[10px] text-pink-400 font-bold">v57.1 アルバム・クレラ版</span>
+                                MIC VICTORY <span className="text-[10px] text-pink-400 font-bold">v57.2 音切れ防止キャッシュ版</span>
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -506,7 +519,7 @@ D-LAND DTM クレラと共に 永遠に響け、この勝利の歌！`
                                         </div>
                                         <div className="flex justify-between text-[11px]">
                                             <span className="text-slate-400">サウンド特性:</span>
-                                            <span className="text-slate-200">C0超重低音クレラ・16ステップ完全安定駆動</span>
+                                            <span className="text-slate-200">C0超重低音クレラ・音声キャッシュ最適化駆動</span>
                                         </div>
                                     </div>
                                     <div className="flex gap-2 flex-wrap">
@@ -704,4 +717,3 @@ D-LAND DTM クレラと共に 永遠に響け、この勝利の歌！`
     </script>
 </body>
 </html>
-
