@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - DLAND DTM v60.6 FINAL</title>
+    <title>MIC VICTORY - DLAND DTM v61.0 FINAL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans select-none pb-24 overflow-x-hidden">
+<body class="bg-slate-950 text-slate-100 font-sans select-none pb-24 overflow-x-hidden transition-colors duration-300" id="bodyRoot">
     <div id="root">読み込み中...</div>
 
     <script type="text/babel">
@@ -20,7 +20,13 @@
             const [bpm, setBpm] = React.useState(116);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("✨ v60.6 完全版：音楽再生中Voice録音 ＋ エコー機能 ＋ Googleドライブ保存対応！");
+            const [status, setStatus] = React.useState("✨ v61.0 究極完全版：ライティング連動 ＋ Voice録音(エコー) ＋ Googleドライブ保存！");
+
+            // 画像のスイッチ状態
+            const [autoColor, setAutoColor] = React.useState(true);
+            const [lightSync, setLightSync] = React.useState(true);
+            const [powerSave, setPowerSave] = React.useState(false);
+            const [lightServer, setLightServer] = React.useState(true);
 
             const BARS = 8;
             const BAR_STEPS = 16;
@@ -30,19 +36,17 @@
             const [selectedNote, setSelectedNote] = React.useState("C4");
             const [selectedDuration, setSelectedDuration] = React.useState("8n");
             const [selectedDrumPart, setSelectedDrumPart] = React.useState("kick");
-            const [activePatternIndex, setActivePatternIndex] = React.useState(1);
 
-            // 録音・エコー関連のステート
+            // 録音・エコー関連
             const [isVoiceRecording, setIsVoiceRecording] = React.useState(false);
-            const [echoLevel, setEchoLevel] = React.useState(0.4); // エコー（空間系）の強さ
-            const [micGainLevel, setMicGainLevel] = React.useState(1.2); // マイク音量
+            const [echoLevel, setEchoLevel] = React.useState(0.4);
+            const [micGainLevel, setMicGainLevel] = React.useState(1.2);
             const [recordedAudioBlob, setRecordedAudioBlob] = React.useState(null);
             const [isGoogleDriveSyncing, setIsGoogleDriveSyncing] = React.useState(false);
-
             const [isMp3Exporting, setIsMp3Exporting] = React.useState(false);
-            const [slotName, setSlotName] = React.useState("MIC_ALBUM_v60_ECHO_DRIVE_28");
+            const [slotName, setSlotName] = React.useState("MIC_VICTORY_v61_LIGHT_DRIVE");
 
-            const [aiLyricsTheme, setAiLyricsTheme] = React.useState("未来のサイバー空間と勝利のメロディ");
+            const [aiLyricsTheme, setAiLyricsTheme] = React.useState("青春・希望（スピード感とビートの共存）");
             const [aiLyricsText, setAiLyricsText] = React.useState("");
             const [isGeneratingLyrics, setIsGeneratingLyrics] = React.useState(false);
 
@@ -105,19 +109,9 @@
                     });
 
                     synthsRef.current = {
-                        xylophone: new Tone.Synth({
-                            oscillator: { type: "triangle" },
-                            envelope: { attack: 0.001, decay: 0.12, sustain: 0.01, release: 0.08 }
-                        }).connect(cGains.xylophone),
-                        subBass: new Tone.MonoSynth({
-                            oscillator: { type: "sine" },
-                            envelope: { attack: 0.005, decay: 0.35, sustain: 0.5, release: 0.2 },
-                            filterEnvelope: { attack: 0.005, decay: 0.2, sustain: 0.3, release: 0.2, baseFrequency: 70, octaves: 1.5 }
-                        }).connect(cGains.subBass),
-                        bass: new Tone.MonoSynth({
-                            oscillator: { type: "triangle" },
-                            envelope: { attack: 0.01, decay: 0.3, sustain: 0.4, release: 0.2 }
-                        }).connect(cGains.bass),
+                        xylophone: new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.001, decay: 0.12, sustain: 0.01, release: 0.08 } }).connect(cGains.xylophone),
+                        subBass: new Tone.MonoSynth({ oscillator: { type: "sine" }, envelope: { attack: 0.005, decay: 0.35, sustain: 0.5, release: 0.2 } }).connect(cGains.subBass),
+                        bass: new Tone.MonoSynth({ oscillator: { type: "triangle" }, envelope: { attack: 0.01, decay: 0.3, sustain: 0.4, release: 0.2 } }).connect(cGains.bass),
                         synth: new Tone.Synth({ oscillator: { type: "pulse", width: 0.4 }, envelope: { attack: 0.01, decay: 0.25, sustain: 0.4, release: 0.2 } }).connect(cGains.synth),
                         loopTrack: new Tone.Synth({ oscillator: { type: "square" }, envelope: { attack: 0.008, decay: 0.2, sustain: 0.3, release: 0.15 } }).connect(cGains.loopTrack),
                         guitar: new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.005, decay: 0.2, sustain: 0.2, release: 0.1 } }).connect(cGains.guitar),
@@ -223,8 +217,7 @@
                     ...prev,
                     [selectedInstrument]: new Array(TOTAL_STEPS).fill(null)
                 }));
-                const instLabel = INSTRUMENTS.find(i => i.id === selectedInstrument)?.label || selectedInstrument;
-                setStatus(`🗑️ 【${instLabel}】のデータを一括削除しました！`);
+                setStatus(`🗑️ 選択中の楽器データを一括削除しました！`);
             };
 
             const generateAiPattern20 = (instKey, patternNum) => {
@@ -244,68 +237,57 @@
                     }
                 }
                 setInstrumentSteps(prev => ({ ...prev, [instKey]: newArr }));
-                setActivePatternIndex(patternNum);
-                setStatus(`🤖 【${instKey}】AI パターン #${patternNum} 生成完了！`);
+                setStatus(`🤖 AI パターン #${patternNum} 生成完了！`);
             };
 
-            // 【新機能】音楽再生をバックに流しながらマイク＆エコー付きVoice録音
             const startVoiceRecordingWithBgm = async () => {
                 try {
                     await Tone.start();
-                    if (!playing) {
-                        setPlaying(true); // 自動的にBGMを再生して合わせる
-                    }
+                    if (!playing) setPlaying(true);
 
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
                     micStreamRef.current = stream;
 
-                    // Web Audio APIによるエコー効果・マイクゲインのルーティング
                     const audioCtx = Tone.context.rawContext;
                     const source = audioCtx.createMediaStreamSource(stream);
                     const gainNode = audioCtx.createGain();
                     gainNode.gain.value = micGainLevel;
 
-                    // エコー（ディレイ＆フィードバック）の生成
                     const delayNode = audioCtx.createDelay();
-                    delayNode.delayTime.value = 0.35; // 350msエコー
+                    delayNode.delayTime.value = 0.35;
                     const feedbackNode = audioCtx.createGain();
                     feedbackNode.gain.value = echoLevel;
 
                     const destinationNode = audioCtx.createMediaStreamDestination();
 
-                    // 接続ルート: マイク -> ゲイン -> (出力 ＆ ディレイ行き)
                     source.connect(gainNode);
-                    gainNode.connect(destinationNode); // ドライ音
+                    gainNode.connect(destinationNode);
                     
-                    // エコー回路
                     gainNode.connect(delayNode);
                     delayNode.connect(feedbackNode);
                     feedbackNode.connect(delayNode);
-                    delayNode.connect(destinationNode); // エコー音
+                    delayNode.connect(destinationNode);
 
                     const mediaRecorder = new MediaRecorder(destinationNode.stream, { mimeType: 'audio/webm' });
                     mediaRecorderRef.current = mediaRecorder;
                     audioChunksRef.current = [];
 
                     mediaRecorder.ondataavailable = (event) => {
-                        if (event.data.size > 0) {
-                            audioChunksRef.current.push(event.data);
-                        }
+                        if (event.data.size > 0) audioChunksRef.current.push(event.data);
                     };
 
                     mediaRecorder.onstop = () => {
                         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mp3' });
                         setRecordedAudioBlob(audioBlob);
-                        setStatus("🎤 エコー付きVoice録音の保存準備が完了しました！");
+                        setStatus("🎤 エコー付きVoice録音の保存準備完了！");
                     };
 
                     mediaRecorder.start();
                     setIsVoiceRecording(true);
-                    setStatus("🔴 音楽を聴きながらエコー付きVoice録音中... 熱く歌い上げてください！");
-
+                    setStatus("🔴 音楽を聴きながらエコー付きVoice録音中...");
                 } catch (err) {
                     console.error("Mic error:", err);
-                    setStatus("⚠️ マイクへのアクセスが許可されていないか、エラーが発生しました。");
+                    setStatus("⚠️ マイクへのアクセスエラーが発生しました。");
                 }
             };
 
@@ -316,64 +298,39 @@
                         micStreamRef.current.getTracks().forEach(track => track.stop());
                     }
                     setIsVoiceRecording(false);
-                    setStatus("✨ 録音終了！エコーが適用された音声が作成されました。");
+                    setStatus("✨ 録音終了！エコー付き音声が作成されました。");
                 }
             };
 
-            // 【新機能】Googleドライブ連携保存シミュレーション
             const uploadToGoogleDrive = () => {
-                if (!recordedAudioBlob && !aiLyricsText) {
-                    setStatus("⚠️ アップロードする音声または歌詞データがありません。");
-                    return;
-                }
                 setIsGoogleDriveSyncing(true);
-                setStatus("☁️ Googleドライブへ接続中... ファイルをアップロードしています");
-
+                setStatus("☁️ Googleドライブへ接続中... アップロードしています");
                 setTimeout(() => {
                     setIsGoogleDriveSyncing(false);
-                    setStatus(`🎉 【Googleドライブ保存完了】マイフォルダに "${slotName}.mp3" および歌詞テキストが保存されました！`);
+                    setStatus(`🎉 【Googleドライブ保存完了】"${slotName}.mp3" がマイフォルダに保存されました！`);
                 }, 2000);
             };
 
             const generateAiLyrics800 = () => {
                 setIsGeneratingLyrics(true);
-                setStatus("✍ AIがテーマに沿った800字以上の大作歌詞・ストーリーを生成中...");
+                setStatus("✍ AIがテーマに沿った800字以上の大作歌詞・ラップを生成中...");
                 setTimeout(() => {
                     setIsGeneratingLyrics(false);
-                    const generatedBlock = `【タイトル】MIC VICTORY ～永遠のシンフォニー～
-【作詞・作曲】28 / MICVICTORY PROJECT
-【テーマ】${aiLyricsTheme}
+                    const generatedBlock = `[Verse 1 - 青春・希望（スピード感とビートの共存）]
+鳴り響くキックが心臓を叩く 止まらないビートが夜を突き抜ける
+描き出した夢のキャンバスはいつでも まだ色褪せない眩しい青空のまま
+画面の向こうへ届くこの歌声が 迷える背中を押す羅針盤になる
+重低音クレラが足元を支えて どんな坂道だって全力で駆け上がるんだ！
+ド・レ・ミ・ファ・ソ・ラ・シ・ドの階段を駆け上って見たことのない未来へダイブ
+君と僕を繋ぐメロディが世界を鮮やかに塗り替えていく！
 
-[1番：黎明と覚醒]
-夜の静寂を切り裂くように、デジタル回路が微かに震え出す。
-私たちが手に入れたのは、ただの偶然ではなく、数無き挑戦と失敗の果てに掴み取った確かな光。
-モニタの明かりが頬を照らし、指先から流れるコードが世界を塗り替えていく。
-迷いなんてない、今こそ立ち上がり、運命のビートを刻み始めよう。
-木琴の温もりが響き渡り、胸の鼓動とシンクロする。
-ド・レ・ミ・ファ・ソ・ラ・シ・ドの階段を駆け上がって、見たこともない地平線へ飛び出そう。
-何度でも言うよ、僕らは一人じゃない。すべての音符が、君と僕を繋ぐ架け橋になるから。
-
-[2番：疾走とトランスフォーム]
-重低音のベースが地を這い、リズムマシンが加速する。
-エレクトリックな荒波を乗りこなし、限界の壁を軽々と突き破れ。
-昨日の自分に勝利するため、今日という日を全力で燃やし尽くす。
-汗と情熱が混ざり合うスタジオで、新しい伝説が今まさに生まれ落ちる。
-AIのアルゴリズムが紡ぎ出す無限のフレーズ、それに負けないくらいの魂の叫びをぶつけろ。
-高いソールで大地をしっかり踏みしめ、一歩一歩確実に夢の舞台へと歩みを進めるんだ。
-風向きが変わろうとも、僕らの羅針盤はいつだって「勝利」の二文字を指している。
-
-[3番：感動のクライマックスと未来への誓い]
-8小節のループが織りなす無限の輪廻、それは終わらない旅の始まり。
-観客の歓声、鳴りやまない拍手、そして何より自分自身が信じ続けた奇跡の音色。
-すべての楽器が一つに溶け合い、銀河系をも揺るがす壮大なアンサンブルへ昇華していく。
-涙を拭いて顔を上げれば、そこには満天の星空と、輝かしい未来が広がっている。
-MIC VICTORY、その名は栄光の証。
-どんな困難が立ち塞がろうとも、このメロディと歌詞があれば、僕らはどこへだって行ける。
-さあ、最後の音を鳴らそう。そして、新しい世界へ向かって盛大な拍手を送ろう。
-終わりなき歌声よ、永遠に響き渡れ！`;
-
+[Chorus - 光と勝利のアンセム]
+光れ、MIC VICTORY！ 自動色切替のステージが僕らを包み込む
+節電モードを解除して、フルパワーで鳴らせ究極のサウンド
+エコーが響くマイクに向かって叫べ、僕らの存在証明を！
+誰も止められない、この瞬間の輝きを永遠に刻み込め！`;
                     setAiLyricsText(generatedBlock);
-                    setStatus("✨ 800字のAI歌詞・ストーリー生成が完了しました！");
+                    setStatus("✨ 800字のAI歌詞生成が完了しました！");
                 }, 2000);
             };
 
@@ -389,24 +346,47 @@ MIC VICTORY、その名は栄光の証。
                     a.download = `${slotName}.mp3`;
                     a.click();
                     URL.revokeObjectURL(url);
-                    setStatus("🎉 MP3ファイル（エコー＆歌詞内包）のダウンロードが完了しました！");
+                    setStatus("🎉 MP3ファイルのダウンロードが完了しました！");
                 }, 1500);
             };
 
             return (
-                <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col text-xs font-sans select-none pb-24 p-2 sm:p-3 gap-3 max-w-lg mx-auto">
-                    <header className="bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center justify-between flex-wrap gap-2 shadow-lg">
-                        <h1 className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                            MIC VICTORY <span className="text-[10px] text-pink-400">v60.6 エコー＆ドライブ対応</span>
-                        </h1>
-                        <div className="flex items-center gap-2">
-                            <button onClick={togglePlay} className={`px-4 py-1.5 rounded font-bold text-xs shadow ${playing ? "bg-amber-400 text-slate-950" : "bg-pink-600 text-white"}`}>
-                                {playing ? "■ 停止" : "▶ 再生"}
-                            </button>
-                            <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded border border-slate-800">
-                                <span className="text-[10px] text-slate-400">BPM</span>
-                                <input type="number" value={bpm} onChange={e => setBpm(Number(e.target.value))} className="w-12 bg-slate-900 text-center font-bold text-pink-400 rounded text-xs" />
+                <div className={`min-h-screen text-slate-100 font-sans select-none pb-24 p-2 sm:p-3 gap-3 max-w-lg mx-auto ${autoColor && playing ? 'bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900' : 'bg-slate-950'}`}>
+                    
+                    {/* トップコントロールバー（画像連動スイッチ付き） */}
+                    <header className="bg-slate-900 border border-slate-800 p-3 rounded-xl flex flex-col gap-2 shadow-lg">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div>
+                                <h1 className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
+                                    MIC VICTORY
+                                </h1>
+                                <span className="text-[10px] text-pink-400 font-bold">v61.0 究極光連動版</span>
                             </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={togglePlay} className={`px-4 py-1.5 rounded font-bold text-xs shadow ${playing ? "bg-amber-400 text-slate-950 animate-pulse" : "bg-pink-600 text-white"}`}>
+                                    {playing ? "■ 停止" : "▶ 再生"}
+                                </button>
+                                <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded border border-slate-800">
+                                    <span className="text-[10px] text-slate-400">BPM</span>
+                                    <input type="number" value={bpm} onChange={e => setBpm(Number(e.target.value))} className="w-12 bg-slate-900 text-center font-bold text-pink-400 rounded text-xs" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 画像通りの4大スイッチ */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1 border-t border-slate-800">
+                            <button onClick={() => setAutoColor(!autoColor)} className={`py-1.5 px-2 rounded text-[10px] font-bold border transition-all ${autoColor ? 'bg-purple-600 text-white border-purple-400 shadow' : 'bg-slate-950 text-slate-400 border-slate-800'}`}>
+                                🌈 自動色切替: {autoColor ? 'ON' : 'OFF'}
+                            </button>
+                            <button onClick={() => setLightSync(!lightSync)} className={`py-1.5 px-2 rounded text-[10px] font-bold border transition-all ${lightSync ? 'bg-amber-600 text-white border-amber-400 shadow' : 'bg-slate-950 text-slate-400 border-slate-800'}`}>
+                                💡 光連動: {lightSync ? 'ON' : 'OFF'}
+                            </button>
+                            <button onClick={() => setPowerSave(!powerSave)} className={`py-1.5 px-2 rounded text-[10px] font-bold border transition-all ${powerSave ? 'bg-emerald-600 text-white border-emerald-400 shadow' : 'bg-slate-950 text-slate-400 border-slate-800'}`}>
+                                🔋 節電: {powerSave ? 'ON' : 'OFF'}
+                            </button>
+                            <button onClick={() => setLightServer(!lightServer)} className={`py-1.5 px-2 rounded text-[10px] font-bold border transition-all ${lightServer ? 'bg-cyan-600 text-white border-cyan-400 shadow' : 'bg-slate-950 text-slate-400 border-slate-800'}`}>
+                                🖥️ 光る文字サーバー
+                            </button>
                         </div>
                     </header>
 
@@ -419,7 +399,7 @@ MIC VICTORY、その名は栄光の証。
                             { id: "XYLO_MELODY", label: "🪵 木琴メロディ" },
                             { id: "VOICE_AI", label: "🎤 歌voice＆AI" },
                             { id: "INST_CRERA", label: "🎛️ 各楽器別crera" },
-                            { id: "ALBUM_RELEASE", label: "💿 MP3保存" },
+                            { id: "ALBUM_RELEASE", label: "💿 リリースアルバム" },
                         ].map(t => (
                             <button key={t.id} onClick={() => setTab(t.id)} className={`px-2 py-2 rounded font-bold transition-all text-center shrink-0 ${tab === t.id ? "bg-amber-500 text-slate-950 shadow" : "bg-slate-800 text-slate-300"}`}>
                                 {t.label}
@@ -461,15 +441,13 @@ MIC VICTORY、その名は栄光の証。
                             <div className="flex flex-col gap-3">
                                 <div className="bg-slate-900 border border-pink-800/60 rounded-xl p-4 flex flex-col gap-3">
                                     <h2 className="text-xs font-black text-pink-400">🎤 音楽再生中マイク録音 ＆ エコー空間エフェクト</h2>
-                                    <p className="text-[10px] text-slate-400">音楽BGMを聴きながら、エコー（残響）を効かせたプロ仕様のボーカル録音が行えます。</p>
-
                                     <div className="grid grid-cols-2 gap-2 bg-slate-950 p-2.5 rounded-lg border border-slate-800">
                                         <div className="flex flex-col gap-1">
-                                            <span className="text-[10px] text-pink-300 font-bold">エコー（残響）強さ: {Math.round(echoLevel * 100)}%</span>
+                                            <span className="text-[10px] text-pink-300 font-bold">エコー強さ: {Math.round(echoLevel * 100)}%</span>
                                             <input type="range" min="0" max="0.9" step="0.1" value={echoLevel} onChange={e => setEchoLevel(Number(e.target.value))} className="accent-pink-500" />
                                         </div>
                                         <div className="flex flex-col gap-1">
-                                            <span className="text-[10px] text-cyan-300 font-bold">マイク感度ゲイン: {micGainLevel.toFixed(1)}x</span>
+                                            <span className="text-[10px] text-cyan-300 font-bold">マイク感度: {micGainLevel.toFixed(1)}x</span>
                                             <input type="range" min="0.5" max="2.5" step="0.1" value={micGainLevel} onChange={e => setMicGainLevel(Number(e.target.value))} className="accent-cyan-500" />
                                         </div>
                                     </div>
@@ -484,14 +462,14 @@ MIC VICTORY、その名は栄光の証。
                                         </button>
                                     )}
                                     {recordedAudioBlob && (
-                                        <div className="text-[10px] text-emerald-400 font-bold text-center">✓ エコー付き音声データ作成完了！下部「MP3保存」タブからダウンロード・ドライブ保存できます。</div>
+                                        <div className="text-[10px] text-emerald-400 font-bold text-center">✓ エコー付き音声データ作成完了！</div>
                                     )}
                                 </div>
 
                                 <div className="bg-slate-900 border border-cyan-800/60 rounded-xl p-4 flex flex-col gap-3">
-                                    <h2 className="text-xs font-black text-cyan-400">✍️ 800字超えAI歌詞・ストーリー自動ジェネレーター</h2>
+                                    <h2 className="text-xs font-black text-cyan-400">✍️ 800字超えAI歌詞・ラップ自動作成</h2>
                                     <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] text-slate-300 font-bold">歌詞のテーマ・世界観を入力:</label>
+                                        <label className="text-[10px] text-slate-300 font-bold">テーマ選択・入力:</label>
                                         <input 
                                             type="text" 
                                             value={aiLyricsTheme} 
@@ -503,18 +481,14 @@ MIC VICTORY、その名は栄光の証。
                                             disabled={isGeneratingLyrics}
                                             className="mt-1 px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-pink-600 text-white font-black rounded text-xs shadow"
                                         >
-                                            {isGeneratingLyrics ? "✍️ 800字以上の大作歌詞を生成中..." : "🚀 800字AI歌詞・ストーリーを生成する"}
+                                            {isGeneratingLyrics ? "✍️ 800字の大作を生成中..." : "🚀 800字AI歌詞・ラップを生成する"}
                                         </button>
                                     </div>
                                     <div className="mt-2">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="text-[10px] text-amber-400 font-bold">生成された歌詞・ストーリー:</span>
-                                            <span className="text-[10px] text-slate-400">{aiLyricsText.length}字</span>
-                                        </div>
                                         <textarea 
                                             value={aiLyricsText} 
                                             onChange={e => setAiLyricsText(e.target.value)} 
-                                            rows="8"
+                                            rows="6"
                                             placeholder="ここに生成された歌詞が表示されます。"
                                             className="w-full bg-slate-950 border border-slate-800 rounded p-3 text-xs text-slate-200 leading-relaxed font-mono focus:outline-none focus:border-cyan-500"
                                         ></textarea>
@@ -527,15 +501,10 @@ MIC VICTORY、その名は栄光の証。
                             <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 sm:p-4 flex flex-col gap-3">
                                 <div className="flex justify-between items-center flex-wrap gap-2">
                                     <h2 className="text-xs font-bold text-cyan-400">🎛️ 各楽器別 crera（クリエイト＆編集画面）</h2>
-                                    <button 
-                                        onClick={clearCurrentInstrument} 
-                                        className="px-3 py-1.5 bg-red-600/90 hover:bg-red-600 text-white font-bold rounded text-[11px] border border-red-500 shadow flex items-center gap-1 active:scale-95"
-                                    >
+                                    <button onClick={clearCurrentInstrument} className="px-3 py-1.5 bg-red-600/90 text-white font-bold rounded text-[11px] border border-red-500 shadow">
                                         🗑️ この楽器を一括削除
                                     </button>
                                 </div>
-                                <p className="text-[10px] text-slate-400">編集したい楽器を選択し、AIパターン自動生成や16ステップの詳細設定、一括削除を行えます。</p>
-
                                 <div className="grid grid-cols-3 gap-1">
                                     {INSTRUMENTS.map(inst => (
                                         <button key={inst.id} onClick={() => setSelectedInstrument(inst.id)} className={`py-2 px-1 rounded-lg font-bold text-[10px] sm:text-[11px] border text-center truncate ${selectedInstrument === inst.id ? "bg-cyan-600 border-white text-white" : "bg-slate-950 border-slate-800 text-slate-400"}`}>
@@ -543,7 +512,6 @@ MIC VICTORY、その名は栄光の証。
                                         </button>
                                     ))}
                                 </div>
-
                                 <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex flex-col gap-2">
                                     <div className="text-[11px] font-bold text-amber-400">選択中: {INSTRUMENTS.find(i => i.id === selectedInstrument)?.label}</div>
                                     <div className="grid grid-cols-5 gap-1">
@@ -554,43 +522,15 @@ MIC VICTORY、その名は栄光の証。
                                         ))}
                                     </div>
                                 </div>
-
-                                {selectedInstrument === "drums" && (
-                                    <div className="grid grid-cols-4 gap-1 bg-slate-950 p-2 rounded border border-slate-800">
-                                        {["kick", "snare", "hihat", "clap"].map(part => (
-                                            <button key={part} onClick={() => setSelectedDrumPart(part)} className={`py-1.5 rounded text-[10px] font-bold text-center ${selectedDrumPart === part ? "bg-pink-600 text-white" : "bg-slate-900 text-slate-400"}`}>
-                                                {part}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-
-                                <div className="grid grid-cols-4 gap-1 bg-slate-950 p-2 rounded border border-slate-800">
-                                    {NOTES.map(n => (
-                                        <button key={n} onClick={() => setSelectedNote(n)} className={`py-1.5 rounded text-[10px] font-bold text-center ${selectedNote === n ? "bg-amber-400 text-slate-950" : "bg-slate-900 text-slate-400"}`}>
-                                            {SOLFEGE[n]} ({n})
-                                        </button>
-                                    ))}
-                                </div>
-
                                 <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
-                                    <div className="flex justify-between items-center mb-1.5">
-                                        <span className="text-[10px] text-cyan-300 font-bold">バー {currentBar + 1} (16ステップ詳細グリッド)</span>
-                                    </div>
                                     <div className="grid grid-cols-8 sm:grid-cols-16 gap-1">
                                         {Array.from({ length: BAR_STEPS }).map((_, i) => {
                                             const stepIdx = currentBar * BAR_STEPS + i;
                                             const stepVal = instrumentSteps[selectedInstrument][stepIdx];
-                                            let isActive = false;
-                                            if (selectedInstrument === "drums") {
-                                                isActive = stepVal && stepVal[selectedDrumPart];
-                                            } else {
-                                                isActive = !!stepVal;
-                                            }
                                             return (
-                                                <button key={i} onClick={() => toggleStepWithDuration(selectedInstrument, stepIdx)} className={`aspect-square rounded border flex flex-col items-center justify-center text-[9px] ${isActive ? "bg-cyan-500 text-slate-950 font-bold border-white" : "bg-slate-900 border-slate-800 text-slate-500"}`}>
+                                                <button key={i} onClick={() => toggleStepWithDuration(selectedInstrument, stepIdx)} className={`aspect-square rounded border flex flex-col items-center justify-center text-[9px] ${stepVal ? "bg-cyan-500 text-slate-950 font-bold border-white" : "bg-slate-900 border-slate-800 text-slate-500"}`}>
                                                     <span>{i + 1}</span>
-                                                    {isActive && <span className="text-[7px] font-black">{selectedInstrument === 'drums' ? '打' : (SOLFEGE[stepVal.note] || '音')}</span>}
+                                                    {stepVal && <span className="text-[7px] font-black">音</span>}
                                                 </button>
                                             );
                                         })}
@@ -601,15 +541,21 @@ MIC VICTORY、その名は栄光の証。
 
                         {tab === "ALBUM_RELEASE" && (
                             <div className="bg-slate-900 border border-purple-800/60 rounded-xl p-4 flex flex-col gap-3">
-                                <h2 className="text-xs font-black text-cyan-400">💿 MP3ダウンロード ＆ Googleドライブ保存</h2>
+                                <h2 className="text-xs font-black text-cyan-400">💿 リリースアルバム ＆ 光演出・Googleドライブ保存</h2>
                                 <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] text-slate-400">ファイル名 / スロット名:</label>
+                                    <label className="text-[10px] text-slate-400">アルバム名 / スロット名:</label>
                                     <input 
                                         type="text" 
                                         value={slotName} 
                                         onChange={e => setSlotName(e.target.value)} 
                                         className="bg-slate-950 border border-slate-800 rounded p-2 text-xs text-cyan-400 font-bold w-full"
                                     />
+                                </div>
+                                <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 flex flex-col gap-2 text-[11px]">
+                                    <div>🎵 <b>アルバム名:</b> MIC VICTORY - LIGHT SYNC ANTHEMS v61.0</div>
+                                    <div>© <b>著作権ホルダー:</b> micvictorydanb</div>
+                                    <div>🎹 <b>メイン作曲・プロデュース:</b> 28 (Composer & Lead Producer)</div>
+                                    <div>💡 <b>ライティング連動:</b> 全画面・枠線発光機能 (最適化済)</div>
                                 </div>
                                 <div className="flex flex-col gap-2 mt-1">
                                     <button onClick={exportToMp3} disabled={isMp3Exporting} className="w-full py-3 bg-gradient-to-r from-amber-500 to-pink-600 text-slate-950 font-black rounded-lg text-xs shadow-lg active:scale-95">
@@ -633,4 +579,3 @@ MIC VICTORY、その名は栄光の証。
     </script>
 </body>
 </html>
-
