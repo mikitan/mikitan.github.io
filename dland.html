@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY SOUND - WORLD BEST DTM v63.0 CRERA SUITE</title>
+    <title>MIC VICTORY SOUND - WORLD BEST DTM v62.0 ALBUM & VISUAL SUITE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -20,10 +20,10 @@
             const [bpm, setBpm] = React.useState(116);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("✨ v63.0 全体・楽器別・パイプ音・ロボット音crera対応完了！");
+            const [status, setStatus] = React.useState("✨ v62.0 著作権フリーアルバム・AIキャッシュ途切れない連続再生機能完備！");
 
             const [powerSavingMode, setPowerSavingMode] = React.useState(false);
-            const [autoAiCache, setAutoAiCache] = React.useState(true);
+            const [autoAiCache, setAutoAiCache] = React.useState(true); // AIキャッシュ自動連続再生
 
             const BARS = 8;
             const BAR_STEPS = 16;
@@ -35,8 +35,11 @@
             const [selectedDrumPart, setSelectedDrumPart] = React.useState("kick");
 
             const [bassMode, setBassMode] = React.useState("subLow");
+            const [chopperGridMode, setChopperGridMode] = React.useState(false);
             const [fxPattern, setFxPattern] = React.useState("reverbEcho");
             const [scratchMode, setScratchMode] = React.useState(false);
+            const [electricAmpEcho, setElectricAmpEcho] = React.useState(true);
+            const [amRiffRandomMode, setAmRiffRandomMode] = React.useState(false);
 
             const [screenSaverActive, setScreenSaverActive] = React.useState(false);
             const [activeEqColorIndex, setActiveEqColorIndex] = React.useState(0);
@@ -52,23 +55,13 @@
                 { name: "ピンク (ポップ)", class: "bg-pink-600 border-pink-400 shadow-pink-500/80" }
             ];
 
-            // 📁 crera 各種ストレージステート
-            const [masterTakes, setMasterTakes] = React.useState([
-                { id: 1, title: "全体セッション #1 (重低音ベース＋AIリフ)", bpm: 116, date: "12:00", credit: "micvictorysund" }
-            ]);
-            const [instrumentTakes, setInstrumentTakes] = React.useState([
-                { id: 101, instrument: "subBass", title: "ベース王道グルーヴ #1", steps: [] }
-            ]);
-            const [pipeTakes, setPipeTakes] = React.useState([
-                { id: 201, title: "パイプ音スペーシーフレーズ #1", steps: [] }
-            ]);
-            const [robotTakes, setRobotTakes] = React.useState([
-                { id: 301, title: "ロボット音エレクトロビート #1", steps: [] }
+            const [recordedTakes, setRecordedTakes] = React.useState([
+                { id: 1, title: "Amリフ全ランダム & 重低音ベース テイク #1", bpm: 116, date: "12:00:00", credit: "micvictorysund / 作曲: 28" }
             ]);
 
             const [albumProducts, setAlbumProducts] = React.useState([
-                { id: 101, title: "MICVICTORY 2026 アルティメットアルバム Vol.1", price: "¥1,800 (商用利用OK)", tracks: 12 },
-                { id: 102, title: "BLAUND & POME スポーツBGM集", price: "¥1,200 (配信利用OK)", tracks: 8 }
+                { id: 101, title: "MICVICTORY 2026 著作権フリー・アルティメットアルバム Vol.1", price: "¥1,800 (商用利用OK)", tracks: 12, format: "WAV / MP3 / Stems" },
+                { id: 102, title: "BLAUND & POME スポーツ・コレクションBGM集", price: "¥1,200 (YouTube/配信利用OK)", tracks: 8, format: "MP3 320kbps" }
             ]);
 
             const [masterBassBoost, setMasterBassBoost] = React.useState(14);
@@ -117,10 +110,14 @@
             ];
 
             const FLASH_COLORS = [
-                "border-red-500 shadow-red-500/50", "border-orange-500 shadow-orange-500/50",
-                "border-yellow-500 shadow-yellow-500/50", "border-emerald-500 shadow-emerald-500/50",
-                "border-cyan-500 shadow-cyan-500/50", "border-purple-500 shadow-purple-500/50",
-                "border-pink-500 shadow-pink-500/50", "border-blue-500 shadow-blue-500/50"
+                "border-red-500 shadow-red-500/50",
+                "border-orange-500 shadow-orange-500/50",
+                "border-yellow-500 shadow-yellow-500/50",
+                "border-emerald-500 shadow-emerald-500/50",
+                "border-cyan-500 shadow-cyan-500/50",
+                "border-purple-500 shadow-purple-500/50",
+                "border-pink-500 shadow-pink-500/50",
+                "border-blue-500 shadow-blue-500/50"
             ];
 
             React.useEffect(() => {
@@ -142,18 +139,40 @@
                 });
 
                 synthsRef.current = {
-                    subBass: new Tone.MonoSynth({ oscillator: { type: "sine" }, envelope: { attack: 0.005, decay: 0.4, sustain: 0.7, release: 0.2 } }).connect(cGains.subBass),
-                    chopperBass: new Tone.MonoSynth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.001, decay: 0.15, sustain: 0.1, release: 0.1 } }).connect(cGains.chopperBass),
-                    electricGuitar: new Tone.Synth({ oscillator: { type: "sawtooth6" }, envelope: { attack: 0.01, decay: 0.3, sustain: 0.4, release: 0.3 } }).connect(cGains.electricGuitar),
-                    pipeSynth: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.05, decay: 0.4, sustain: 0.6, release: 0.3 } }).connect(cGains.pipeSynth),
-                    robotSynth: new Tone.Synth({ oscillator: { type: "square8" }, envelope: { attack: 0.001, decay: 0.1, sustain: 0.2, release: 0.05 } }).connect(cGains.robotSynth),
-                    amRiff: new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.01, decay: 0.25, sustain: 0.3, release: 0.2 } }).connect(cGains.amRiff),
-                    synth: new Tone.Synth({ oscillator: { type: "pulse", width: 0.5 }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.4, release: 0.2 } }).connect(cGains.synth),
+                    subBass: new Tone.MonoSynth({
+                        oscillator: { type: "sine" },
+                        envelope: { attack: 0.005, decay: 0.4, sustain: 0.7, release: 0.2 }
+                    }).connect(cGains.subBass),
+                    chopperBass: new Tone.MonoSynth({
+                        oscillator: { type: "sawtooth" },
+                        envelope: { attack: 0.001, decay: 0.15, sustain: 0.1, release: 0.1 },
+                        filterEnvelope: { attack: 0.001, decay: 0.15, sustain: 0.2, release: 0.1, baseFrequency: 150, octaves: 3 }
+                    }).connect(cGains.chopperBass),
+                    electricGuitar: new Tone.Synth({
+                        oscillator: { type: "sawtooth6" },
+                        envelope: { attack: 0.01, decay: 0.3, sustain: 0.4, release: 0.3 }
+                    }).connect(cGains.electricGuitar),
+                    pipeSynth: new Tone.Synth({
+                        oscillator: { type: "sine" },
+                        envelope: { attack: 0.05, decay: 0.4, sustain: 0.6, release: 0.3 }
+                    }).connect(cGains.pipeSynth),
+                    robotSynth: new Tone.Synth({
+                        oscillator: { type: "square8" },
+                        envelope: { attack: 0.001, decay: 0.1, sustain: 0.2, release: 0.05 }
+                    }).connect(cGains.robotSynth),
+                    amRiff: new Tone.Synth({
+                        oscillator: { type: "triangle" },
+                        envelope: { attack: 0.01, decay: 0.25, sustain: 0.3, release: 0.2 }
+                    }).connect(cGains.amRiff),
+                    synth: new Tone.Synth({
+                        oscillator: { type: "pulse", width: 0.5 },
+                        envelope: { attack: 0.01, decay: 0.2, sustain: 0.4, release: 0.2 }
+                    }).connect(cGains.synth),
                     drums: {
-                        kick: new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 6, oscillator: { type: "sine" }, envelope: { attack: 0.0001, decay: 0.3, sustain: 0.01 } }).connect(cGains.drums),
+                        kick: new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 6, oscillator: { type: "sine" }, envelope: { attack: 0.0001, decay: 0.3, sustain: 0.01, release: 0.1 } }).connect(cGains.drums),
                         snare: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.0001, decay: 0.18, sustain: 0 } }).connect(cGains.drums),
-                        hihat: new Tone.MetalSynth({ frequency: 1200, envelope: { attack: 0.0005, decay: 0.02 } }).connect(cGains.drums),
-                        clap: new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.005, decay: 0.12 } }).connect(cGains.drums),
+                        hihat: new Tone.MetalSynth({ frequency: 1200, envelope: { attack: 0.0005, decay: 0.02, release: 0.01 } }).connect(cGains.drums),
+                        clap: new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.005, decay: 0.12, sustain: 0 } }).connect(cGains.drums),
                     }
                 };
 
@@ -163,6 +182,7 @@
                 };
             }, []);
 
+            // 途切れない連続再生とAIキャッシュ制御ループ
             React.useEffect(() => {
                 Tone.Transport.bpm.value = bpm;
                 if (playing) {
@@ -176,6 +196,7 @@
 
                         setCurrentStep(sInBar);
                         setCurrentBar(bar);
+
                         setActiveEqColorIndex(prev => (prev + 1) % EQ_COLORS.length);
 
                         if (!powerSavingMode) {
@@ -189,7 +210,8 @@
                         Object.keys(instrumentSteps).forEach(instKey => {
                             let item = instrumentSteps[instKey][step];
 
-                            if (!item && autoAiCache && (instKey === "amRiff" || instKey === "subBass" || instKey === "pipeSynth")) {
+                            // 🎵 自動AIキャッシュ機能：ノート未設定ステップでも途切れさせずにグルーヴを維持
+                            if (!item && autoAiCache && (instKey === "amRiff" || instKey === "subBass" || instKey === "synth")) {
                                 if (step % 4 === 0) {
                                     const fallbackNotes = ["C4", "E4", "G4", "A4"];
                                     item = { note: fallbackNotes[Math.floor(Math.random() * fallbackNotes.length)], dur: "8n" };
@@ -197,6 +219,7 @@
                             }
 
                             if (!item) return;
+
                             const note = typeof item === "object" ? item.note : item;
                             const dur = typeof item === "object" ? (item.dur || "8n") : "8n";
 
@@ -228,7 +251,34 @@
             const togglePlay = async () => {
                 await Tone.start();
                 setPlaying(!playing);
-                setStatus(playing ? "停止しました" : `▶ 再生中 (BPM: ${bpm})`);
+                setStatus(playing ? "停止しました" : `▶ 再生中 (BPM: ${bpm}, AIキャッシュ連続再生稼働中)`);
+            };
+
+            const changeFxPattern = (pattern) => {
+                setFxPattern(pattern);
+                const fx = fxNodesRef.current;
+                if (!fx) return;
+                if (pattern === "reverbEcho") {
+                    fx.reverb.wet.value = 0.4;
+                    fx.delay.wet.value = 0.3;
+                    fx.distortion.distortion = 0.05;
+                    setStatus("✨ FX: [リバーブ＆エコー] 適用");
+                } else if (pattern === "distortionHeavy") {
+                    fx.reverb.wet.value = 0.2;
+                    fx.delay.wet.value = 0.1;
+                    fx.distortion.distortion = 0.45;
+                    setStatus("🔥 FX: [ハードディストーション] 適用");
+                } else if (pattern === "robotFilter") {
+                    fx.reverb.wet.value = 0.3;
+                    fx.delay.wet.value = 0.2;
+                    fx.distortion.distortion = 0.2;
+                    setStatus("🤖 FX: [ロボットフィルター] 適用");
+                } else if (pattern === "pipeResonance") {
+                    fx.reverb.wet.value = 0.6;
+                    fx.delay.wet.value = 0.4;
+                    fx.distortion.distortion = 0.02;
+                    setStatus("🪈 FX: [パイプレゾナンス空間] 適用");
+                }
             };
 
             const triggerScratch = () => {
@@ -238,6 +288,7 @@
                     const now = Tone.now();
                     syns.drums.hihat.triggerAttackRelease("32n", now);
                     syns.synth.triggerAttackRelease("C5", "16n", now + 0.04);
+                    syns.robotSynth.triggerAttackRelease("A3", "32n", now + 0.08);
                 }
                 setStatus("🎛️ DJスクラッチ発動！");
                 setTimeout(() => setScratchMode(false), 700);
@@ -252,13 +303,36 @@
 
                 for (let i = 0; i < TOTAL_STEPS; i++) {
                     if (instKey === "drums") {
-                        newArr[i] = { kick: i % 4 === 0, snare: i % 8 === 4, hihat: true, clap: i % 16 === 14 };
-                    } else if (Math.random() < 0.38) {
-                        newArr[i] = { note: scale[Math.floor(Math.random() * scale.length)], dur: selectedDuration, subBoost: Math.random() > 0.5 };
+                        const isKick = i % 4 === 0 || i % 16 === 10;
+                        const isSnare = i % 8 === 4;
+                        const isHihat = true;
+                        const isClap = i % 16 === 14;
+                        newArr[i] = { kick: isKick, snare: isSnare, hihat: isHihat, clap: isClap };
+                    } else {
+                        if (Math.random() < 0.38) {
+                            const note = scale[Math.floor(Math.random() * scale.length)];
+                            const dur = selectedDuration;
+                            newArr[i] = { note, dur, subBoost: Math.random() > 0.5 };
+                        }
                     }
                 }
+
                 setInstrumentSteps(prev => ({ ...prev, [instKey]: newArr }));
-                setStatus(`🤖 AIランダムパターン生成 [${instKey}]`);
+                setStatus(`🤖 AIランダムパターン生成完了！ [${instKey}]`);
+            };
+
+            const generateAmRiffAllRandom = () => {
+                setAmRiffRandomMode(true);
+                const newArr = new Array(TOTAL_STEPS).fill(null);
+                for (let i = 0; i < TOTAL_STEPS; i++) {
+                    if (Math.random() < 0.45) {
+                        const note = AM_NOTES[Math.floor(Math.random() * AM_NOTES.length)];
+                        newArr[i] = { note, dur: "16n" };
+                    }
+                }
+                setInstrumentSteps(prev => ({ ...prev, amRiff: newArr }));
+                setSelectedInstrument("amRiff");
+                setStatus("🎹 Amリフ全てランダム記録・再生セット完了！");
             };
 
             const playNoteKeyboard = (note) => {
@@ -272,7 +346,8 @@
                     else if (selectedDrumPart === "hihat") syns.drums.hihat.triggerAttackRelease("32n");
                     else syns.drums.clap.triggerAttackRelease(selectedDuration);
                 } else if (selectedInstrument === "subBass") {
-                    syns.subBass.triggerAttackRelease(bassMode === "subLow" ? "C1" : note, selectedDuration);
+                    const actualNote = bassMode === "subLow" ? "C1" : note;
+                    syns.subBass.triggerAttackRelease(actualNote, selectedDuration);
                 } else if (syns[selectedInstrument]) {
                     syns[selectedInstrument].triggerAttackRelease(note, selectedDuration);
                 }
@@ -289,7 +364,8 @@
                     if (instKey === "drums") {
                         const currentObj = currentArr[idx] || { kick: false, snare: false, hihat: false, clap: false };
                         const updatedObj = { ...currentObj, [selectedDrumPart]: !currentObj[selectedDrumPart] };
-                        currentArr[idx] = Object.values(updatedObj).some(Boolean) ? updatedObj : null;
+                        const hasAny = Object.values(updatedObj).some(Boolean);
+                        currentArr[idx] = hasAny ? updatedObj : null;
                     } else {
                         currentArr[idx] = currentArr[idx] ? null : { note, dur, subBoost: bassMode === "subLow" };
                     }
@@ -297,147 +373,203 @@
                 });
             };
 
-            // 📁 crera 各種保存・読み込み関数
-            const saveMasterCrera = () => {
-                const newTake = { id: Date.now(), title: `全体セッション #${masterTakes.length + 1}`, bpm, date: new Date().toLocaleTimeString(), steps: { ...instrumentSteps } };
-                setMasterTakes(prev => [newTake, ...prev]);
-                setStatus("📁 【全体crera】に現在の全セッションを保存しました！");
-            };
-            const loadMasterCrera = (take) => {
-                setBpm(take.bpm);
-                setInstrumentSteps(take.steps);
-                setStatus(`🚀 【全体crera】「${take.title}」を読み込みました！`);
+            const clearInstrument = (instKey) => {
+                setInstrumentSteps(prev => ({ ...prev, [instKey]: new Array(TOTAL_STEPS).fill(null) }));
+                setStatus(`🗑️ 【${instKey}】をクリアしました。`);
             };
 
-            const saveInstrumentCrera = () => {
-                const newTake = { id: Date.now(), instrument: selectedInstrument, title: `${selectedInstrument} パターン #${instrumentTakes.length + 1}`, steps: [...instrumentSteps[selectedInstrument]] };
-                setInstrumentTakes(prev => [newTake, ...prev]);
-                setStatus(`📁 【楽器別crera】[${selectedInstrument}] を保存しました！`);
-            };
-            const loadInstrumentCrera = (take) => {
-                setInstrumentSteps(prev => ({ ...prev, [take.instrument]: [...take.steps] }));
-                setSelectedInstrument(take.instrument);
-                setStatus(`🚀 【楽器別crera】「${take.title}」を読み込みました！`);
-            };
-
-            const savePipeCrera = () => {
-                const newTake = { id: Date.now(), title: `パイプ音フレーズ #${pipeTakes.length + 1}`, steps: [...instrumentSteps.pipeSynth] };
-                setPipeTakes(prev => [newTake, ...prev]);
-                setStatus("📁 【パイプ音crera】にフレーズを保存しました！");
-            };
-            const loadPipeCrera = (take) => {
-                setInstrumentSteps(prev => ({ ...prev, pipeSynth: [...take.steps] }));
-                setStatus(`🚀 【パイプ音crera】「${take.title}」を読み込みました！`);
+            const saveTakeToCrera = () => {
+                const newTake = {
+                    id: Date.now(),
+                    title: `crera保存セッション #${recordedTakes.length + 1}`,
+                    bpm,
+                    date: new Date().toLocaleTimeString(),
+                    credit: "micvictorysund / 作曲: 28"
+                };
+                setRecordedTakes(prev => [newTake, ...prev]);
+                setStatus("📁 現在のセッションを crera に保存しました！");
             };
 
-            const saveRobotCrera = () => {
-                const newTake = { id: Date.now(), title: `ロボット音ビート #${robotTakes.length + 1}`, steps: [...instrumentSteps.robotSynth] };
-                setRobotTakes(prev => [newTake, ...prev]);
-                setStatus("📁 【ロボット音crera】にフレーズを保存しました！");
-            };
-            const loadRobotCrera = (take) => {
-                setInstrumentSteps(prev => ({ ...prev, robotSynth: [...take.steps] }));
-                setStatus(`🚀 【ロボット音crera】「${take.title}」を読み込みました！`);
+            const purchaseAlbum = (album) => {
+                alert(`[MICVICTORYSUND DTM] ご購入ありがとうございます！\n${album.title}\n価格: ${album.price}\n※商用利用可能な著作権フリー音源パッケージおよびSTEMSデータがダウンロード可能です。`);
             };
 
             return (
-                <div className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col text-xs font-sans select-none pb-24 overflow-x-hidden border-8 transition-colors duration-300 ${flashColor}`}>
+                <div className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col text-xs font-sans select-none pb-24 overflow-x-hidden border-8 transition-colors duration-300 ${powerSavingMode ? 'border-emerald-800' : flashColor}`}>
                     
                     {screenSaverActive && (
                         <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center p-6 border-8 border-cyan-500 animate-pulse">
                             <div className="absolute top-4 right-4">
-                                <button onClick={() => setScreenSaverActive(false)} className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg text-sm">✕ 終了</button>
+                                <button onClick={() => setScreenSaverActive(false)} className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg text-sm shadow-lg">✕ スクリーンセーバー終了</button>
                             </div>
-                            <h1 className="text-3xl font-black text-cyan-400 mb-6">MICVICTORY 8色音連動イコライザー</h1>
-                            <div className="grid grid-cols-4 gap-4 w-full max-w-3xl mb-6">
+                            <h1 className="text-2xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-amber-400 to-cyan-400 mb-6 text-center">
+                                MICVICTORYSUND DTM - 8色音連動イコライザー
+                            </h1>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-4xl mb-8">
                                 {EQ_COLORS.map((col, idx) => {
                                     const isLit = playing && (activeEqColorIndex === idx);
                                     return (
-                                        <div key={idx} className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center ${col.class} ${isLit ? 'scale-105 opacity-100 ring-4 ring-white' : 'opacity-40 bg-slate-900'}`}>
+                                        <div key={idx} className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center transition-all duration-150 ${col.class} ${isLit ? 'scale-105 opacity-100 ring-4 ring-white' : 'opacity-40 bg-slate-900'}`}>
                                             <span className="text-sm font-black text-white">{col.name}</span>
+                                            <span className="text-xs font-mono mt-1 text-slate-200">{isLit ? '⚡ 発光中' : 'WAIT'}</span>
                                         </div>
                                     );
                                 })}
                             </div>
-                            <button onClick={togglePlay} className="px-6 py-3 bg-amber-500 text-slate-950 font-bold rounded-xl text-base">{playing ? "■ 停止" : "▶ 再生"}</button>
+                            <div className="flex gap-4">
+                                <button onClick={togglePlay} className="px-6 py-3 bg-amber-500 text-slate-950 font-bold rounded-xl text-base shadow">
+                                    {playing ? "■ 音楽停止" : "▶ 再生スタート"}
+                                </button>
+                                <button onClick={() => setScreenSaverActive(false)} className="px-6 py-3 bg-slate-800 text-white font-bold rounded-xl text-base">
+                                    通常画面に戻る
+                                </button>
+                            </div>
                         </div>
                     )}
 
-                    <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between sticky top-0 z-40 shadow-lg">
-                        <span className="font-black text-sm bg-gradient-to-r from-amber-400 to-cyan-400 bg-clip-text text-transparent">
-                            micvictorysund DTM <span className="text-[10px] text-pink-400">v63.0 crera全対応</span>
-                        </span>
+                    <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-40 shadow-lg">
+                        <div className="flex items-center gap-2">
+                            <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
+                                micvictorysund DTM <span className="text-[10px] text-pink-400 font-bold">v62.0 AIキャッシュ連続再生対応</span>
+                            </span>
+                        </div>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                            <button onClick={() => setScreenSaverActive(true)} className="px-2.5 py-1 bg-cyan-700 text-white font-bold rounded text-[10px]">🖥️ スクリーンセーバー</button>
-                            <button onClick={togglePlay} className={`px-3 py-1 rounded font-bold text-xs ${playing ? "bg-amber-400 text-slate-950" : "bg-pink-600 text-white"}`}>{playing ? "■ 停止" : "▶ 再生"}</button>
-                            <button onClick={triggerScratch} className="px-2 py-1 bg-purple-700 text-white font-bold rounded text-xs">🎛️ スクラッチ</button>
+                            <button onClick={() => setAutoAiCache(!autoAiCache)} className={`px-2 py-1 rounded font-bold text-[10px] border shadow ${autoAiCache ? 'bg-pink-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                                {autoAiCache ? '🤖 AIキャッシュON' : 'AIキャッシュOFF'}
+                            </button>
+                            <button onClick={() => setScreenSaverActive(true)} className="px-2.5 py-1 bg-cyan-700 hover:bg-cyan-600 text-white font-bold rounded text-[10px] shadow animate-pulse">
+                                🖥️ 8色スクリーンセーバー
+                            </button>
+                            <button onClick={togglePlay} className={`px-3 py-1 rounded font-bold text-xs shadow ${playing ? "bg-amber-400 text-slate-950 animate-bounce" : "bg-pink-600 text-white"}`}>
+                                {playing ? "■ 停止" : "▶ 再生"}
+                            </button>
+                            <button onClick={triggerScratch} className="px-2 py-1 bg-purple-700 hover:bg-purple-600 text-white font-bold rounded text-xs">
+                                🎛️ スクラッチ
+                            </button>
                             <div className="flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
                                 <span className="text-[9px] text-slate-400">BPM</span>
-                                <input type="number" value={bpm} onChange={e => setBpm(Number(e.target.value))} className="w-12 bg-slate-900 text-center font-bold text-pink-400 rounded text-xs py-0.5" />
+                                <input type="number" value={bpm} onChange={e => setBpm(Math.max(60, Math.min(220, Number(e.target.value))))} className="w-12 bg-slate-900 text-center font-bold text-pink-400 rounded text-xs py-0.5" />
                             </div>
                         </div>
                     </header>
 
                     <nav className="bg-slate-900/90 border-b border-slate-800 px-2 py-1.5 flex gap-1 overflow-x-auto">
                         {[
-                            { id: "DUAL_EDIT", label: "🎛️ メイン編集" },
-                            { id: "MASTER_CRERA", label: "📁 全体crera" },
-                            { id: "INST_CRERA", label: "🎸 楽器別crera" },
-                            { id: "PIPE_CRERA", label: "🪈 パイプ音crera" },
-                            { id: "ROBOT_CRERA", label: "🤖 ロボット音crera" },
-                            { id: "ALBUM_STORE", label: "💿 アルバムショップ" },
+                            { id: "DUAL_EDIT", label: "🎛️ 楽器・ベース重低音/高音" },
+                            { id: "EQ_VISUAL", label: "🎨 8色音連動イコライザー" },
+                            { id: "ALBUM_STORE", label: "💿 著作権フリーアルバム販売" },
+                            { id: "CHOPPER_TAB", label: "🎸 チョッパクリッド" },
+                            { id: "FX_TAB", label: "✨ FX & エレキアンプ" },
+                            { id: "AM_RIFF_TAB", label: "🎹 Amリフ全ランダム" },
+                            { id: "PIPE_ROBOT_TAB", label: "🪈ロボット・パイプ" },
+                            { id: "CRERA_REC", label: "📁 crera記録マネージャー" },
                         ].map(t => (
-                            <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-1 rounded text-center font-bold shrink-0 ${tab === t.id ? "bg-amber-500 text-slate-950" : "bg-slate-800/60 text-slate-400"}`}>
+                            <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-1 rounded text-center font-bold transition-all shrink-0 ${tab === t.id ? "bg-amber-500 text-slate-950 shadow" : "bg-slate-800/60 text-slate-400"}`}>
                                 {t.label}
                             </button>
                         ))}
                     </nav>
 
-                    <div className="bg-slate-900/50 px-3 py-1 text-[11px] text-cyan-400 border-b border-slate-900">
-                        <span>💡 {status}</span>
+                    <div className="bg-slate-900/50 px-3 py-1 text-[11px] text-cyan-400 border-b border-slate-900 truncate flex justify-between items-center">
+                        <span>💡 {status} | 作曲: 28 | (c) micvictorysund DTM</span>
+                        {playing && (
+                            <div className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                                <span className="text-[10px] text-cyan-300 font-mono">STEP: {currentStep + 1}</span>
+                            </div>
+                        )}
                     </div>
 
                     <main className="p-2 flex flex-col gap-3">
                         {tab === "DUAL_EDIT" && (
                             <div className="flex flex-col gap-3">
-                                <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-2.5">
+                                <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-2.5 shadow">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className="text-xs font-bold text-pink-400">🔊 楽器選択・コントローラー</span>
+                                        <span className="text-xs font-bold text-pink-400">🔊 ベースシンセサイザー重低音 / 高音切り替えコントローラー</span>
                                         <div className="flex gap-1.5">
-                                            <button onClick={() => setBassMode("subLow")} className={`px-2.5 py-1 rounded font-bold text-[10px] ${bassMode === "subLow" ? "bg-amber-500 text-slate-950" : "bg-slate-950 text-slate-400"}`}>重低音</button>
-                                            <button onClick={() => setBassMode("high")} className={`px-2.5 py-1 rounded font-bold text-[10px] ${bassMode === "high" ? "bg-cyan-500 text-slate-950" : "bg-slate-950 text-slate-400"}`}>高音</button>
+                                            <button onClick={() => setBassMode("subLow")} className={`px-3 py-1 rounded font-bold text-xs ${bassMode === "subLow" ? "bg-amber-500 text-slate-950" : "bg-slate-950 text-slate-400 border border-slate-800"}`}>
+                                                🔊 重低音モード (Sub-Bass)
+                                            </button>
+                                            <button onClick={() => setBassMode("high")} className={`px-3 py-1 rounded font-bold text-xs ${bassMode === "high" ? "bg-cyan-500 text-slate-950" : "bg-slate-950 text-slate-400 border border-slate-800"}`}>
+                                                🔔 高音ベースモード
+                                            </button>
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-1.5">
+
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-1.5 mt-2">
                                         {INSTRUMENTS.map(inst => (
-                                            <button key={inst.id} onClick={() => setSelectedInstrument(inst.id)} className={`py-2 px-1 rounded font-bold text-[10px] border flex items-center justify-center gap-1 ${selectedInstrument === inst.id ? `bg-gradient-to-r ${inst.color} border-white text-white` : "bg-slate-950 border-slate-800 text-slate-400"}`}>
+                                            <button key={inst.id} onClick={() => setSelectedInstrument(inst.id)} className={`py-2 px-1 rounded-lg font-bold text-[10px] border flex items-center justify-center gap-1 shadow ${selectedInstrument === inst.id ? `bg-gradient-to-r ${inst.color} border-white text-white` : "bg-slate-950 border-slate-800 text-slate-400"}`}>
                                                 {inst.label}
                                             </button>
                                         ))}
                                     </div>
-                                    <div className="flex justify-between items-center pt-2 border-t border-slate-800">
-                                        <button onClick={() => generateAiRandomPattern(selectedInstrument)} className="px-3 py-1 bg-pink-600 text-white font-bold rounded text-xs">🤖 AIランダム生成</button>
-                                        <span className="text-[10px] text-amber-400">選択中: {selectedInstrument}</span>
+
+                                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-800">
+                                        <div className="flex gap-2">
+                                            <button onClick={() => generateAiRandomPattern(selectedInstrument)} className="px-3 py-1.5 bg-pink-600 text-white font-bold rounded text-xs shadow">
+                                                🤖 AIメロディランダム生成
+                                            </button>
+                                            <button onClick={() => clearInstrument(selectedInstrument)} className="px-3 py-1.5 bg-red-950 text-red-300 font-bold rounded text-xs">
+                                                🗑️ クリア
+                                            </button>
+                                        </div>
+                                        <span className="text-[10px] text-amber-400 font-bold">選択中: {selectedInstrument}</span>
                                     </div>
                                 </div>
 
-                                <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3">
+                                <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-3 shadow">
+                                    <div className="flex justify-between items-center flex-wrap gap-2">
+                                        <span className="text-xs font-bold text-cyan-400">🎹 鍵盤演奏 & リアルタイムステップ打ち込み</span>
+                                        <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded border border-slate-800">
+                                            <span className="text-[10px] text-amber-400 font-bold">音長:</span>
+                                            {DURATION_OPTIONS.map(d => (
+                                                <button key={d.id} onClick={() => setSelectedDuration(d.id)} className={`px-2 py-0.5 rounded text-[10px] font-bold ${selectedDuration === d.id ? "bg-amber-500 text-slate-950" : "bg-slate-900 text-slate-400"}`}>
+                                                    {d.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {selectedInstrument === "drums" && (
+                                        <div className="flex items-center gap-2 bg-slate-950 p-2 rounded border border-slate-800">
+                                            <span className="text-[10px] font-bold text-red-400">ドラムパーツ:</span>
+                                            {["kick", "snare", "hihat", "clap"].map(part => (
+                                                <button key={part} onClick={() => setSelectedDrumPart(part)} className={`px-2.5 py-1 rounded text-[10px] font-bold ${selectedDrumPart === part ? "bg-red-600 text-white" : "bg-slate-900 text-slate-400"}`}>
+                                                    {part.toUpperCase()}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
                                     <div className="grid grid-cols-8 gap-1.5">
                                         {NOTES.map(note => (
-                                            <button key={note} onClick={() => playNoteKeyboard(note)} className={`py-3 rounded font-bold text-center border ${selectedNote === note ? "bg-amber-500 text-slate-950 border-white" : "bg-slate-950 text-slate-100 border-slate-800"}`}>
-                                                <div className="text-xs">{SOLFEGE[note]}</div>
+                                            <button key={note} onClick={() => playNoteKeyboard(note)} className={`py-4 rounded font-bold text-center border shadow transition-all active:scale-95 ${selectedNote === note ? "bg-amber-500 text-slate-950 border-white ring-2 ring-amber-400" : "bg-slate-950 text-slate-100 border-slate-800 hover:bg-slate-900"}`}>
+                                                <div className="text-sm font-black">{SOLFEGE[note]}</div>
+                                                <div className="text-[9px] opacity-70">{note}</div>
                                             </button>
                                         ))}
                                     </div>
+
+                                    <div className="flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800">
+                                        <span className="text-[11px] text-slate-300">小節: <strong className="text-pink-400">{currentBar + 1} / 8</strong></span>
+                                        <div className="flex gap-1">
+                                            {Array.from({ length: BARS }).map((_, b) => (
+                                                <button key={b} onClick={() => setCurrentBar(b)} className={`w-6 h-6 rounded-full text-xs font-bold ${currentBar === b ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-400"}`}>{b + 1}</button>
+                                            ))}
+                                        </div>
+                                    </div>
+
                                     <div className="overflow-x-auto bg-slate-950 p-2 rounded border border-slate-800">
                                         <div className="grid gap-1 min-w-[500px]" style={{ gridTemplateColumns: "repeat(16, minmax(0, 1fr))" }}>
                                             {Array.from({ length: BAR_STEPS }).map((_, i) => {
                                                 const stepIdx = currentBar * BAR_STEPS + i;
                                                 const stepVal = instrumentSteps[selectedInstrument][stepIdx];
-                                                const isActive = selectedInstrument === "drums" ? (stepVal && stepVal[selectedDrumPart]) : !!stepVal;
+                                                const isCurrentPlay = playing && currentStep === i;
+                                                let isActive = selectedInstrument === "drums" ? (stepVal && stepVal[selectedDrumPart]) : !!stepVal;
+
                                                 return (
-                                                    <button key={i} onClick={() => toggleStepWithDuration(selectedInstrument, stepIdx)} className={`aspect-[3/4] w-full rounded border flex items-center justify-center text-[9px] ${isActive ? "bg-amber-600 border-white text-white font-bold" : "bg-slate-900 border-slate-800 text-slate-500"}`}>
-                                                        {i + 1}
+                                                    <button key={i} onClick={() => toggleStepWithDuration(selectedInstrument, stepIdx)} className={`aspect-[3/4] w-full rounded border flex flex-col items-center justify-center text-[9px] ${isActive ? "bg-gradient-to-t from-amber-600 to-pink-600 border-white text-white font-bold" : "bg-slate-900 border-slate-800 text-slate-500"} ${isCurrentPlay && !powerSavingMode ? "ring-2 ring-cyan-400" : ""}`}>
+                                                        <span>{i + 1}</span>
                                                     </button>
                                                 );
                                             })}
@@ -447,91 +579,110 @@
                             </div>
                         )}
 
-                        {tab === "MASTER_CRERA" && (
-                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-amber-400">📁 全体creraマネージャー（全楽器セッション保存）</span>
-                                    <button onClick={saveMasterCrera} className="px-4 py-2 bg-amber-500 text-slate-950 font-bold rounded text-xs">➕ 現在の全体状態を保存</button>
+                        {tab === "EQ_VISUAL" && (
+                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-4 shadow">
+                                <div className="flex justify-between items-center flex-wrap gap-2">
+                                    <span className="text-xs font-bold text-amber-400">🎨 micvictory 8色音連動イコライザー ＆ スクリーンセーバー</span>
+                                    <button onClick={() => setScreenSaverActive(true)} className="px-4 py-1.5 bg-cyan-600 text-white font-bold rounded text-xs shadow animate-pulse">
+                                        🖥️ フルスクリーン表示モード起動
+                                    </button>
                                 </div>
-                                <div className="bg-slate-950 p-3 rounded border border-slate-800 flex flex-col gap-2 max-h-[300px] overflow-y-auto">
-                                    {masterTakes.map(t => (
-                                        <div key={t.id} className="flex justify-between items-center bg-slate-900 p-2 rounded border border-slate-800">
-                                            <div>
-                                                <div className="text-cyan-400 font-bold">{t.title}</div>
-                                                <div className="text-[10px] text-slate-400">BPM: {t.bpm} | 記録時刻: {t.date}</div>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    {EQ_COLORS.map((col, idx) => {
+                                        const isLit = playing && (activeEqColorIndex === idx);
+                                        return (
+                                            <div key={idx} className={`p-4 rounded-xl border flex flex-col items-center justify-center transition-all duration-100 ${col.class} ${isLit ? 'scale-105 ring-4 ring-white opacity-100' : 'opacity-40 bg-slate-950'}`}>
+                                                <span className="text-xs font-black text-white">{col.name}</span>
+                                                <span className="text-[10px] font-mono mt-1 text-slate-200">{isLit ? '⚡ 音連動発光中' : '待機中'}</span>
                                             </div>
-                                            <button onClick={() => loadMasterCrera(t)} className="px-3 py-1 bg-emerald-700 text-white rounded font-bold">読込</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {tab === "INST_CRERA" && (
-                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-pink-400">🎸 楽器別creraマネージャー（選択中楽器のパターン保存）</span>
-                                    <button onClick={saveInstrumentCrera} className="px-4 py-2 bg-pink-600 text-white font-bold rounded text-xs">➕ [{selectedInstrument}] を保存</button>
-                                </div>
-                                <div className="bg-slate-950 p-3 rounded border border-slate-800 flex flex-col gap-2 max-h-[300px] overflow-y-auto">
-                                    {instrumentTakes.map(t => (
-                                        <div key={t.id} className="flex justify-between items-center bg-slate-900 p-2 rounded border border-slate-800">
-                                            <div>
-                                                <div className="text-pink-400 font-bold">{t.title}</div>
-                                                <div className="text-[10px] text-slate-400">対象楽器: {t.instrument}</div>
-                                            </div>
-                                            <button onClick={() => loadInstrumentCrera(t)} className="px-3 py-1 bg-emerald-700 text-white rounded font-bold">読込</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {tab === "PIPE_CRERA" && (
-                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-teal-400">🪈 パイプ音専用 creraマネージャー</span>
-                                    <button onClick={savePipeCrera} className="px-4 py-2 bg-teal-600 text-white font-bold rounded text-xs">➕ パイプ音フレーズを保存</button>
-                                </div>
-                                <div className="bg-slate-950 p-3 rounded border border-slate-800 flex flex-col gap-2 max-h-[300px] overflow-y-auto">
-                                    {pipeTakes.map(t => (
-                                        <div key={t.id} className="flex justify-between items-center bg-slate-900 p-2 rounded border border-slate-800">
-                                            <div className="text-teal-300 font-bold">{t.title}</div>
-                                            <button onClick={() => loadPipeCrera(t)} className="px-3 py-1 bg-emerald-700 text-white rounded font-bold">読込</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {tab === "ROBOT_CRERA" && (
-                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-purple-400">🤖 ロボット音専用 creraマネージャー</span>
-                                    <button onClick={saveRobotCrera} className="px-4 py-2 bg-purple-600 text-white font-bold rounded text-xs">➕ ロボット音ビートを保存</button>
-                                </div>
-                                <div className="bg-slate-950 p-3 rounded border border-slate-800 flex flex-col gap-2 max-h-[300px] overflow-y-auto">
-                                    {robotTakes.map(t => (
-                                        <div key={t.id} className="flex justify-between items-center bg-slate-900 p-2 rounded border border-slate-800">
-                                            <div className="text-purple-300 font-bold">{t.title}</div>
-                                            <button onClick={() => loadRobotCrera(t)} className="px-3 py-1 bg-emerald-700 text-white rounded font-bold">読込</button>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
 
                         {tab === "ALBUM_STORE" && (
-                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-4">
-                                <span className="text-xs font-bold text-pink-400">💿 著作権フリーアルバム販売ショップ</span>
+                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-4 shadow">
+                                <span className="text-xs font-bold text-pink-400">💿 micvictorysund DTM 著作権フリーアルバム販売ショップ</span>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {albumProducts.map(album => (
-                                        <div key={album.id} className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col justify-between gap-3">
-                                            <div>
-                                                <div className="text-cyan-400 font-bold text-xs">{album.title}</div>
-                                                <div className="text-amber-400 font-black text-sm">{album.price}</div>
+                                        <div key={album.id} className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col justify-between gap-3 shadow">
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-cyan-400 font-bold text-xs">{album.title}</span>
+                                                <span className="text-amber-400 font-black text-sm">{album.price}</span>
+                                                <span className="text-[10px] text-slate-400">トラック数: {album.tracks}曲 | {album.format}</span>
                                             </div>
-                                            <button onClick={() => alert("ご購入ありがとうございます！")} className="w-full py-2 bg-gradient-to-r from-pink-600 to-amber-600 text-white font-bold rounded text-xs">購入する</button>
+                                            <button onClick={() => purchaseAlbum(album)} className="w-full py-2 bg-gradient-to-r from-pink-600 to-amber-600 text-white font-bold rounded text-xs shadow">
+                                                🛒 このアルバムを購入する
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {tab === "CHOPPER_TAB" && (
+                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
+                                <span className="text-xs font-bold text-amber-400">🎸 チョッパクリッド手動切り替えスイート</span>
+                                <button onClick={() => generateAiRandomPattern("chopperBass")} className="px-3 py-1 bg-pink-600 text-white rounded text-xs font-bold w-fit">AIチョッパーパターン生成</button>
+                            </div>
+                        )}
+
+                        {tab === "FX_TAB" && (
+                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
+                                <span className="text-xs font-bold text-cyan-400">✨ FXパターン切り替え</span>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    {[
+                                        { id: "reverbEcho", label: "🌌 リバーブ＆エコー" },
+                                        { id: "distortionHeavy", label: "🔥 ディストーション" },
+                                        { id: "robotFilter", label: "🤖 ロボットフィルター" },
+                                        { id: "pipeResonance", label: "🪈 パイプレゾナンス" },
+                                    ].map(fx => (
+                                        <button key={fx.id} onClick={() => changeFxPattern(fx.id)} className={`py-3 px-2 rounded-lg font-bold text-xs border ${fxPattern === fx.id ? "bg-cyan-600 border-white text-white" : "bg-slate-950 border-slate-800 text-slate-400"}`}>
+                                            {fx.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {tab === "AM_RIFF_TAB" && (
+                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-pink-400">🎹 Amリフ全てランダム記録再生機能</span>
+                                    <button onClick={generateAmRiffAllRandom} className="px-4 py-2 bg-pink-600 text-white font-bold rounded text-xs shadow animate-pulse">
+                                        🎲 Amリフ全てランダム一括生成
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {tab === "PIPE_ROBOT_TAB" && (
+                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
+                                <span className="text-xs font-bold text-cyan-400">🪈 パイプ音 & 🤖 ロボット音 AIランダム再生</span>
+                                <div className="flex gap-2">
+                                    <button onClick={() => generateAiRandomPattern("pipeSynth")} className="px-4 py-2 bg-teal-600 text-white font-bold rounded text-xs">パイプ音ランダム</button>
+                                    <button onClick={() => generateAiRandomPattern("robotSynth")} className="px-4 py-2 bg-purple-600 text-white font-bold rounded text-xs">ロボット音ランダム</button>
+                                </div>
+                            </div>
+                        )}
+
+                        {tab === "CRERA_REC" && (
+                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-amber-400">📁 crera 記録・再生マネージャー</span>
+                                    <button onClick={saveTakeToCrera} className="px-4 py-2 bg-amber-500 text-slate-950 font-bold rounded text-xs shadow">
+                                        ➕ 現在のセッションを記録
+                                    </button>
+                                </div>
+                                <div className="bg-slate-950 p-3 rounded border border-slate-800 flex flex-col gap-2 max-h-[280px] overflow-y-auto">
+                                    {recordedTakes.map(t => (
+                                        <div key={t.id} className="flex justify-between items-center bg-slate-900 p-2.5 rounded border border-slate-800">
+                                            <div>
+                                                <div className="text-cyan-400 text-xs font-bold">{t.title}</div>
+                                                <div className="text-[9px] text-slate-400">BPM: {t.bpm} | {t.credit}</div>
+                                            </div>
+                                            <button onClick={() => setStatus(`🚀 ${t.title} 読込完了`)} className="px-3 py-1 bg-emerald-700 text-white rounded text-xs font-bold">読込</button>
                                         </div>
                                     ))}
                                 </div>
@@ -542,7 +693,7 @@
             );
         }
 
-        ReactDOM.createRoot(getElementById_safe = document.getElementById('root')).render(<MasterSynthApp />);
+        ReactDOM.createRoot(document.getElementById('root')).render(<MasterSynthApp />);
     </script>
 </body>
 </html>
