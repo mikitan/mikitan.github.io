@@ -3,26 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - DLAND DTM v57.1 ALBUM RELEASE & CRERA RECORDING SUITE</title>
+    <title>MIC VICTORY - DLAND DTM v57.4 ALBUM RELEASE & CRERA RECORDING SUITE</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React 18 -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel Standalone -->
     <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tone.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans select-none pb-24 overflow-x-hidden">
-    <div id="root"></div>
+    <div id="root">
+        <div style="padding: 20px; text-align: center; color: #cbd5e1; font-family: sans-serif;">
+            読み込み中... (MIC VICTORY v57.4)
+        </div>
+    </div>
 
     <script type="text/babel">
         function MasterSynthApp() {
-            const [tab, setTab] = React.useState("DUAL_EDIT");
+            const [tab, setTab] = React.useState("RAP_AI");
             const [playing, setPlaying] = React.useState(false);
             const [isRecording, setIsRecording] = React.useState(false);
             const [flashColor, setFlashColor] = React.useState("border-cyan-500");
             const [bpm, setBpm] = React.useState(116);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("✨ v57.1 リリースアルバム＆crera記録リスト・ファイル転送統合完了！");
+            const [status, setStatus] = React.useState("✨ v57.4 AIランダム生成 & コピー機能搭載完了！");
 
             const [powerSavingMode, setPowerSavingMode] = React.useState(false);
 
@@ -35,25 +43,113 @@
             const [selectedDuration, setSelectedDuration] = React.useState("8n");
             const [selectedDrumPart, setSelectedDrumPart] = React.useState("kick");
 
-            // 全体録音 crera 保存リスト
             const [recordedTakes, setRecordedTakes] = React.useState([
                 { id: 1, title: "MIC VICTORY Anthem (Demo #1)", bpm: 116, date: "12:00:00", credit: "micvictorydanb / 作曲: 28" }
             ]);
             const [activePatternIndex, setActivePatternIndex] = React.useState(1);
 
             const [lyricTheme, setLyricTheme] = React.useState("青春・希望");
-            const [rapLyrics, setRapLyrics] = React.useState(
-`[Verse 1 - 青春・希望（スピード感とビートの共存）]
-鳴り響くキックが心臓を叩く 止まらないビートが夜を突き抜ける
-描き出した夢のキャンバスはいつでも まだ色褪せない眩しい青空のままで
-画面の向こうへ届くこの歌声が 迷える背中を押す羅針盤になる
-重低音クレラが足元を支えて どんな坂道だって全速力で駆け抜ける
+            
+            // ランダムAI歌詞生成用のパーツ素材集
+            const LYRIC_POOLS = {
+                "青春・希望": {
+                    verses: [
+                        "鳴り響くキックが心臓を叩く 止まらないビートが夜を突き抜ける",
+                        "描き出した夢のキャンバスはいつでも まだ色褪せない眩しい青空のままで",
+                        "画面の向こうへ届くこの歌声が 迷える背中を押す羅針盤になる",
+                        "重低音クレラが足元を支えて どんな坂道だって全速力で駆け抜ける",
+                        "アスファルトに反射する夕日が俺たちの影を長く伸ばしていく",
+                        "過去の涙さえも未来の燃料に変えて、今こそアクセルを踏み込め"
+                    ],
+                    choruses: [
+                        "何度転んでも立ち上がる強い意志 決して崩れない鋼鉄のメロディー\nMIC VICTORY それは俺たちの証し\nD-LAND DTM クレラと共に 永遠に響け、この勝利の歌！",
+                        "限界の壁をブチ破るスピードで突き進め！\nMIC VICTORY 眩い光のなかで輝き続けろ\nD-LAND DTM、俺たちの夢は絶対に止まらない！"
+                    ]
+                },
+                "恋愛・情熱": {
+                    verses: [
+                        "高鳴る胸の音はまるでハイハット 抑えきれないこの感情がスパークする",
+                        "君と出会った瞬間から世界の色が変わったんだ",
+                        "真夜中のドライブ、サイドシートの横顔に視線が釘付け",
+                        "甘いだけじゃ足りない、もっと深く熱いメロディーを君に捧げよう",
+                        "すれ違う時間さえも愛おしく思える、この胸の炎は消せない"
+                    ],
+                    choruses: [
+                        "燃え上がるリリックはまるでマグマのよう 決して冷めない二人のシグナル\nMIC VICTORY この愛と情熱を乗せて\nD-LAND DTM クレラと共に どこまでも熱く突き進め！",
+                        "君の手を引いて夜空を駆け抜けるストーリー\nMIC VICTORY 永遠に離さないこのぬくもり\nD-LAND DTM、愛のビートを響かせろ！"
+                    ]
+                },
+                "時代・春夏秋冬": {
+                    verses: [
+                        "桜舞う春の風を抜け、汗ばむ夏の太陽を背負って走り出す",
+                        "秋の黄昏に響くベースライン、冬の冷たい夜空を温めるシンセサイザー",
+                        "時代がどれだけ変わろうとも、俺たちが刻む足跡だけは消せない",
+                        "移り行く季節のなかで、いつだって音楽が時代を切り拓いてきた"
+                    ],
+                    choruses: [
+                        "春夏秋冬、巡るビートの中で輝き続ける\nMIC VICTORY 時代を纏った最強のサウンド\nD-LAND DTM クレラと共に、未来へ向かって鳴り響け！",
+                        "移り変わるセゾン、変わらない絆を乗せて\nMIC VICTORY 時代を塗り替えるアンセム\nD-LAND DTM、永遠に鳴り響け！"
+                    ]
+                },
+                "友情・仲間": {
+                    verses: [
+                        "振り返ればいつもお前らがいた、言葉がなくとも通じ合うグルーヴ",
+                        "ぶつかり合い、励まし合い、ここまで一緒に這い上がってきた仲間たち",
+                        "一人じゃ見れなかった景色も、全員で揃えば無限大のパワーに変わる",
+                        "重低音クレラが鳴り響くこのフロアで、俺たちの絆は永遠に不滅だ"
+                    ],
+                    choruses: [
+                        "肩を組んで笑い合ったあの日の誓いを胸に\nMIC VICTORY 仲間と共に掴み取る勝利\nD-LAND DTM クレラと共に、どこまでも一緒に駆け抜けよう！",
+                        "背中を預け合える最高のブラザーたちと\nMIC VICTORY 終わらない旅を続けよう\nD-LAND DTM、絆のビートを止めないで！"
+                    ]
+                }
+            };
 
-[Chorus / Outro - 崩れない最強の結び (c) micvictorydanb 作曲: 28]
-何度転んでも立ち上がる強い意志 決して崩れない鋼鉄のメロディー
-MIC VICTORY それは俺たちの証し
-D-LAND DTM クレラと共に 永遠に響け、この勝利の歌！`
+            const [rapLyrics, setRapLyrics] = React.useState(
+                `[Verse 1 - 青春・希望（スピード感とビートの共存）]\n鳴り響くキックが心臓を叩く 止まらないビートが夜を突き抜ける\n描き出した夢のキャンバスはいつでも まだ色褪せない眩しい青空のままで\n\n[Chorus / Outro - 崩れない最強の結び (c) micvictorydanb 作曲: 28]\n何度転んでも立ち上がる強い意志 決して崩れない鋼鉄のメロディー\nMIC VICTORY それは俺たちの証し\nD-LAND DTM クレラと共に 永遠に響け、この勝利の歌！`
             );
+
+            // AI自動ランダム生成関数
+            const handleAiRandomGenerate = (theme) => {
+                const currentTheme = theme || lyricTheme;
+                setLyricTheme(currentTheme);
+                const pool = LYRIC_POOLS[currentTheme] || LYRIC_POOLS["青春・希望"];
+
+                // ランダムにVerseやChorusを選択・構築
+                const randomVerse1 = pool.verses[Math.floor(Math.random() * pool.verses.length)];
+                const randomVerse2 = pool.verses[Math.floor(Math.random() * pool.verses.length)];
+                const randomChorus = pool.choruses[Math.floor(Math.random() * pool.choruses.length)];
+
+                const generatedText = 
+`[Verse 1 - ${currentTheme} AIランダムミックス #1]
+${randomVerse1}
+${randomVerse2}
+
+[Verse 2 - 疾走感あふれるフロー]
+重低音クレラがフロアを揺らし、言葉の弾丸が夜空を撃ち抜く
+止まる暇なんてない、今こそが俺たちのクライマックスだ
+
+[Chorus / Outro - 最強の結び (c) micvictorydanb 作曲: 28]
+${randomChorus}`;
+
+                setRapLyrics(generatedText);
+                setStatus(`🎤 【${currentTheme}】のAIランダム歌詞を新たに生成しました！`);
+            };
+
+            // コピー機能
+            const handleCopyLyrics = async () => {
+                try {
+                    await navigator.clipboard.writeText(rapLyrics);
+                    setStatus("📋 歌詞をクリップボードにコピーしました！");
+                } catch (err) {
+                    setStatus("❌ コピーに失敗しました");
+                }
+            };
+
+            const handleThemeChange = (theme) => {
+                setLyricTheme(theme);
+                handleAiRandomGenerate(theme);
+            };
 
             const [masterBassBoost, setMasterBassBoost] = React.useState(12);
             const [masterVolume, setMasterVolume] = React.useState(1.3);
@@ -109,100 +205,108 @@ D-LAND DTM クレラと共に 永遠に響け、この勝利の歌！`
             ];
 
             React.useEffect(() => {
-                const masterGain = new Tone.Gain(masterVolume).toDestination();
-                masterGainRef.current = masterGain;
+                try {
+                    const masterGain = new Tone.Gain(masterVolume).toDestination();
+                    masterGainRef.current = masterGain;
 
-                const eq = new Tone.EQ3({ low: masterBassBoost, lowFrequency: 160, mid: 1.5, high: 2.5 }).connect(masterGain);
-                const reverb = new Tone.Reverb({ decay: 1.4, wet: 0.12 }).connect(eq);
-                const delay = new Tone.FeedbackDelay({ delayTime: "8n.", feedback: 0.2, wet: 0.1 }).connect(reverb);
-                const distortion = new Tone.Distortion(0.08).connect(delay);
+                    const eq = new Tone.EQ3({ low: masterBassBoost, lowFrequency: 160, mid: 1.5, high: 2.5 }).connect(masterGain);
+                    const reverb = new Tone.Reverb({ decay: 1.4, wet: 0.12 }).connect(eq);
+                    const delay = new Tone.FeedbackDelay({ delayTime: "8n.", feedback: 0.2, wet: 0.1 }).connect(reverb);
+                    const distortion = new Tone.Distortion(0.08).connect(delay);
 
-                const cGains = {};
-                Object.keys(instrumentSteps).forEach(key => {
-                    const cg = new Tone.Gain(Tone.dbToGain(volumes[key] || 0)).connect(distortion);
-                    cGains[key] = cg;
-                });
+                    const cGains = {};
+                    Object.keys(instrumentSteps).forEach(key => {
+                        const cg = new Tone.Gain(Tone.dbToGain(volumes[key] || 0)).connect(distortion);
+                        cGains[key] = cg;
+                    });
 
-                synthsRef.current = {
-                    subBass: new Tone.MonoSynth({
-                        oscillator: { type: "sine" },
-                        envelope: { attack: 0.005, decay: 0.35, sustain: 0.5, release: 0.2 },
-                        filterEnvelope: { attack: 0.005, decay: 0.2, sustain: 0.3, release: 0.2, baseFrequency: 70, octaves: 1.5 }
-                    }).connect(cGains.subBass),
-                    bass: new Tone.MonoSynth({
-                        oscillator: { type: "triangle" },
-                        envelope: { attack: 0.01, decay: 0.3, sustain: 0.4, release: 0.2 }
-                    }).connect(cGains.bass),
-                    synth: new Tone.Synth({ oscillator: { type: "pulse", width: 0.4 }, envelope: { attack: 0.01, decay: 0.25, sustain: 0.4, release: 0.2 } }).connect(cGains.synth),
-                    loopTrack: new Tone.Synth({ oscillator: { type: "square" }, envelope: { attack: 0.008, decay: 0.2, sustain: 0.3, release: 0.15 } }).connect(cGains.loopTrack),
-                    guitar: new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.005, decay: 0.2, sustain: 0.2, release: 0.1 } }).connect(cGains.guitar),
-                    trumpet: new Tone.Synth({ oscillator: { type: "sawtooth6" }, envelope: { attack: 0.04, decay: 0.2, sustain: 0.6, release: 0.15 } }).connect(cGains.trumpet),
-                    africa1: new Tone.MembraneSynth({ pitchDecay: 0.02, octaves: 4, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.25, sustain: 0.01, release: 0.15 } }).connect(cGains.africa1),
-                    africa2: new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.001, decay: 0.2, sustain: 0.1, release: 0.2 } }).connect(cGains.africa2),
-                    piano: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.008, decay: 0.35, sustain: 0.3, release: 0.4 } }).connect(cGains.piano),
-                    violin: new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.08, decay: 0.25, sustain: 0.8, release: 0.4 } }).connect(cGains.violin),
-                    flute: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.06, decay: 0.25, sustain: 0.7, release: 0.3 } }).connect(cGains.flute),
-                    drums: {
-                        kick: new Tone.MembraneSynth({ pitchDecay: 0.06, octaves: 6, oscillator: { type: "sine" }, envelope: { attack: 0.0001, decay: 0.3, sustain: 0.01, release: 0.15 } }).connect(cGains.drums),
-                        snare: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.0001, decay: 0.18, sustain: 0 } }).connect(cGains.drums),
-                        hihat: new Tone.MetalSynth({ frequency: 900, envelope: { attack: 0.0005, decay: 0.025, release: 0.01 }, harmonicity: 5.1, modulationIndex: 32, resonance: 7000, octaves: 1.5 }).connect(cGains.drums),
-                        clap: new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.005, decay: 0.14, sustain: 0 } }).connect(cGains.drums),
-                    },
-                    eq, reverb, distortion
-                };
+                    synthsRef.current = {
+                        subBass: new Tone.MonoSynth({
+                            oscillator: { type: "sine" },
+                            envelope: { attack: 0.005, decay: 0.35, sustain: 0.5, release: 0.2 },
+                            filterEnvelope: { attack: 0.005, decay: 0.2, sustain: 0.3, release: 0.2, baseFrequency: 70, octaves: 1.5 }
+                        }).connect(cGains.subBass),
+                        bass: new Tone.MonoSynth({
+                            oscillator: { type: "triangle" },
+                            envelope: { attack: 0.01, decay: 0.3, sustain: 0.4, release: 0.2 }
+                        }).connect(cGains.bass),
+                        synth: new Tone.Synth({ oscillator: { type: "pulse", width: 0.4 }, envelope: { attack: 0.01, decay: 0.25, sustain: 0.4, release: 0.2 } }).connect(cGains.synth),
+                        loopTrack: new Tone.Synth({ oscillator: { type: "square" }, envelope: { attack: 0.008, decay: 0.2, sustain: 0.3, release: 0.15 } }).connect(cGains.loopTrack),
+                        guitar: new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.005, decay: 0.2, sustain: 0.2, release: 0.1 } }).connect(cGains.guitar),
+                        trumpet: new Tone.Synth({ oscillator: { type: "sawtooth6" }, envelope: { attack: 0.04, decay: 0.2, sustain: 0.6, release: 0.15 } }).connect(cGains.trumpet),
+                        africa1: new Tone.MembraneSynth({ pitchDecay: 0.02, octaves: 4, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.25, sustain: 0.01, release: 0.15 } }).connect(cGains.africa1),
+                        africa2: new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.001, decay: 0.2, sustain: 0.1, release: 0.2 } }).connect(cGains.africa2),
+                        piano: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.008, decay: 0.35, sustain: 0.3, release: 0.4 } }).connect(cGains.piano),
+                        violin: new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.08, decay: 0.25, sustain: 0.8, release: 0.4 } }).connect(cGains.violin),
+                        flute: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.06, decay: 0.25, sustain: 0.7, release: 0.3 } }).connect(cGains.flute),
+                        drums: {
+                            kick: new Tone.MembraneSynth({ pitchDecay: 0.06, octaves: 6, oscillator: { type: "sine" }, envelope: { attack: 0.0001, decay: 0.3, sustain: 0.01, release: 0.15 } }).connect(cGains.drums),
+                            snare: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.0001, decay: 0.18, sustain: 0 } }).connect(cGains.drums),
+                            hihat: new Tone.MetalSynth({ frequency: 900, envelope: { attack: 0.0005, decay: 0.025, release: 0.01 }, harmonicity: 5.1, modulationIndex: 32, resonance: 7000, octaves: 1.5 }).connect(cGains.drums),
+                            clap: new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.005, decay: 0.14, sustain: 0 } }).connect(cGains.drums),
+                        },
+                        eq, reverb, distortion
+                    };
+                } catch (e) {
+                    console.error("Tone.js setup error:", e);
+                }
 
-                return () => { Tone.Transport.stop(); Tone.Transport.cancel(); };
+                return () => { try { Tone.Transport.stop(); Tone.Transport.cancel(); } catch(e) {} };
             }, []);
 
             React.useEffect(() => {
-                Tone.Transport.bpm.value = bpm;
-                Tone.Transport.cancel();
+                try {
+                    Tone.Transport.bpm.value = bpm;
+                    Tone.Transport.cancel();
 
-                if (playing) {
-                    let stepCounter = 0;
-                    loopRef.current = new Tone.Loop(time => {
-                        let step = stepCounter % TOTAL_STEPS;
-                        const bar = Math.floor(step / BAR_STEPS);
-                        const sInBar = step % BAR_STEPS;
+                    if (playing) {
+                        let stepCounter = 0;
+                        loopRef.current = new Tone.Loop(time => {
+                            let step = stepCounter % TOTAL_STEPS;
+                            const bar = Math.floor(step / BAR_STEPS);
+                            const sInBar = step % BAR_STEPS;
 
-                        setCurrentStep(sInBar);
-                        setCurrentBar(bar);
+                            setCurrentStep(sInBar);
+                            setCurrentBar(bar);
 
-                        if (dlandMode && sInBar === 0 && !powerSavingMode) {
-                            const colors = ["border-cyan-500", "border-pink-500", "border-amber-500", "border-purple-500", "border-emerald-500"];
-                            setFlashColor(colors[Math.floor(Math.random() * colors.length)]);
-                        }
-
-                        const syns = synthsRef.current;
-                        if (!syns) return;
-
-                        Object.keys(instrumentSteps).forEach(instKey => {
-                            const item = instrumentSteps[instKey][step];
-                            if (!item) return;
-
-                            const note = typeof item === "object" ? item.note : item;
-                            const dur = typeof item === "object" ? (item.dur || "8n") : "8n";
-
-                            if (instKey === "drums") {
-                                if (typeof item === "object") {
-                                    if (item.kick) syns.drums.kick.triggerAttackRelease(item.subBoost ? "C0" : "C1", "8n", time);
-                                    if (item.snare) syns.drums.snare.triggerAttackRelease("8n", time);
-                                    if (item.hihat) syns.drums.hihat.triggerAttackRelease("32n", time, 0.85);
-                                    if (item.clap) syns.drums.clap.triggerAttackRelease("8n", time);
-                                }
-                            } else if (instKey === "subBass") {
-                                syns.subBass.triggerAttackRelease(item.subBoost ? "C0" : "C1", dur, time);
-                            } else if (syns[instKey]) {
-                                syns[instKey].triggerAttackRelease(note || "C4", dur, time);
+                            if (dlandMode && sInBar === 0 && !powerSavingMode) {
+                                const colors = ["border-cyan-500", "border-pink-500", "border-amber-500", "border-purple-500", "border-emerald-500"];
+                                setFlashColor(colors[Math.floor(Math.random() * colors.length)]);
                             }
-                        });
 
-                        stepCounter++;
-                    }, "16n").start(0);
+                            const syns = synthsRef.current;
+                            if (!syns) return;
 
-                    Tone.Transport.start();
-                } else {
-                    Tone.Transport.stop();
+                            Object.keys(instrumentSteps).forEach(instKey => {
+                                const item = instrumentSteps[instKey][step];
+                                if (!item) return;
+
+                                const note = typeof item === "object" ? item.note : item;
+                                const dur = typeof item === "object" ? (item.dur || "8n") : "8n";
+
+                                if (instKey === "drums") {
+                                    if (typeof item === "object") {
+                                        if (item.kick) syns.drums.kick.triggerAttackRelease(item.subBoost ? "C0" : "C1", "8n", time);
+                                        if (item.snare) syns.drums.snare.triggerAttackRelease("8n", time);
+                                        if (item.hihat) syns.drums.hihat.triggerAttackRelease("32n", time, 0.85);
+                                        if (item.clap) syns.drums.clap.triggerAttackRelease("8n", time);
+                                    }
+                                } else if (instKey === "subBass") {
+                                    syns.subBass.triggerAttackRelease(item.subBoost ? "C0" : "C1", dur, time);
+                                } else if (syns[instKey]) {
+                                    syns[instKey].triggerAttackRelease(note || "C4", dur, time);
+                                }
+                            });
+
+                            stepCounter++;
+                        }, "16n").start(0);
+
+                        Tone.Transport.start();
+                    } else {
+                        Tone.Transport.stop();
+                    }
+                } catch(e) {
+                    console.error("Playback error:", e);
                 }
             }, [playing, bpm, instrumentSteps, dlandMode, powerSavingMode]);
 
@@ -424,7 +528,7 @@ D-LAND DTM クレラと共に 永遠に響け、この勝利の歌！`
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-40 shadow-lg">
                         <div className="flex items-center gap-2">
                             <span className="font-black text-sm bg-gradient-to-r from-amber-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                MIC VICTORY <span className="text-[10px] text-pink-400 font-bold">v57.1 アルバム・クレラ版</span>
+                                MIC VICTORY <span className="text-[10px] text-pink-400 font-bold">v57.4 クレラ版</span>
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -460,7 +564,7 @@ D-LAND DTM クレラと共に 永遠に響け、この勝利の歌！`
                     <nav className="bg-slate-900/90 border-b border-slate-800 px-2 py-1.5 flex gap-1 overflow-x-auto">
                         {[
                             { id: "ALBUM_RELEASE", label: "💿 リリースアルバム & 宣伝" },
-                            { id: "DUAL_EDIT", label: "🎛️ 鍵盤 & 重低音クレラ" },
+                            { id: "DUAL_EDIT", label: "🎛 鍵盤 & 重低音クレラ" },
                             { id: "RAP_AI", label: "🎤 800字歌詞 & ラップAI" },
                             { id: "RECORDINGS", label: "📁 crera全体録音リスト" },
                             { id: "MEMORY", label: "💾 ファイル転送・保存" },
@@ -644,19 +748,26 @@ D-LAND DTM クレラと共に 永遠に響け、この勝利の歌！`
                             <div className="flex flex-col gap-3">
                                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col gap-3">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className="text-xs font-bold text-pink-400">🎤 800字歌詞ストック搭載 & ラップAI作成</span>
-                                        <div className="flex gap-1">
+                                        <span className="text-xs font-bold text-pink-400">🎤 AI自動ランダム歌詞生成 & コピー機能</span>
+                                        <div className="flex gap-1 flex-wrap">
                                             {["青春・希望", "恋愛・情熱", "時代・春夏秋冬", "友情・仲間"].map(theme => (
-                                                <button key={theme} onClick={() => setLyricTheme(theme)} className={`px-2 py-1 rounded text-[10px] font-bold ${lyricTheme === theme ? "bg-pink-600 text-white" : "bg-slate-800 text-slate-400"}`}>
+                                                <button key={theme} onClick={() => handleThemeChange(theme)} className={`px-2 py-1 rounded text-[10px] font-bold ${lyricTheme === theme ? "bg-pink-600 text-white" : "bg-slate-800 text-slate-400"}`}>
                                                     {theme}
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
                                     <textarea value={rapLyrics} onChange={e => setRapLyrics(e.target.value)} rows="8" className="bg-slate-950 text-slate-100 p-2.5 rounded text-xs border border-slate-800 font-mono leading-relaxed" />
-                                    <div className="flex gap-2">
-                                        <button onClick={() => setStatus("📝 歌詞データをメモリに記録しました！")} className="px-3 py-1.5 bg-cyan-600 text-white font-bold rounded text-xs">crera保存</button>
-                                        <button onClick={() => setRapLyrics("[Verse - " + lyricTheme + "]\n崩れないビート刻む DLAND\n作曲: 28 / (c) micvictorydanb")} className="px-3 py-1.5 bg-slate-800 text-slate-300 font-bold rounded text-xs">AI自動切替生成</button>
+                                    <div className="flex gap-2 flex-wrap">
+                                        <button onClick={() => handleAiRandomGenerate(lyricTheme)} className="px-3 py-1.5 bg-pink-600 text-white font-bold rounded text-xs flex-1">
+                                            ✨ AI自動ランダム作成
+                                        </button>
+                                        <button onClick={handleCopyLyrics} className="px-3 py-1.5 bg-amber-500 text-slate-950 font-bold rounded text-xs flex-1">
+                                            📋 歌詞をコピーする
+                                        </button>
+                                        <button onClick={() => setStatus(`📝 【${lyricTheme}】の歌詞データをメモリに記録しました！`)} className="px-3 py-1.5 bg-cyan-600 text-white font-bold rounded text-xs">
+                                            crera保存
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -700,8 +811,11 @@ D-LAND DTM クレラと共に 永遠に響け、この勝利の歌！`
             );
         }
 
-        ReactDOM.createRoot(document.getElementById('root')).render(<MasterSynthApp />);
+        try {
+            ReactDOM.createRoot(document.getElementById('root')).render(<MasterSynthApp />);
+        } catch (e) {
+            console.error("React render error:", e);
+        }
     </script>
 </body>
 </html>
-
