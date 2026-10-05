@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - DLAND DTM v59.2 BLAUND WORLD LUXURY SUITE</title>
+    <title>MIC VICTORY - DLAND DTM v59.3 BLAUND WORLD LUXURY SUITE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -22,10 +22,15 @@
             const [bpm, setBpm] = React.useState(116);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("💎 v59.2 ドラムAI自動生成機能・エレキギター・チョッパー・バイオリンAI予測完全版！");
+            const [status, setStatus] = React.useState("💎 v59.3 ライブ・パフォーマンス・レコーダー ＆ オート・ロール連打ジェネレーター搭載！");
 
             const [powerSavingMode, setPowerSavingMode] = React.useState(false);
             const [autoCacheEnabled, setAutoCacheEnabled] = React.useState(true);
+
+            // 🔴 ライブ・パフォーマンス・レコーダー用ステート
+            const [isLivePerformanceRecording, setIsLivePerformanceRecording] = React.useState(false);
+            const [liveRecordedNotes, setLiveRecordedNotes] = React.useState([]);
+            const liveRecordStartTimeRef = React.useRef(null);
 
             const BARS = 8;
             const BAR_STEPS = 16;
@@ -45,7 +50,7 @@
             ]);
 
             const [lyricThemeInput, setLyricThemeInput] = React.useState("Clicky Bit 鋭いアタック、重低音クレラ、崩さない絶対の美学");
-            const [additionalNoteInput, setAdditionalNoteInput] = React.useState("ドラムAI自動生成・エレキギターアンプ音・チョッパーベース・バイオリンAI予測搭載、世界へ羽ばたくMIC VICTORY");
+            const [additionalNoteInput, setAdditionalNoteInput] = React.useState("ライブパフォーマンス・レコーダー＆オート・ロール連打搭載、世界へ羽ばたくMIC VICTORY");
             
             const [rapLyrics, setRapLyrics] = React.useState(
 `[Intro - Clicky Bit & BLAUND 世界最高級音感の幕開け]
@@ -74,7 +79,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
 
             const [dlandMode, setDlandMode] = React.useState(true);
             const [screenSaverActive, setScreenSaverActive] = React.useState(false);
-            const [slotName, setSlotName] = React.useState("CLICKY_BASS_LUXURY_v59_2_MICVICTORYDANB_28");
+            const [slotName, setSlotName] = React.useState("CLICKY_BASS_LUXURY_v59_3_MICVICTORYDANB_28");
 
             const INSTRUMENTS = [
                 { id: "clickyBass", label: "⚡ Clicky Bitベース", color: "from-yellow-500 to-red-600" },
@@ -117,13 +122,13 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
             const SOLFEGE = { "C2": "低ド", "D2": "低レ", "E2": "低ミ", "F2": "低ファ", "G2": "低ソ", "A2": "低ラ", "B2": "低シ", "C3": "低ド+", "C4": "ド", "E4": "ミ", "G4": "ソ", "A4": "ラ" };
             const DURATION_OPTIONS = [
                 { id: "16n", label: "極短クリック (16分)" },
-                { id: "8n", label: "標準 (8分)" },
-                { id: "4n", label: "長め (4分)" },
+                { id: "8n", label: "標準 (8n)" },
+                { id: "4n", label: "長め (4n)" },
             ];
 
             React.useEffect(() => {
                 if (autoCacheEnabled) {
-                    const cached = localStorage.getItem("MIC_VICTORY_CLICKY_AUTOCACHE_v59_2");
+                    const cached = localStorage.getItem("MIC_VICTORY_CLICKY_AUTOCACHE_v59_3");
                     if (cached) {
                         try {
                             const parsed = JSON.parse(cached);
@@ -140,7 +145,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
             React.useEffect(() => {
                 if (autoCacheEnabled) {
                     const cacheData = { instrumentSteps, rapLyrics, bpm, updatedAt: new Date().toISOString() };
-                    localStorage.setItem("MIC_VICTORY_CLICKY_AUTOCACHE_v59_2", JSON.stringify(cacheData));
+                    localStorage.setItem("MIC_VICTORY_CLICKY_AUTOCACHE_v59_3", JSON.stringify(cacheData));
                 }
             }, [instrumentSteps, rapLyrics, bpm, autoCacheEnabled]);
 
@@ -274,7 +279,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
             const togglePlay = async () => {
                 await Tone.start();
                 setPlaying(!playing);
-                setStatus(playing ? "停止しました" : `▶ 再生中 (BPM: ${bpm}) - BLAUND v59.2 ライブアンセム`);
+                setStatus(playing ? "停止しました" : `▶ 再生中 (BPM: ${bpm}) - BLAUND v59.3`);
             };
 
             const saveToCrera = () => {
@@ -307,6 +312,72 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
                 }
             };
 
+            // 🔴 ライブ・パフォーマンス・レコーダーのトグル
+            const toggleLivePerformanceRecording = () => {
+                if (!isLivePerformanceRecording) {
+                    setIsLivePerformanceRecording(true);
+                    setLiveRecordedNotes([]);
+                    liveRecordStartTimeRef.current = Tone.now();
+                    setStatus("🔴 【ライブ・パフォーマンス・レコーダー】記録開始！鍵盤をペチペチ連打してください。");
+                } else {
+                    setIsLivePerformanceRecording(false);
+                    setStatus(`⏹ ライブパフォーマンス記録終了（総ノート数: ${liveRecordedNotes.length}）`);
+                }
+            };
+
+            // 🔴 記録した演奏を現在のグリッドにマッピング・適用する
+            const applyLiveRecordedToGrid = () => {
+                if (liveRecordedNotes.length === 0) {
+                    setStatus("⚠️ 記録された演奏データがありません。");
+                    return;
+                }
+                const newArr = new Array(TOTAL_STEPS).fill(null);
+                const secondsPerStep = (60 / bpm) / 4; // 16分音符あたりの秒数
+
+                liveRecordedNotes.forEach(rec => {
+                    const elapsed = rec.time - liveRecordStartTimeRef.current;
+                    const stepIdx = Math.floor(elapsed / secondsPerStep) % TOTAL_STEPS;
+                    newArr[stepIdx] = { note: rec.note, dur: selectedDuration };
+                });
+
+                setInstrumentSteps(prev => ({ ...prev, [selectedInstrument]: newArr }));
+                setStatus(`✨ 【${selectedInstrument}】にライブ演奏の連打記録をグリッド展開しました！`);
+            };
+
+            // B：オート・ロール／連打ジェネレーター
+            const handleAutoRoll = (patternType) => {
+                const newArr = new Array(TOTAL_STEPS).fill(null);
+                const scale = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
+
+                for (let i = 0; i < TOTAL_STEPS; i++) {
+                    let shouldSet = false;
+                    let noteToSet = scale[0];
+
+                    if (patternType === 'deremifa_up') {
+                        // ドレミファ上昇連打
+                        shouldSet = true;
+                        noteToSet = scale[i % scale.length];
+                    } else if (patternType === 'rapid_roll') {
+                        // 全ステップ高速連打
+                        shouldSet = true;
+                        noteToSet = selectedNote;
+                    } else if (patternType === 'every_other') {
+                        // 2ステップおき連打
+                        if (i % 2 === 0) {
+                            shouldSet = true;
+                            noteToSet = scale[(i / 2) % scale.length];
+                        }
+                    }
+
+                    if (shouldSet) {
+                        newArr[i] = { note: noteToSet, dur: selectedDuration };
+                    }
+                }
+
+                setInstrumentSteps(prev => ({ ...prev, [selectedInstrument]: newArr }));
+                setStatus(`🥁 【オート・ロール】パターン [${patternType}] を展開しました！`);
+            };
+
             const generateAi800Lyrics = () => {
                 const theme = lyricThemeInput || "Clicky Bit アタック";
                 const addition = additionalNoteInput ? `（PR: ${additionalNoteInput}）` : "";
@@ -336,53 +407,32 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                 setStatus("➕ つけ足しPRテキストを歌詞末尾に追加しました！");
             };
 
-            // 🥁 ドラムAI自動生成ロジック
             const handleGenerateAiDrum = (genre) => {
                 const newArr = new Array(TOTAL_STEPS).fill(null);
 
                 for (let i = 0; i < TOTAL_STEPS; i++) {
-                    let kick = false;
-                    let snare = false;
-                    let hihat = false;
-                    let clap = false;
-
+                    let kick = false, snare = false, hihat = false, clap = false;
                     switch (genre) {
                         case 'edm':
-                            kick = (i % 4 === 0);
-                            snare = (i % 8 === 4);
-                            hihat = true;
-                            clap = (i % 16 === 12);
+                            kick = (i % 4 === 0); snare = (i % 8 === 4); hihat = true; clap = (i % 16 === 12);
                             break;
                         case 'hiphop':
-                            kick = (i === 0 || i === 6 || i === 10 || i % 16 === 0);
-                            snare = (i % 16 === 4 || i % 16 === 12);
-                            hihat = (i % 2 === 0 || i % 4 === 3);
-                            clap = (i % 16 === 12);
+                            kick = (i === 0 || i === 6 || i === 10 || i % 16 === 0); snare = (i % 16 === 4 || i % 16 === 12); hihat = (i % 2 === 0 || i % 4 === 3); clap = (i % 16 === 12);
                             break;
                         case 'rock':
-                            kick = (i % 4 === 0 || i === 10 || i === 14);
-                            snare = (i % 8 === 4);
-                            hihat = (i % 2 === 0);
+                            kick = (i % 4 === 0 || i === 10 || i === 14); snare = (i % 8 === 4); hihat = (i % 2 === 0);
                             break;
                         case 'lofi':
-                            kick = (i % 16 === 0 || i % 16 === 7 || i % 16 === 10);
-                            snare = (i % 16 === 4 || i % 16 === 12);
-                            hihat = (Math.random() > 0.3);
+                            kick = (i % 16 === 0 || i % 16 === 7 || i % 16 === 10); snare = (i % 16 === 4 || i % 16 === 12); hihat = (Math.random() > 0.3);
                             break;
-                        case 'random':
                         default:
-                            kick = (Math.random() > 0.6);
-                            snare = (i % 8 === 4);
-                            hihat = (Math.random() > 0.4);
-                            clap = (i % 16 === 12);
+                            kick = (Math.random() > 0.6); snare = (i % 8 === 4); hihat = (Math.random() > 0.4); clap = (i % 16 === 12);
                             break;
                     }
-
                     if (kick || snare || hihat || clap) {
                         newArr[i] = { kick, snare, hihat, clap, subBoost: true };
                     }
                 }
-
                 setInstrumentSteps(prev => ({ ...prev, drums: newArr }));
                 setStatus(`🤖 【ドラムAI】スタイル [${genre.toUpperCase()}] のビート自動生成完了！`);
             };
@@ -401,21 +451,13 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
 
                 for (let i = 0; i < TOTAL_STEPS; i++) {
                     if (modeType === 'chopper_riff') {
-                        if (i % 2 === 0 || i % 4 === 3) {
-                            newArr[i] = { note: scale[i % scale.length], dur: "16n" };
-                        }
+                        if (i % 2 === 0 || i % 4 === 3) newArr[i] = { note: scale[i % scale.length], dur: "16n" };
                     } else if (modeType === 'violin_ai') {
-                        if (Math.random() < 0.4) {
-                            const note = scale[Math.floor(Math.random() * scale.length)];
-                            newArr[i] = { note, dur: "8n" };
-                        }
+                        if (Math.random() < 0.4) newArr[i] = { note: scale[Math.floor(Math.random() * scale.length)], dur: "8n" };
                     } else {
-                        if (i % 4 === 0) {
-                            newArr[i] = { note: scale[i % scale.length], dur: selectedDuration };
-                        }
+                        if (i % 4 === 0) newArr[i] = { note: scale[i % scale.length], dur: selectedDuration };
                     }
                 }
-
                 setInstrumentSteps(prev => ({ ...prev, [instKey]: newArr }));
                 setStatus(`🤖 【${instKey}】パターン [${modeType}] 生成完了！`);
             };
@@ -432,6 +474,11 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                     else syns.drums.clap.triggerAttackRelease(selectedDuration);
                 } else if (syns[selectedInstrument]) {
                     syns[selectedInstrument].triggerAttackRelease(note, selectedDuration);
+                }
+
+                // 🔴 ライブ・パフォーマンス・レコーダー稼働中ならノートを蓄積
+                if (isLivePerformanceRecording) {
+                    setLiveRecordedNotes(prev => [...prev, { note, time: Tone.now() }]);
                 }
 
                 if (currentStep !== -1) {
@@ -463,7 +510,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
             const exportProjectToFile = () => {
                 const projectData = {
                     title: slotName,
-                    album: "MIC VICTORY & BLAUND SUITE v59.2",
+                    album: "MIC VICTORY & BLAUND SUITE v59.3",
                     copyrightRelease: "著作権フリー (Free Copyright)",
                     distributor: "micvictorydanb",
                     composer: "28",
@@ -490,7 +537,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                             <div className="absolute top-4 right-4 text-cyan-400 font-bold text-sm animate-pulse">[ 画面クリックで通常画面へ ]</div>
                             <div className="text-center mb-8">
                                 <h1 className="text-2xl font-black bg-gradient-to-r from-yellow-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent animate-bounce">
-                                    BLAUND VISUALIZER v59.2
+                                    BLAUND VISUALIZER v59.3
                                 </h1>
                                 <p className="text-slate-400 text-xs mt-1">販売: micvictorydanb | 作曲: 28 | 著作権フリー | BPM: {bpm}</p>
                             </div>
@@ -508,7 +555,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-40 shadow-lg">
                         <div className="flex items-center gap-2">
                             <span className="font-black text-sm bg-gradient-to-r from-yellow-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                MIC VICTORY & BLAUND <span className="text-[10px] text-yellow-300 font-bold">v59.2 ドラムAI搭載</span>
+                                MIC VICTORY & BLAUND <span className="text-[10px] text-yellow-300 font-bold">v59.3 連打記録・オートロール版</span>
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -541,7 +588,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                             { id: "RECORDINGS", label: "📁 録音リスト" },
                             { id: "RAP_AI", label: "🎤 宣伝歌詞 & AI" },
                             { id: "AUDIO_MIX", label: "🎚️ 音響・FX調整" },
-                            { id: "DUAL_EDIT", label: "🎹 グリッド・楽器エディタ" },
+                            { id: "DUAL_EDIT", label: "🎹 グリッド・連打エディタ" },
                             { id: "MEMORY", label: "💾 保存" },
                         ].map(t => (
                             <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-1 rounded text-center font-bold transition-all shrink-0 ${tab === t.id ? "bg-gradient-to-r from-yellow-500 to-pink-600 text-slate-950 shadow-lg" : "bg-slate-800/60 text-slate-400"}`}>
@@ -567,7 +614,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                     <div className="flex justify-between items-center flex-wrap gap-2">
                                         <div>
                                             <h2 className="text-base font-black bg-gradient-to-r from-yellow-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                                ⚡ BLAUND v59.2 世界最高級音感スイート
+                                                ⚡ BLAUND v59.3 連打記録・オートロール版
                                             </h2>
                                             <p className="text-slate-300 text-xs mt-1">
                                                 販売元：<strong className="text-yellow-300">micvictorydanb</strong> ／ 作曲者：<strong className="text-pink-400">28</strong>
@@ -578,23 +625,17 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                         </span>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800 flex flex-col gap-1.5 shadow">
-                                            <span className="text-yellow-400 font-bold text-xs">🥁 ドラムAI自動生成</span>
+                                            <span className="text-yellow-400 font-bold text-xs">🔴 ライブ・パフォーマンス・レコーダー</span>
                                             <p className="text-[11px] text-slate-300 leading-relaxed">
-                                                EDM、Hip Hop、Rock、Lo-Fiなどのスタイルを選んでワンクリックで最適なビートを自動構築。
+                                                鍵盤をペチペチと連打したタイミングや音程をリアルタイムに記憶し、ワンタッチでシーケンスグリッドに即時マッピング・ループ再生できます。
                                             </p>
                                         </div>
                                         <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800 flex flex-col gap-1.5 shadow">
-                                            <span className="text-emerald-400 font-bold text-xs">🎸 チョッパーベース & ギター</span>
+                                            <span className="text-emerald-400 font-bold text-xs">🥁 オート・ロール／連打ジェネレーター</span>
                                             <p className="text-[11px] text-slate-300 leading-relaxed">
-                                                タイトなスラップ音とエレキギターの歪みが完璧に融和し、最強のグルーヴを生み出します。
-                                            </p>
-                                        </div>
-                                        <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800 flex flex-col gap-1.5 shadow">
-                                            <span className="text-purple-400 font-bold text-xs">🎻 バイオリン AI予測メロディ</span>
-                                            <p className="text-[11px] text-slate-300 leading-relaxed">
-                                                AIによる自動予測メロディ生成で、美しくドラマチックなストリングスフレーズを瞬時に構築。
+                                                ドレミファの上昇フレーズや高速連打、2ステップおきの刻みパターンなどを各楽器へワンタッチで自動配置。
                                             </p>
                                         </div>
                                     </div>
@@ -716,7 +757,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                         {tab === "DUAL_EDIT" && (
                             <div className="flex flex-col gap-3">
                                 <div className="bg-slate-900 p-3 rounded border border-slate-800 flex flex-col gap-2">
-                                    <div className="flex justify-between items-center"><span className="font-bold text-yellow-300">楽器選択 & AIパターン作成</span><span className="text-[10px] text-slate-400">選択中: <strong className="text-pink-400">{selectedInstrument}</strong></span></div>
+                                    <div className="flex justify-between items-center"><span className="font-bold text-yellow-300">楽器選択 & パフォーマンス機能</span><span className="text-[10px] text-slate-400">選択中: <strong className="text-pink-400">{selectedInstrument}</strong></span></div>
                                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1.5">
                                         {INSTRUMENTS.map(inst => (
                                             <button key={inst.id} onClick={() => setSelectedInstrument(inst.id)} className={`p-2 rounded font-bold text-[11px] border bg-gradient-to-br ${inst.color} ${selectedInstrument === inst.id ? 'border-white scale-105 shadow-lg' : 'border-transparent opacity-75'}`}>
@@ -726,9 +767,43 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                     </div>
                                 </div>
 
+                                {/* 🔴 ライブ・パフォーマンス・レコーダー コントロールパネル */}
+                                <div className="bg-slate-900 p-3 rounded border border-cyan-800/80 flex flex-col gap-2">
+                                    <div className="flex justify-between items-center flex-wrap gap-2">
+                                        <span className="font-bold text-cyan-300">🔴 ライブ・パフォーマンス・レコーダー (ペチペチ連打記録)</span>
+                                        <div className="flex gap-2">
+                                            <button onClick={toggleLivePerformanceRecording} className={`px-3 py-1.5 rounded font-bold text-xs shadow ${isLivePerformanceRecording ? 'bg-red-600 text-white animate-pulse' : 'bg-slate-800 text-red-400 border border-red-700'}`}>
+                                                {isLivePerformanceRecording ? '⏹ 記録ストップ' : '🔴 鍵盤連打を記録開始'}
+                                            </button>
+                                            <button onClick={applyLiveRecordedToGrid} className="px-3 py-1.5 bg-cyan-700 hover:bg-cyan-600 text-white font-bold rounded text-xs shadow">
+                                                ✨ 記録をグリッドに反映 ({liveRecordedNotes.length}音)
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400">
+                                        「記録開始」を押してから下の鍵盤をペチペチ連打すると、タイミングと音程が記憶されます。「グリッドに反映」で現在の楽器にループ配置されます！
+                                    </p>
+                                </div>
+
+                                {/* 🥁 オート・ロール／連打ジェネレーター */}
+                                <div className="bg-slate-900 p-3 rounded border border-yellow-800/80 flex flex-col gap-2">
+                                    <span className="font-bold text-yellow-300">🥁 オート・ロール／連打ジェネレーター (ワンタッチ自動配置)</span>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        <button onClick={() => handleAutoRoll('deremifa_up')} className="py-2 bg-gradient-to-r from-amber-600 to-yellow-600 text-slate-950 font-black rounded text-xs shadow">
+                                            🎹 ドレミファ上昇連打配置
+                                        </button>
+                                        <button onClick={() => handleAutoRoll('rapid_roll')} className="py-2 bg-gradient-to-r from-pink-600 to-rose-600 text-white font-black rounded text-xs shadow">
+                                            ⚡ 全ステップ高速連打
+                                        </button>
+                                        <button onClick={() => handleAutoRoll('every_other')} className="py-2 bg-gradient-to-r from-emerald-600 to-cyan-600 text-white font-black rounded text-xs shadow">
+                                            🌊 2ステップおき刻み配置
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <div className="bg-slate-900 p-3 rounded border border-slate-800 flex flex-col gap-2">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className="font-bold text-cyan-300">🎹 鍵盤・パーツ操作 & AI演奏モード切替</span>
+                                        <span className="font-bold text-cyan-300">🎹 鍵盤・パーツ操作</span>
                                         <div className="flex gap-1">
                                             {DURATION_OPTIONS.map(d => (
                                                 <button key={d.id} onClick={() => setSelectedDuration(d.id)} className={`px-2 py-0.5 rounded text-[10px] font-bold ${selectedDuration === d.id ? 'bg-yellow-400 text-slate-950' : 'bg-slate-800 text-slate-400'}`}>
@@ -738,7 +813,6 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                         </div>
                                     </div>
 
-                                    {/* 🥁 ドラムパート選択 & AIボタン群 */}
                                     {selectedInstrument === "drums" && (
                                         <div className="bg-slate-950 p-3 rounded border border-slate-800 flex flex-col gap-2.5">
                                             <div className="flex justify-between items-center flex-wrap gap-2">
@@ -770,36 +844,10 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                         </div>
                                     )}
 
-                                    {selectedInstrument === "chopperBass" ? (
-                                        <div className="flex gap-2">
-                                            <button onClick={() => applyAiPattern("chopperBass", "chopper_riff")} className="flex-1 py-1.5 bg-emerald-600 text-white font-bold rounded">🎸 チョッパーベースAIリフ</button>
-                                            <button onClick={() => clearSpecificInstrument("chopperBass")} className="px-3 py-1.5 bg-slate-800 text-red-400 rounded font-bold">🗑️ クリア</button>
-                                        </div>
-                                    ) : selectedInstrument === "elecGuitar" ? (
-                                        <div className="flex gap-2">
-                                            <button onClick={() => applyAiPattern("elecGuitar", "guitar_strum")} className="flex-1 py-1.5 bg-orange-600 text-white font-bold rounded">🎸 エレキギター弦音コード刻みAI</button>
-                                            <button onClick={() => clearSpecificInstrument("elecGuitar")} className="px-3 py-1.5 bg-slate-800 text-red-400 rounded font-bold">🗑️ クリア</button>
-                                        </div>
-                                    ) : selectedInstrument === "violin" ? (
-                                        <div className="flex gap-2">
-                                            <button onClick={() => applyAiPattern("violin", "violin_ai")} className="flex-1 py-1.5 bg-purple-600 text-white font-bold rounded">🎻 バイオリン AI予測メロディ生成</button>
-                                            <button onClick={() => clearSpecificInstrument("violin")} className="px-3 py-1.5 bg-slate-800 text-red-400 rounded font-bold">🗑️️ クリア</button>
-                                        </div>
-                                    ) : selectedInstrument !== "drums" ? (
-                                        <div className="flex gap-2">
-                                            <button onClick={() => applyAiPattern(selectedInstrument, "standard")} className="flex-1 py-1.5 bg-cyan-700 text-white font-bold rounded">🤖 標準AI 16ステップ生成</button>
-                                            <button onClick={() => clearSpecificInstrument(selectedInstrument)} className="px-3 py-1.5 bg-slate-800 text-red-400 rounded font-bold">🗑️ クリア</button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex justify-end">
-                                            <button onClick={() => clearSpecificInstrument("drums")} className="px-3 py-1.5 bg-slate-800 text-red-400 rounded font-bold text-xs">🗑️ ドラム全クリア</button>
-                                        </div>
-                                    )}
-
                                     {selectedInstrument !== "drums" && (
                                         <div className="grid grid-cols-6 sm:grid-cols-12 gap-1 pt-1">
                                             {NOTES.map(note => (
-                                                <button key={note} onClick={() => playNoteKeyboard(note)} className="py-2.5 bg-slate-800 border border-slate-700 rounded flex flex-col items-center justify-center hover:bg-slate-700 active:scale-95">
+                                                <button key={note} onClick={() => playNoteKeyboard(note)} className="py-2.5 bg-slate-800 border border-slate-700 rounded flex flex-col items-center justify-center hover:bg-slate-700 active:scale-95 shadow">
                                                     <span className="font-bold text-yellow-300 text-[10px]">{SOLFEGE[note] || note}</span>
                                                     <span className="text-[8px] text-slate-400">{note}</span>
                                                 </button>
@@ -807,33 +855,32 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                         </div>
                                     )}
 
-                                    <div className="mt-3 bg-slate-950 p-2.5 rounded border border-slate-800 flex flex-col gap-1.5">
-                                        <div className="flex justify-between items-center text-[10px] text-slate-400">
-                                            <span>🎛️ 【{selectedInstrument}】グリッドステップ (16ステップ)</span>
-                                            <span className="text-yellow-400 font-mono">Bar: {currentBar + 1}</span>
-                                        </div>
-                                        <div className="grid grid-cols-8 sm:grid-cols-16 gap-1">
-                                            {Array.from({ length: 16 }).map((_, idx) => {
-                                                const globalIdx = currentBar * BAR_STEPS + idx;
-                                                const stepData = instrumentSteps[selectedInstrument][globalIdx];
-                                                
-                                                let isActive = false;
-                                                if (selectedInstrument === "drums") {
-                                                    isActive = stepData && stepData[selectedDrumPart];
-                                                } else {
-                                                    isActive = stepData !== null;
-                                                }
+                                    <div className="flex justify-between items-center pt-2">
+                                        <span className="text-[10px] text-slate-400">🎛️ 【{selectedInstrument}】グリッドステップ (16ステップ)</span>
+                                        <button onClick={() => clearSpecificInstrument(selectedInstrument)} className="px-3 py-1 bg-slate-800 text-red-400 rounded font-bold text-[10px]">🗑️ 選択楽器をクリア</button>
+                                    </div>
 
-                                                const isCurrentPlaying = playing && currentStep === idx;
+                                    <div className="grid grid-cols-8 sm:grid-cols-16 gap-1">
+                                        {Array.from({ length: 16 }).map((_, idx) => {
+                                            const globalIdx = currentBar * BAR_STEPS + idx;
+                                            const stepData = instrumentSteps[selectedInstrument][globalIdx];
+                                            
+                                            let isActive = false;
+                                            if (selectedInstrument === "drums") {
+                                                isActive = stepData && stepData[selectedDrumPart];
+                                            } else {
+                                                isActive = stepData !== null;
+                                            }
 
-                                                return (
-                                                    <button key={idx} onClick={() => toggleStepWithDuration(selectedInstrument, globalIdx)} className={`h-9 rounded flex flex-col items-center justify-center font-mono text-[10px] border transition-all ${isCurrentPlaying ? 'border-yellow-400 ring-2 ring-yellow-400' : 'border-slate-800'} ${isActive ? 'bg-gradient-to-t from-yellow-500 to-pink-600 text-slate-950 font-black' : 'bg-slate-900 text-slate-500 hover:bg-slate-800'}`}>
-                                                        <span>{idx + 1}</span>
-                                                        <span className="text-[8px]">{isActive ? '●' : '·'}</span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
+                                            const isCurrentPlaying = playing && currentStep === idx;
+
+                                            return (
+                                                <button key={idx} onClick={() => toggleStepWithDuration(selectedInstrument, globalIdx)} className={`h-9 rounded flex flex-col items-center justify-center font-mono text-[10px] border transition-all ${isCurrentPlaying ? 'border-yellow-400 ring-2 ring-yellow-400' : 'border-slate-800'} ${isActive ? 'bg-gradient-to-t from-yellow-500 to-pink-600 text-slate-950 font-black' : 'bg-slate-900 text-slate-500 hover:bg-slate-800'}`}>
+                                                    <span>{idx + 1}</span>
+                                                    <span className="text-[8px]">{isActive ? '●' : '·'}</span>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>
