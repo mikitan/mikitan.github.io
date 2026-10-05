@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - DLAND DTM v59.3 BLAUND WORLD LUXURY SUITE</title>
+    <title>MIC VICTORY - DLAND DTM v59.4 BLAUND WORLD LUXURY SUITE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -15,14 +15,14 @@
 
     <script type="text/babel">
         function MasterSynthApp() {
-            const [tab, setTab] = React.useState("BLAUND_LUXURY");
+            const [tab, setTab] = React.useState("DUAL_EDIT");
             const [playing, setPlaying] = React.useState(false);
             const [isRecording, setIsRecording] = React.useState(false);
             const [flashColor, setFlashColor] = React.useState("border-cyan-500");
             const [bpm, setBpm] = React.useState(116);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("💎 v59.3 崩さない美学・AI予測・ドレミファ鍵盤完全同期版！");
+            const [status, setStatus] = React.useState("💎 v59.4 音割れ完全防止・手動連打最適化版！");
 
             const [powerSavingMode, setPowerSavingMode] = React.useState(false);
             const [autoCacheEnabled, setAutoCacheEnabled] = React.useState(true);
@@ -32,7 +32,7 @@
             const TOTAL_STEPS = BARS * BAR_STEPS;
 
             const [selectedInstrument, setSelectedInstrument] = React.useState("clickyBass");
-            const [selectedNote, setSelectedNote] = React.useState("C2");
+            const [selectedNote, setSelectedNote] = React.useState("C4");
             const [selectedDuration, setSelectedDuration] = React.useState("8n");
             const [selectedDrumPart, setSelectedDrumPart] = React.useState("kick");
 
@@ -45,7 +45,7 @@
             ]);
 
             const [lyricThemeInput, setLyricThemeInput] = React.useState("Clicky Bit 鋭いアタック、重低音クレラ、崩さない絶対の美学");
-            const [additionalNoteInput, setAdditionalNoteInput] = React.useState("ドラムAI自動生成・エレキギターアンプ音・チョッパーベース・バイオリンAI予測搭載、世界へ羽ばたくMIC VICTORY");
+            const [additionalNoteInput, setAdditionalNoteInput] = React.useState("音割れ完全防止リミッター搭載・手動連打完全対応・世界へ羽ばたくMIC VICTORY");
             
             const [rapLyrics, setRapLyrics] = React.useState(
 `[Intro - Clicky Bit & BLAUND 世界最高級音感の幕開け]
@@ -65,16 +65,17 @@ BLAUND — 世界最高級音感、それは永遠の輝き
 MIC VICTORY、私たちが描く未来に限界など存在しない！！`
             );
 
-            const [masterBassBoost, setMasterBassBoost] = React.useState(14);
-            const [masterVolume, setMasterVolume] = React.useState(1.35);
-            const [reverbWet, setReverbWet] = React.useState(0.15);
-            const [delayFeedback, setDelayFeedback] = React.useState(0.2);
-            const [distortionAmount, setDistortionAmount] = React.useState(0.12);
-            const [chorusWet, setChorusWet] = React.useState(0.3);
+            // 音割れ防止のため、デフォルトゲインを安全値に調整
+            const [masterBassBoost, setMasterBassBoost] = React.useState(6);
+            const [masterVolume, setMasterVolume] = React.useState(0.85);
+            const [reverbWet, setReverbWet] = React.useState(0.12);
+            const [delayFeedback, setDelayFeedback] = React.useState(0.15);
+            const [distortionAmount, setDistortionAmount] = React.useState(0.05);
+            const [chorusWet, setChorusWet] = React.useState(0.2);
 
             const [dlandMode, setDlandMode] = React.useState(true);
             const [screenSaverActive, setScreenSaverActive] = React.useState(false);
-            const [slotName, setSlotName] = React.useState("CLICKY_BASS_LUXURY_v59_3_MICVICTORYDANB_28");
+            const [slotName, setSlotName] = React.useState("CLICKY_BASS_LUXURY_v59_4_MICVICTORYDANB_28");
 
             const INSTRUMENTS = [
                 { id: "clickyBass", label: "⚡ Clicky Bitベース", color: "from-yellow-500 to-red-600" },
@@ -101,12 +102,13 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
             });
 
             const [volumes, setVolumes] = React.useState({
-                clickyBass: 4, drums: 2, subBass: 6, chopperBass: 4, elecGuitar: 3, synth: 0, violin: 2, piano: 0, africa1: 0
+                clickyBass: -2, drums: -3, subBass: -1, chopperBass: -2, elecGuitar: -3, synth: -4, violin: -3, piano: -3, africa1: -4
             });
 
             const synthsRef = React.useRef(null);
             const loopRef = React.useRef(null);
             const masterGainRef = React.useRef(null);
+            const limiterRef = React.useRef(null);
             const eqRef = React.useRef(null);
             const reverbRef = React.useRef(null);
             const delayRef = React.useRef(null);
@@ -123,7 +125,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
 
             React.useEffect(() => {
                 if (autoCacheEnabled) {
-                    const cached = localStorage.getItem("MIC_VICTORY_CLICKY_AUTOCACHE_v59_3");
+                    const cached = localStorage.getItem("MIC_VICTORY_CLICKY_AUTOCACHE_v59_4");
                     if (cached) {
                         try {
                             const parsed = JSON.parse(cached);
@@ -140,7 +142,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
             React.useEffect(() => {
                 if (autoCacheEnabled) {
                     const cacheData = { instrumentSteps, rapLyrics, bpm, updatedAt: new Date().toISOString() };
-                    localStorage.setItem("MIC_VICTORY_CLICKY_AUTOCACHE_v59_3", JSON.stringify(cacheData));
+                    localStorage.setItem("MIC_VICTORY_CLICKY_AUTOCACHE_v59_4", JSON.stringify(cacheData));
                 }
             }, [instrumentSteps, rapLyrics, bpm, autoCacheEnabled]);
 
@@ -154,16 +156,20 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
             }, [masterVolume, masterBassBoost, reverbWet, delayFeedback, distortionAmount, chorusWet]);
 
             React.useEffect(() => {
-                const masterGain = new Tone.Gain(masterVolume).toDestination();
+                // 音割れ防止マスターリミッター & ボリューム段取りの構築
+                const limiter = new Tone.Limiter(-0.5).toDestination();
+                limiterRef.current = limiter;
+
+                const masterGain = new Tone.Gain(masterVolume).connect(limiter);
                 masterGainRef.current = masterGain;
 
-                const eq = new Tone.EQ3({ low: masterBassBoost, lowFrequency: 150, mid: 2.0, high: 3.0 }).connect(masterGain);
+                const eq = new Tone.EQ3({ low: masterBassBoost, lowFrequency: 150, mid: 1.0, high: 2.0 }).connect(masterGain);
                 eqRef.current = eq;
 
-                const reverb = new Tone.Reverb({ decay: 1.6, wet: reverbWet }).connect(eq);
+                const reverb = new Tone.Reverb({ decay: 1.4, wet: reverbWet }).connect(eq);
                 reverbRef.current = reverb;
 
-                const delay = new Tone.FeedbackDelay({ delayTime: "8n.", feedback: delayFeedback, wet: 0.12 }).connect(reverb);
+                const delay = new Tone.FeedbackDelay({ delayTime: "8n.", feedback: delayFeedback, wet: 0.1 }).connect(reverb);
                 delayRef.current = delay;
 
                 const chorus = new Tone.Chorus(4, 2.5, chorusWet).connect(delay);
@@ -174,44 +180,50 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
 
                 const cGains = {};
                 Object.keys(instrumentSteps).forEach(key => {
-                    const cg = new Tone.Gain(Tone.dbToGain(volumes[key] || 0)).connect(distortion);
+                    const cg = new Tone.Gain(Tone.dbToGain(volumes[key] || -2)).connect(distortion);
                     cGains[key] = cg;
                 });
 
                 synthsRef.current = {
-                    clickyBass: new Tone.MonoSynth({
+                    clickyBass: new Tone.PolySynth(Tone.MonoSynth, {
                         oscillator: { type: "sawtooth" },
-                        envelope: { attack: 0.001, decay: 0.25, sustain: 0.2, release: 0.1 },
-                        filterEnvelope: { attack: 0.001, decay: 0.15, sustain: 0.1, release: 0.1, baseFrequency: 120, octaves: 4.2, exponent: 2 }
+                        envelope: { attack: 0.001, decay: 0.2, sustain: 0.15, release: 0.1 },
+                        filterEnvelope: { attack: 0.001, decay: 0.12, sustain: 0.1, release: 0.1, baseFrequency: 100, octaves: 3.5 }
                     }).connect(cGains.clickyBass),
-                    subBass: new Tone.MonoSynth({
+                    subBass: new Tone.PolySynth(Tone.MonoSynth, {
                         oscillator: { type: "sine" },
-                        envelope: { attack: 0.005, decay: 0.4, sustain: 0.6, release: 0.25 },
-                        filterEnvelope: { attack: 0.005, decay: 0.25, sustain: 0.35, release: 0.2, baseFrequency: 65, octaves: 1.8 }
+                        envelope: { attack: 0.005, decay: 0.35, sustain: 0.5, release: 0.2 }
                     }).connect(cGains.subBass),
-                    chopperBass: new Tone.MonoSynth({
+                    chopperBass: new Tone.PolySynth(Tone.MonoSynth, {
                         oscillator: { type: "square" },
-                        envelope: { attack: 0.002, decay: 0.18, sustain: 0.1, release: 0.05 },
-                        filterEnvelope: { attack: 0.002, decay: 0.12, sustain: 0.2, release: 0.05, baseFrequency: 200, octaves: 3.5 }
+                        envelope: { attack: 0.002, decay: 0.15, sustain: 0.1, release: 0.05 }
                     }).connect(cGains.chopperBass),
-                    elecGuitar: new Tone.Synth({
+                    elecGuitar: new Tone.PolySynth(Tone.Synth, {
                         oscillator: { type: "sawtooth" },
-                        envelope: { attack: 0.005, decay: 0.25, sustain: 0.3, release: 0.1 }
+                        envelope: { attack: 0.005, decay: 0.2, sustain: 0.25, release: 0.1 }
                     }).connect(cGains.elecGuitar),
-                    synth: new Tone.Synth({ oscillator: { type: "pulse", width: 0.45 }, envelope: { attack: 0.01, decay: 0.3, sustain: 0.45, release: 0.2 } }).connect(cGains.synth),
-                    violin: new Tone.Synth({
+                    synth: new Tone.PolySynth(Tone.Synth, {
+                        oscillator: { type: "pulse", width: 0.4 },
+                        envelope: { attack: 0.01, decay: 0.25, sustain: 0.35, release: 0.15 }
+                    }).connect(cGains.synth),
+                    violin: new Tone.PolySynth(Tone.Synth, {
                         oscillator: { type: "sawtooth" },
-                        envelope: { attack: 0.05, decay: 0.3, sustain: 0.8, release: 0.3 }
+                        envelope: { attack: 0.04, decay: 0.25, sustain: 0.7, release: 0.2 }
                     }).connect(cGains.violin),
-                    africa1: new Tone.MembraneSynth({ pitchDecay: 0.02, octaves: 4.5, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.3, sustain: 0.01, release: 0.15 } }).connect(cGains.africa1),
-                    piano: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.008, decay: 0.4, sustain: 0.35, release: 0.45 } }).connect(cGains.piano),
+                    africa1: new Tone.PolySynth(Tone.MembraneSynth, {
+                        pitchDecay: 0.02, octaves: 4, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.25, sustain: 0.01, release: 0.1 }
+                    }).connect(cGains.africa1),
+                    piano: new Tone.PolySynth(Tone.Synth, {
+                        oscillator: { type: "sine" },
+                        envelope: { attack: 0.005, decay: 0.35, sustain: 0.25, release: 0.3 }
+                    }).connect(cGains.piano),
                     drums: {
-                        kick: new Tone.MembraneSynth({ pitchDecay: 0.06, octaves: 6.5, oscillator: { type: "sine" }, envelope: { attack: 0.0001, decay: 0.35, sustain: 0.01, release: 0.15 } }).connect(cGains.drums),
-                        snare: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.0001, decay: 0.2, sustain: 0 } }).connect(cGains.drums),
-                        hihat: new Tone.MetalSynth({ frequency: 950, envelope: { attack: 0.0005, decay: 0.03, release: 0.01 }, harmonicity: 5.2, modulationIndex: 34, resonance: 7500, octaves: 1.6 }).connect(cGains.drums),
-                        clap: new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.005, decay: 0.15, sustain: 0 } }).connect(cGains.drums),
+                        kick: new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 5, oscillator: { type: "sine" }, envelope: { attack: 0.0001, decay: 0.3, sustain: 0.01, release: 0.1 } }).connect(cGains.drums),
+                        snare: new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.0001, decay: 0.18, sustain: 0 } }).connect(cGains.drums),
+                        hihat: new Tone.MetalSynth({ frequency: 900, envelope: { attack: 0.0005, decay: 0.025, release: 0.01 }, harmonicity: 5, modulationIndex: 30 }).connect(cGains.drums),
+                        clap: new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.005, decay: 0.12, sustain: 0 } }).connect(cGains.drums),
                     },
-                    eq, reverb, distortion, chorus
+                    limiter, reverb, distortion, chorus
                 };
 
                 return () => { Tone.Transport.stop(); Tone.Transport.cancel(); };
@@ -250,7 +262,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
                                 if (typeof item === "object") {
                                     if (item.kick) syns.drums.kick.triggerAttackRelease(item.subBoost ? "C0" : "C1", "8n", time);
                                     if (item.snare) syns.drums.snare.triggerAttackRelease("8n", time);
-                                    if (item.hihat) syns.drums.hihat.triggerAttackRelease("32n", time, 0.9);
+                                    if (item.hihat) syns.drums.hihat.triggerAttackRelease("32n", time, 0.8);
                                     if (item.clap) syns.drums.clap.triggerAttackRelease("8n", time);
                                 }
                             } else if (instKey === "clickyBass") {
@@ -274,7 +286,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
             const togglePlay = async () => {
                 await Tone.start();
                 setPlaying(!playing);
-                setStatus(playing ? "停止しました" : `▶ 再生中 (BPM: ${bpm}) - BLAUND v59.3 ライブアンセム`);
+                setStatus(playing ? "停止しました" : `▶ 再生中 (BPM: ${bpm}) - 音割れ防止リミッター作動中`);
             };
 
             const saveToCrera = () => {
@@ -419,7 +431,9 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                 setStatus(`🤖 【${instKey}】パターン [${modeType}] 生成完了！`);
             };
 
-            const playNoteKeyboard = (note) => {
+            // メロディ手動連打打ち（PolySynth対応で連打しても音切れや割れを起こさない）
+            const playNoteKeyboard = async (note) => {
+                await Tone.start();
                 setSelectedNote(note);
                 const syns = synthsRef.current;
                 if (!syns) return;
@@ -462,7 +476,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
             const exportProjectToFile = () => {
                 const projectData = {
                     title: slotName,
-                    album: "MIC VICTORY & BLAUND SUITE v59.3",
+                    album: "MIC VICTORY & BLAUND SUITE v59.4",
                     copyrightRelease: "著作権フリー (Free Copyright)",
                     distributor: "micvictorydanb",
                     composer: "28",
@@ -489,7 +503,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                             <div className="absolute top-4 right-4 text-cyan-400 font-bold text-sm animate-pulse">[ 画面クリックで通常画面へ ]</div>
                             <div className="text-center mb-8">
                                 <h1 className="text-2xl font-black bg-gradient-to-r from-yellow-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent animate-bounce">
-                                    BLAUND VISUALIZER v59.3
+                                    BLAUND VISUALIZER v59.4
                                 </h1>
                                 <p className="text-slate-400 text-xs mt-1">販売: micvictorydanb | 作曲: 28 | 著作権フリー | BPM: {bpm}</p>
                             </div>
@@ -507,7 +521,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-40 shadow-lg">
                         <div className="flex items-center gap-2">
                             <span className="font-black text-sm bg-gradient-to-r from-yellow-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                MIC VICTORY & BLAUND <span className="text-[10px] text-yellow-300 font-bold">v59.3 崩さない美学</span>
+                                MIC VICTORY & BLAUND <span className="text-[10px] text-yellow-300 font-bold">v59.4 音割れ防止＆手動連打対応</span>
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -566,22 +580,22 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                     <div className="flex justify-between items-center flex-wrap gap-2">
                                         <div>
                                             <h2 className="text-base font-black bg-gradient-to-r from-yellow-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                                ⚡ BLAUND v59.3 世界最高級音感スイート
+                                                ⚡ BLAUND v59.4 音割れ防止＆手動連打最適化
                                             </h2>
                                             <p className="text-slate-300 text-xs mt-1">
                                                 販売元：<strong className="text-yellow-300">micvictorydanb</strong> ／ 作曲者：<strong className="text-pink-400">28</strong>
                                             </p>
                                         </div>
                                         <span className="px-3 py-1 bg-gradient-to-r from-yellow-500 to-pink-600 text-slate-950 font-black rounded text-xs shadow-lg">
-                                            🌟 崩さない絶対の美学・公式リリース
+                                            🌟 音割れ完全ガードリミッター搭載
                                         </span>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                         <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800 flex flex-col gap-1.5 shadow">
-                                            <span className="text-yellow-400 font-bold text-xs">🥁 ドラムAI自動生成</span>
+                                            <span className="text-yellow-400 font-bold text-xs">🎹 メロディ手動連打対応</span>
                                             <p className="text-[11px] text-slate-300 leading-relaxed">
-                                                EDM、Hip Hop、Rock、Lo-Fiなどのスタイルを選んでワンクリックで最適なビートを自動構築。
+                                                鍵盤を連打しても音が途切れたり割れたりしないPolySynthエンジンとマスターリミッターを完備。
                                             </p>
                                         </div>
                                         <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800 flex flex-col gap-1.5 shadow">
@@ -693,15 +707,15 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="bg-slate-950 p-3 rounded border border-slate-800 flex flex-col gap-1.5">
                                             <div className="flex justify-between text-[11px]"><span className="text-slate-400">マスターボリューム</span><span className="font-bold text-pink-400">{masterVolume.toFixed(2)}x</span></div>
-                                            <input type="range" min="0.5" max="2.0" step="0.05" value={masterVolume} onChange={e => setMasterVolume(Number(e.target.value))} className="w-full accent-pink-500" />
+                                            <input type="range" min="0.2" max="1.5" step="0.05" value={masterVolume} onChange={e => setMasterVolume(Number(e.target.value))} className="w-full accent-pink-500" />
                                         </div>
                                         <div className="bg-slate-950 p-3 rounded border border-slate-800 flex flex-col gap-1.5">
                                             <div className="flex justify-between text-[11px]"><span className="text-slate-400">低音ブースト (重低音クレラ)</span><span className="font-bold text-yellow-400">{masterBassBoost} dB</span></div>
-                                            <input type="range" min="0" max="24" step="1" value={masterBassBoost} onChange={e => setMasterBassBoost(Number(e.target.value))} className="w-full accent-yellow-500" />
+                                            <input type="range" min="0" max="16" step="1" value={masterBassBoost} onChange={e => setMasterBassBoost(Number(e.target.value))} className="w-full accent-yellow-500" />
                                         </div>
                                         <div className="bg-slate-950 p-3 rounded border border-slate-800 flex flex-col gap-1.5">
                                             <div className="flex justify-between text-[11px]"><span className="text-slate-400">アンプ歪み (ディストーション)</span><span className="font-bold text-red-400">{(distortionAmount * 100).toFixed(0)}%</span></div>
-                                            <input type="range" min="0" max="0.3" step="0.02" value={distortionAmount} onChange={e => setDistortionAmount(Number(e.target.value))} className="w-full accent-red-500" />
+                                            <input type="range" min="0" max="0.2" step="0.01" value={distortionAmount} onChange={e => setDistortionAmount(Number(e.target.value))} className="w-full accent-red-500" />
                                         </div>
                                         <div className="bg-slate-950 p-3 rounded border border-slate-800 flex flex-col gap-1.5">
                                             <div className="flex justify-between text-[11px]"><span className="text-slate-400">コーラスFX (ギター・シンセ用)</span><span className="font-bold text-cyan-400">{(chorusWet * 100).toFixed(0)}%</span></div>
@@ -727,7 +741,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
 
                                 <div className="bg-slate-900 p-3 rounded border border-slate-800 flex flex-col gap-2">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className="font-bold text-cyan-300">🎹 鍵盤・パーツ操作 & AI演奏モード切替</span>
+                                        <span className="font-bold text-cyan-300">🎹 鍵盤・パーツ連打演奏 & AI演奏モード切替</span>
                                         <div className="flex gap-1">
                                             {DURATION_OPTIONS.map(d => (
                                                 <button key={d.id} onClick={() => setSelectedDuration(d.id)} className={`px-2 py-0.5 rounded text-[10px] font-bold ${selectedDuration === d.id ? 'bg-yellow-400 text-slate-950' : 'bg-slate-800 text-slate-400'}`}>
