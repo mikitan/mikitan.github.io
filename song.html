@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - DLAND DTM v59.9 各楽器個別再生 ＆ 32小節無限つづき・つけ足しスイート</title>
+    <title>MIC VICTORY - DLAND DTM v59.11 全体記録・crera・つけ足し完全統合スイート</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -17,17 +17,16 @@
         function MasterSynthApp() {
             const [tab, setTab] = React.useState("DUAL_EDIT");
             const [playing, setPlaying] = React.useState(false);
-            const [isRecording, setIsRecording] = React.useState(false);
             const [flashColor, setFlashColor] = React.useState("border-cyan-500");
             const [bpm, setBpm] = React.useState(116);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("🌊 v59.9 【各楽器ソロ再生 ＆ 32小節無限つけ足し機能】実装完了！");
+            const [status, setStatus] = React.useState("🌊 v59.11 【全体記録・crera・つけ足し】完全同期完了！");
 
             const [powerSavingMode, setPowerSavingMode] = React.useState(false);
             const [autoCacheEnabled, setAutoCacheEnabled] = React.useState(true);
 
-            // 個別楽器のソロ再生（ミュート）用ステート
+            // 個別楽器のソロ再生（ミュート）ステート
             const [instrumentMutes, setInstrumentMutes] = React.useState({
                 clickyBass: false, drums: false, subBass: false, chopperBass: false,
                 elecGuitar: false, synth: false, violin: false, piano: false, africa1: false
@@ -37,7 +36,7 @@
             const [liveRecordedNotes, setLiveRecordedNotes] = React.useState([]);
             const liveRecordStartTimeRef = React.useRef(null);
 
-            // 【32小節仕様 ＋ つけ足し拡張対応】
+            // 【小節数のつけ足し拡張対応】
             const [barsCount, setBarsCount] = React.useState(32);
             const BAR_STEPS = 16;
             const TOTAL_STEPS = barsCount * BAR_STEPS;
@@ -48,24 +47,26 @@
             const [selectedDrumPart, setSelectedDrumPart] = React.useState("kick");
             const [aiStyle, setAiStyle] = React.useState("groove");
 
+            // crera専用ストレージ（全体記録、全楽器グリッドパターン、クレジットを完全保存）
             const [creraList, setCreraList] = React.useState([
-                { id: 1, title: "BLAUND 32小節つづき・個別再生スイート #1", bpm: 116, date: "12:00:00", credit: "micvictorydanb / 作曲: 32 / 著作権フリー" }
+                { id: 1, title: "BLAUND 全体記録＆グリッド creraマスター #1", bpm: 116, bars: 32, date: "12:00:00", credit: "micvictorydanb / 作曲: 32 / 著作権フリー", instrumentSteps: null, recordedTakesCount: 1 }
             ]);
 
             const [recordedTakes, setRecordedTakes] = React.useState([
-                { id: 1, title: "32小節楽器別AI自動配置テイク #1", bpm: 116, date: "12:01:00", credit: "micvictorydanb / 作曲: 32 / 著作権フリー" }
+                { id: 1, title: "全体演奏テイク #1 (crera同期)", bpm: 116, date: "12:01:00", credit: "micvictorydanb / 作曲: 32 / 著作権フリー" }
             ]);
+            const [isRecording, setIsRecording] = React.useState(false);
 
-            const [lyricThemeInput, setLyricThemeInput] = React.useState("32小節黄金比率スケールによる楽器別AI個別メロディ構築");
-            const [additionalNoteInput, setAdditionalNoteInput] = React.useState("世界最高級音感 各楽器個別再生 & つけ足し機能フル装備 BLAUND & MIC VICTORY");
+            const [lyricThemeInput, setLyricThemeInput] = React.useState("全体記録とつけ足しによる無限音楽構築");
+            const [additionalNoteInput, setAdditionalNoteInput] = React.useState("世界最高級音感 各楽器グリッド・crera完全同期 BLAUND & MIC VICTORY");
             
             const [rapLyrics, setRapLyrics] = React.useState(
-`[Intro - 32小節壮大なる楽器別AI構築 & つけ足しの幕開け]
-32小節からさらに小節数を「つけ足し」拡張可能！各楽器ごとの個別再生で最高峰のミックスを実現。
+`[Intro - 全体記録とつけ足しによるcreraの真髄]
+小節数を自由につけ足し拡張！全体記録もcreraに一発保存。
 販売：micvictorydanb ／ 作曲：32。著作権フリーの最高峰サウンド！
 
-[Verse 1 - 各楽器ソロ再生と無限のつけ足し]
-ベース、ドラム、ギターを個別にチェック＆ミックス
+[Verse 1 - 全体記録と各楽器グリッドの融合]
+ベース、ドラム、シンセの音がクロスオーバーする瞬間
 BLAUNDの哲学、それは「世界最高級音感」による究極の音楽体験！
 
 [Chorus / Outro - BLAUND 永遠のゴールド・スタンダード]
@@ -83,7 +84,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
 
             const [dlandMode, setDlandMode] = React.useState(true);
             const [screenSaverActive, setScreenSaverActive] = React.useState(false);
-            const [slotName, setSlotName] = React.useState("AI_32BARS_INDIVIDUAL_PLUS_MICVICTORYDANB");
+            const [slotName, setSlotName] = React.useState("AI_TOTAL_RECORD_CRERA_MICVICTORYDANB");
 
             const INSTRUMENTS = [
                 { id: "clickyBass", label: "⚡ Clicky Bitベース", color: "from-yellow-500 to-red-600" },
@@ -131,7 +132,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
                 { id: "4n", label: "長め (4n)" },
             ];
 
-            // 小節数を変更・つけ足したときに配列の長さを自動調整
+            // 小節数の拡張（つけ足し）機能
             const changeBarsCount = (newBars) => {
                 setBarsCount(newBars);
                 const newTotalSteps = newBars * BAR_STEPS;
@@ -149,12 +150,12 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
                     return updated;
                 });
                 if (currentBar >= newBars) setCurrentBar(newBars - 1);
-                setStatus(`➕ 小節数を ${newBars} 小節に拡張（つけ足し）しました！`);
+                setStatus(`➕ 小節数を ${newBars} 小節につけ足し・拡張しました！`);
             };
 
             React.useEffect(() => {
                 if (autoCacheEnabled) {
-                    const cached = localStorage.getItem("MIC_VICTORY_PLUS_AUTOCACHE_v59_9");
+                    const cached = localStorage.getItem("MIC_VICTORY_PLUS_AUTOCACHE_v59_11");
                     if (cached) {
                         try {
                             const parsed = JSON.parse(cached);
@@ -164,6 +165,8 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
                             }
                             if (parsed.rapLyrics) setRapLyrics(parsed.rapLyrics);
                             if (parsed.bpm) setBpm(parsed.bpm);
+                            if (parsed.creraList) setCreraList(parsed.creraList);
+                            if (parsed.recordedTakes) setRecordedTakes(parsed.recordedTakes);
                         } catch (e) {
                             console.error("Cache load error", e);
                         }
@@ -173,10 +176,10 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
 
             React.useEffect(() => {
                 if (autoCacheEnabled) {
-                    const cacheData = { instrumentSteps, rapLyrics, bpm, updatedAt: new Date().toISOString() };
-                    localStorage.setItem("MIC_VICTORY_PLUS_AUTOCACHE_v59_9", JSON.stringify(cacheData));
+                    const cacheData = { instrumentSteps, rapLyrics, bpm, creraList, recordedTakes, updatedAt: new Date().toISOString() };
+                    localStorage.setItem("MIC_VICTORY_PLUS_AUTOCACHE_v59_11", JSON.stringify(cacheData));
                 }
-            }, [instrumentSteps, rapLyrics, bpm, autoCacheEnabled]);
+            }, [instrumentSteps, rapLyrics, bpm, creraList, recordedTakes, autoCacheEnabled]);
 
             React.useEffect(() => {
                 if (masterGainRef.current) masterGainRef.current.gain.value = masterVolume;
@@ -186,7 +189,6 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
                 if (distortionRef.current) distortionRef.current.distortion = distortionAmount;
                 if (chorusRef.current) chorusRef.current.wet.value = chorusWet;
 
-                // 各楽器のミュート音量連動
                 Object.keys(instrumentMutes).forEach(instKey => {
                     if (instrumentGainsRef.current[instKey]) {
                         const isMuted = instrumentMutes[instKey];
@@ -284,7 +286,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
                         if (!syns) return;
 
                         Object.keys(instrumentSteps).forEach(instKey => {
-                            if (instrumentMutes[instKey]) return; // ミュート時は再生しない
+                            if (instrumentMutes[instKey]) return;
                             const item = instrumentSteps[instKey][step];
                             if (!item) return;
 
@@ -319,10 +321,9 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
             const togglePlay = async () => {
                 await Tone.start();
                 setPlaying(!playing);
-                setStatus(playing ? "停止しました" : `▶ 再生中 (${barsCount}小節フルサイズ / BPM: ${bpm}) - BLAUND v59.9`);
+                setStatus(playing ? "停止しました" : `▶ 再生中 (${barsCount}小節グリッド / BPM: ${bpm}) - BLAUND v59.11`);
             };
 
-            // 特定の楽器を単独ソロ再生（他を全部ミュート）
             const soloPlayInstrument = (instKey) => {
                 const newMutes = {};
                 Object.keys(instrumentMutes).forEach(k => {
@@ -343,33 +344,48 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
                 setStatus("🔊 すべての楽器のミュートを解除しました。");
             };
 
+            // 全体記録 ＆ crera ストレージへ丸ごと保存
             const saveToCrera = () => {
                 const newCrera = {
                     id: Date.now(),
-                    title: `BLAUND ${barsCount}小節個別楽器 AI Suite #${creraList.length + 1} (${slotName})`,
+                    title: `BLAUND ${barsCount}小節 全体記録＆グリッドスイート #${creraList.length + 1} (${slotName})`,
                     bpm,
+                    bars: barsCount,
                     date: new Date().toLocaleTimeString(),
-                    credit: "micvictorydanb / 作曲: 32 / 著作権フリー"
+                    credit: "micvictorydanb / 作曲: 32 / 著作権フリー",
+                    instrumentSteps: JSON.parse(JSON.stringify(instrumentSteps)),
+                    recordedTakesCount: recordedTakes.length
                 };
                 setCreraList(prev => [...prev, newCrera]);
-                setStatus("🌊 crera ストレージにデータを正常保存しました！");
+                setStatus("🌊 crera ストレージに全体記録＆全グリッドパターンを完全に保存しました！");
+            };
+
+            // crera からロード
+            const loadFromCrera = (creraItem) => {
+                if (creraItem.instrumentSteps) {
+                    setInstrumentSteps(creraItem.instrumentSteps);
+                    const loadedBars = creraItem.instrumentSteps.clickyBass.length / 16;
+                    setBarsCount(loadedBars);
+                }
+                if (creraItem.bpm) setBpm(creraItem.bpm);
+                setStatus(`🌊 crera から「${creraItem.title}」を正常にロードしました！`);
             };
 
             const toggleRecord = async () => {
                 await Tone.start();
                 setIsRecording(!isRecording);
                 if (!isRecording) {
-                    setStatus("🔴 ライブ録音中...");
+                    setStatus("🔴 全体パフォーマンス録音中...");
                 } else {
                     const newTake = {
                         id: Date.now(),
-                        title: `BLAUND ${barsCount}小節楽器別AI自動配置テイク #${recordedTakes.length + 1} (${slotName})`,
+                        title: `BLAUND ${barsCount}小節全体パフォーマンス録音テイク #${recordedTakes.length + 1} (${slotName})`,
                         bpm,
                         date: new Date().toLocaleTimeString(),
                         credit: "micvictorydanb / 作曲: 32 / 著作権フリー"
                     };
                     setRecordedTakes(prev => [...prev, newTake]);
-                    setStatus("⏹ ライブ録音をリストに記録しました！");
+                    setStatus("⏹ 全体記録を完了し、テイクを保存しました！");
                 }
             };
 
@@ -423,7 +439,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
 
                 newSteps[selectedInstrument] = arr;
                 setInstrumentSteps(newSteps);
-                setStatus(`✨ 【${selectedInstrument}】 ${barsCount}小節分のAI自動構築が完了しました！（スタイル: ${aiStyle}）`);
+                setStatus(`✨ 【${selectedInstrument}】 ${barsCount}小節分のAIグリッド自動構築が完了しました！`);
             };
 
             const toggleLivePerformanceRecording = () => {
@@ -431,10 +447,10 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
                     setIsLivePerformanceRecording(true);
                     setLiveRecordedNotes([]);
                     liveRecordStartTimeRef.current = Tone.now();
-                    setStatus("🔴 【ライブ・パフォーマンス・レコーダー】記録開始！鍵盤をペチペチ連打してください。");
+                    setStatus("🔴 【ライブ・パフォーマンス】鍵盤連打の記録を開始しました！");
                 } else {
                     setIsLivePerformanceRecording(false);
-                    setStatus(`⏹ ライブパフォーマンス記録終了（総ノート数: ${liveRecordedNotes.length}）`);
+                    setStatus(`⏹ ライブ記録終了（総ノート数: ${liveRecordedNotes.length}）`);
                 }
             };
 
@@ -458,16 +474,16 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`
             };
 
             const generateAi800Lyrics = () => {
-                const theme = lyricThemeInput || "32小節楽器別AI個別構築";
+                const theme = lyricThemeInput || "全体記録とつけ足しによる無限音楽構築";
                 const addition = additionalNoteInput ? `（PR: ${additionalNoteInput}）` : "";
                 
-                const generated = `[Intro - ${barsCount}小節壮大なる楽器別AI構築 & つけ足し公式リリース]
-${barsCount}小節に渡る緻密な計算と極上のグルーヴ。各楽器の個別再生＆無限つけ足し対応。
+                const generated = `[Intro - ${barsCount}小節壮大なる全体記録 & crera公式リリース]
+${barsCount}小節へのつけ足し拡張と、全体記録を丸ごとcreraに保存。
 販売：micvictorydanb ／ 作曲：32 による著作権フリーの完全リリース。
 テーマ：「${theme}」${addition}――今、個性が光る最高峰のサウンドスケープが幕を開ける！
 
-[Verse 1 - ${barsCount}小節の芸術的アンサンブル]
-単音メロディが織りなす極上のグルーヴ
+[Verse 1 - ${barsCount}小節の芸術的アンサンブルグリッド]
+全体記録と個別グリッドが織りなす極上のグルーヴ
 BLAUNDの哲学、それは「世界最高級音感」による究極の音楽体験！
 
 [Chorus / Outro - BLAUND 永遠のゴールド・スタンダード]
@@ -480,7 +496,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
             };
 
             const appendLyricsAction = () => {
-                const addText = additionalNoteInput ? `\n\n[BLAUND Special PR (${barsCount} Bars Plus)]\n${additionalNoteInput}\n販売：micvictorydanb ／ 著作権フリー` : "";
+                const addText = additionalNoteInput ? `\n\n[BLAUND Special PR (${barsCount} Bars Crera Total Record)]\n${additionalNoteInput}\n販売：micvictorydanb ／ 著作権フリー` : "";
                 setRapLyrics(prev => prev + addText);
                 setStatus("➕ つけ足しPRテキストを歌詞末尾に追加しました！");
             };
@@ -531,13 +547,13 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
 
             const clearSpecificInstrument = (instKey) => {
                 setInstrumentSteps(prev => ({ ...prev, [instKey]: new Array(barsCount * BAR_STEPS).fill(null) }));
-                setStatus(`🗑️ 【${instKey}】をクリアしました。`);
+                setStatus(`🗑️ 【${instKey}】のグリッドをクリアしました。`);
             };
 
             const exportProjectToFile = () => {
                 const projectData = {
                     title: slotName,
-                    album: `MIC VICTORY & BLAUND SUITE ${barsCount}BARS PLUS v59.9`,
+                    album: `MIC VICTORY & BLAUND SUITE ${barsCount}BARS CRERA TOTAL RECORD v59.11`,
                     copyrightRelease: "著作権フリー (Free Copyright)",
                     distributor: "micvictorydanb",
                     composer: "32",
@@ -565,7 +581,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                             <div className="absolute top-4 right-4 text-cyan-400 font-bold text-sm animate-pulse">[ 画面クリックで通常画面へ ]</div>
                             <div className="text-center mb-8">
                                 <h1 className="text-2xl font-black bg-gradient-to-r from-yellow-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent animate-bounce">
-                                    BLAUND {barsCount}BARS VISUALIZER v59.9
+                                    BLAUND {barsCount}BARS TOTAL RECORD & CRERA v59.11
                                 </h1>
                                 <p className="text-slate-400 text-xs mt-1">販売: micvictorydanb | 作曲: 32 | 小節数: {barsCount} | BPM: {bpm}</p>
                             </div>
@@ -583,7 +599,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-40 shadow-lg">
                         <div className="flex items-center gap-2">
                             <span className="font-black text-sm bg-gradient-to-r from-yellow-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                MIC VICTORY & BLAUND <span className="text-[10px] text-yellow-300 font-bold">v59.9 【各楽器ソロ＆つけ足し対応】</span>
+                                MIC VICTORY & BLAUND <span className="text-[10px] text-yellow-300 font-bold">v59.11 【全体記録・crera・つけ足し】</span>
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -611,11 +627,11 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
 
                     <nav className="bg-slate-900/90 border-b border-slate-800 px-2 py-1.5 flex gap-1 overflow-x-auto">
                         {[
-                            { id: "DUAL_EDIT", label: "🎹 各楽器ソロ＆グリッド編集" },
+                            { id: "DUAL_EDIT", label: "🎹 全体記録＆各楽器グリッド" },
                             { id: "BLAUND_LUXURY", label: "⚡ BLAUND 概要" },
-                            { id: "CRERA_SUITE", label: "🌊 creraスイート" },
-                            { id: "RECORDINGS", label: "📁 録音リスト" },
-                            { id: "RAP_AI", label: "🎤 宣伝歌詞 & つけ足しAI" },
+                            { id: "CRERA_SUITE", label: "🌊 creraストレージ管理" },
+                            { id: "RECORDINGS", label: "📁 全体録音リスト" },
+                            { id: "RAP_AI", label: "🎤 宣伝歌詞 & AI" },
                             { id: "AUDIO_MIX", label: "🎚️ 音響・FX調整" },
                             { id: "MEMORY", label: "💾 保存" },
                         ].map(t => (
@@ -653,18 +669,20 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                             </button>
                                         </div>
                                     </div>
-                                    <p className="text-[10px] text-slate-300">
-                                        ボタン一つで楽曲の長さを自由につけ足し（拡張）できます！長くした分だけ壮大な大作を作曲可能です。
-                                    </p>
                                 </div>
 
-                                {/* 各楽器の個別再生（ソロ／ミュート）コントロールパネル */}
+                                {/* 各楽器の個別再生・ソロ＆ミュートパネル */}
                                 <div className="bg-slate-900 p-3 rounded border border-cyan-600/60 flex flex-col gap-2.5 shadow-lg">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
                                         <span className="font-bold text-cyan-300">🎧 各楽器の個別再生 (ソロ聴取 ＆ ミュート)</span>
-                                        <button onClick={unmuteAllInstruments} className="px-3 py-1 bg-slate-800 text-cyan-300 hover:bg-slate-700 font-bold rounded text-[10px]">
-                                            🔊 すべての楽器をON（一括解除）
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button onClick={saveToCrera} className="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-[10px] shadow animate-bounce">
+                                                🌊 全体記録を crera に一括保存
+                                            </button>
+                                            <button onClick={unmuteAllInstruments} className="px-3 py-1 bg-slate-800 text-cyan-300 hover:bg-slate-700 font-bold rounded text-[10px]">
+                                                🔊 ミュート解除
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
                                         {INSTRUMENTS.map(inst => {
@@ -679,7 +697,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                                     </div>
                                                     <div className="flex gap-1">
                                                         <button onClick={() => soloPlayInstrument(inst.id)} className="flex-1 py-1 bg-cyan-700 hover:bg-cyan-600 text-white font-bold rounded text-[9px] shadow">
-                                                            🎧 ソロ再生
+                                                            🎧 ソロ
                                                         </button>
                                                         <button onClick={() => toggleMuteInstrument(inst.id)} className={`px-2 py-1 font-bold rounded text-[9px] ${isMuted ? 'bg-emerald-700 text-white' : 'bg-red-800 text-white'}`}>
                                                             {isMuted ? '解除' : 'ミュート'}
@@ -693,7 +711,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
 
                                 <div className="bg-slate-900 p-3 rounded border border-slate-800 flex flex-col gap-2.5">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className="font-bold text-yellow-300">⚡ 楽器セレクター（編集対象の楽器を選択）</span>
+                                        <span className="font-bold text-yellow-300">⚡ 楽器セレクター（グリッド編集対象）</span>
                                     </div>
                                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1.5">
                                         {INSTRUMENTS.map(inst => (
@@ -707,7 +725,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                 <div className="bg-gradient-to-r from-slate-900 via-purple-950/50 to-slate-900 p-3.5 rounded border border-purple-600/80 flex flex-col gap-2.5 shadow-xl">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
                                         <span className="font-black text-sm bg-gradient-to-r from-yellow-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                            ✨ 【{INSTRUMENTS.find(i => i.id === selectedInstrument)?.label || selectedInstrument}】専用 {barsCount}小節AI自動生成
+                                            ✨ 【{INSTRUMENTS.find(i => i.id === selectedInstrument)?.label || selectedInstrument}】専用 {barsCount}小節AIグリッド自動生成
                                         </span>
                                         <div className="flex gap-1.5 items-center">
                                             <select value={aiStyle} onChange={e => setAiStyle(e.target.value)} className="bg-slate-950 text-yellow-300 border border-purple-600 rounded px-2 py-1 text-[11px] font-bold">
@@ -716,7 +734,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                                 <option value="ambient">アンビエント・ロング系</option>
                                             </select>
                                             <button onClick={generateAiSingleInstrumentMelody} className="px-3.5 py-1.5 bg-gradient-to-r from-yellow-500 via-pink-500 to-cyan-500 text-slate-950 font-black rounded-lg text-xs shadow-lg animate-pulse hover:scale-105 transition-transform">
-                                                ⚡ AI自動構築！
+                                                ⚡ AIグリッド自動構築！
                                             </button>
                                         </div>
                                     </div>
@@ -724,7 +742,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
 
                                 <div className="bg-slate-900 p-3 rounded border border-yellow-800/80 flex flex-col gap-2">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className="font-bold text-yellow-300">🔴 ライブ・パフォーマンス・レコーダー (ペチペチ連打記録)</span>
+                                        <span className="font-bold text-yellow-300">🔴 全体演奏・ライブ連打レコーダー</span>
                                         <div className="flex gap-2">
                                             <button onClick={toggleLivePerformanceRecording} className={`px-3 py-1.5 rounded font-bold text-xs shadow ${isLivePerformanceRecording ? 'bg-red-600 text-white animate-pulse' : 'bg-slate-800 text-red-400 border border-red-700'}`}>
                                                 {isLivePerformanceRecording ? '⏹ 記録ストップ' : '🔴 鍵盤連打を記録開始'}
@@ -738,7 +756,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
 
                                 <div className="bg-slate-900 p-3 rounded border border-slate-800 flex flex-col gap-2">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className="font-bold text-cyan-300">🎹 鍵盤・パーツ操作</span>
+                                        <span className="font-bold text-cyan-300">🎹 鍵盤・ボタン記録操作（クリックで即時演奏＆グリッド書き込み）</span>
                                         <div className="flex gap-1">
                                             {DURATION_OPTIONS.map(d => (
                                                 <button key={d.id} onClick={() => setSelectedDuration(d.id)} className={`px-2 py-0.5 rounded text-[10px] font-bold ${selectedDuration === d.id ? 'bg-yellow-400 text-slate-950' : 'bg-slate-800 text-slate-400'}`}>
@@ -789,15 +807,15 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                                     </button>
                                                 ))}
                                             </div>
-                                            <button onClick={() => clearSpecificInstrument(selectedInstrument)} className="px-3 py-1 bg-slate-800 text-red-400 rounded font-bold text-[10px]">🗑️ 選択楽器クリア</button>
+                                            <button onClick={() => clearSpecificInstrument(selectedInstrument)} className="px-3 py-1 bg-slate-800 text-red-400 rounded font-bold text-[10px]">🗑️ 選択楽器グリッドクリア</button>
                                         </div>
                                     </div>
 
-                                    {/* 16ステップグリッド（選択中の小節を表示） */}
+                                    {/* 16ステップグリッド */}
                                     <div className="bg-slate-950 p-2.5 rounded border border-slate-800 flex flex-col gap-2">
                                         <div className="text-[11px] font-bold text-yellow-400 flex justify-between">
-                                            <span>▶ 第 {currentBar + 1} / {barsCount} 小節目 (16ステップ)</span>
-                                            <span className="text-[10px] text-slate-400">上の小節ボタンで表示を切り替えられます</span>
+                                            <span>▶ 第 {currentBar + 1} / {barsCount} 小節目 (16ステップ) グリッドボタン</span>
+                                            <span className="text-[10px] text-slate-400">クリックでON/OFF切り替え</span>
                                         </div>
                                         <div className="grid grid-cols-8 sm:grid-cols-16 gap-1">
                                             {Array.from({ length: 16 }).map((_, idx) => {
@@ -836,7 +854,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                     <div className="flex justify-between items-center flex-wrap gap-2">
                                         <div>
                                             <h2 className="text-base font-black bg-gradient-to-r from-yellow-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                                ⚡ BLAUND v59.9 各楽器個別再生 ＆ つけ足し拡張版
+                                                ⚡ BLAUND v59.11 全体記録 ＆ creraストレージ統合版
                                             </h2>
                                             <p className="text-slate-300 text-xs mt-1">
                                                 販売元：<strong className="text-yellow-300">micvictorydanb</strong> ／ 作曲者：<strong className="text-pink-400">32</strong>
@@ -858,20 +876,28 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                 <div className="bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-cyan-800/60 rounded-lg p-4 flex flex-col gap-3 shadow-lg">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
                                         <h2 className="text-sm font-black bg-gradient-to-r from-yellow-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                            🌊 crera 管理スイート ({barsCount}小節フルサイズ)
+                                            🌊 crera ストレージ管理スイート (全体記録 ＆ {barsCount}小節フル対応)
                                         </h2>
-                                        <button onClick={saveToCrera} className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded text-xs shadow-lg">
-                                            🌊 現在の小節・演奏状態を crera に保存
+                                        <button onClick={saveToCrera} className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded text-xs shadow-lg animate-bounce">
+                                            🌊 全体記録＆全グリッドを crera に保存
                                         </button>
                                     </div>
+                                    <p className="text-[10px] text-slate-300">
+                                        crera（クレラ）ストレージには、現在の全楽器グリッド、小節数のつけ足し状態、BPMが丸ごと保存されます。
+                                    </p>
                                     <div className="flex flex-col gap-2">
                                         {creraList.map(item => (
-                                            <div key={item.id} className="bg-slate-950 p-3 rounded border border-slate-800 flex justify-between items-center">
+                                            <div key={item.id} className="bg-slate-950 p-3 rounded border border-cyan-900/80 flex justify-between items-center flex-wrap gap-2">
                                                 <div className="flex flex-col gap-0.5">
                                                     <span className="font-bold text-yellow-300">{item.title}</span>
-                                                    <span className="text-[10px] text-slate-400">BPM: {item.bpm} | {barsCount}小節 | 保存時刻: {item.date} | クレジット: {item.credit}</span>
+                                                    <span className="text-[10px] text-slate-400">BPM: {item.bpm} | {item.bars || barsCount}小節 | 保存時刻: {item.date} | クレジット: {item.credit}</span>
                                                 </div>
-                                                <span className="px-2.5 py-1 bg-cyan-600 text-white font-bold rounded text-[10px]">著作権フリー連携済</span>
+                                                <div className="flex gap-1.5">
+                                                    <button onClick={() => loadFromCrera(item)} className="px-3 py-1 bg-cyan-700 hover:bg-cyan-600 text-white font-bold rounded text-[10px] shadow">
+                                                        📂 読み込む (ロード)
+                                                    </button>
+                                                    <span className="px-2.5 py-1 bg-emerald-900 text-emerald-200 font-bold rounded text-[10px] flex items-center">著作権フリー</span>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -887,7 +913,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                             📁 全体録音リスト ({barsCount}小節)
                                         </h2>
                                         <button onClick={toggleRecord} className={`px-4 py-2 rounded font-black text-xs shadow-lg ${isRecording ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-red-400 border border-red-800"}`}>
-                                            {isRecording ? "🔴 録音中（クリックで停止・保存）" : "⏺️️ 新規全体録音スタート"}
+                                            {isRecording ? "🔴 全体録音中（クリックで停止）" : "⏺ 新規全体録音スタート"}
                                         </button>
                                     </div>
                                     <div className="flex flex-col gap-2">
@@ -897,7 +923,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                                     <span className="font-bold text-pink-300">{take.title}</span>
                                                     <span className="text-[10px] text-slate-400">BPM: {take.bpm} | {barsCount}小節 | 録音時刻: {take.date} | クレジット: {take.credit}</span>
                                                 </div>
-                                                <span className="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded text-[10px]">録音データ保持</span>
+                                                <span className="px-2.5 py-1 bg-emerald-600 text-white font-bold rounded text-[10px]">全体記録保持</span>
                                             </div>
                                         ))}
                                     </div>
@@ -921,7 +947,7 @@ MIC VICTORY、私たちが描く未来に限界など存在しない！！`;
                                     </div>
                                     <textarea value={rapLyrics} onChange={e => setRapLyrics(e.target.value)} rows={10} className="w-full bg-slate-950 text-slate-200 p-3 rounded border border-slate-800 font-mono text-xs" />
                                     <div className="flex justify-end">
-                                        <button onClick={() => { navigator.clipboard.writeText(rapLyrics); setStatus("📋 歌詞をコピーしました！"); }} className="px-4 py-2 bg-cyan-600 text-white font-bold rounded text-xs shadow">📋 歌詞をコピー</button>
+                                        <button onClick={() => { navigator.clipboard.writeText(rapLyrics); status; }} className="px-4 py-2 bg-cyan-600 text-white font-bold rounded text-xs shadow">📋 歌詞をコピー</button>
                                     </div>
                                 </div>
                             </div>
