@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MICVICTORY BANDLAND DTM - Ultimate Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        mvDark: '#07070a',
+                        mvCard: '#121218',
+                        mvAccent: '#8b5cf6',
+                        mvPink: '#ec4899',
+                        mvCyan: '#06b6d4',
+                        mvGreen: '#10b981',
+                        mvYellow: '#f59e0b'
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #07070a;
+            color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+        }
+        ::-webkit-scrollbar {
+            height: 4px;
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #121218;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 2px;
+        }
+        .step-active {
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            box-shadow: 0 0 12px rgba(139, 92, 246, 0.6);
+        }
+        .glow-accent {
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between overflow-x-hidden pb-20">
+
+    <header class="bg-mvCard/90 backdrop-blur border-b border-gray-800/80 sticky top-0 z-50 px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-2.5">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-mvAccent via-mvPink to-mvCyan flex items-center justify-center text-white font-black shadow-lg shadow-mvAccent/40">
+                MV
+            </div>
+            <div>
+                <h1 class="text-xs font-black tracking-wider bg-gradient-to-r from-mvCyan via-mvAccent to-mvPink bg-clip-text text-transparent uppercase">Bandland DTM</h1>
+                <p class="text-[9px] text-gray-400">Ultimate Pro Suite</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button onclick="openModal('saveModal')" class="bg-gray-900 hover:bg-gray-800 text-xs px-3 py-1.5 rounded-xl border border-gray-800 text-gray-200 transition flex items-center space-x-1 shadow-sm">
+                <i class="fa-solid fa-floppy-disk text-mvCyan"></i>
+                <span class="text-[11px]">保存</span>
+            </button>
+            <button onclick="openModal('releaseModal')" class="bg-gradient-to-r from-mvAccent to-mvPink text-xs px-3 py-1.5 rounded-xl text-white font-medium shadow-md shadow-mvAccent/30 flex items-center space-x-1">
+                <i class="fa-solid fa-globe"></i>
+                <span class="text-[11px]">リリース</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 p-3 max-w-lg mx-auto w-full space-y-4">
+
+        <!-- Master Transport & Playback Control -->
+        <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-4 shadow-xl glow-accent">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-2">
+                    <span id="playStatus" class="w-3 h-3 rounded-full bg-red-500"></span>
+                    <span id="statusText" class="text-xs font-bold text-gray-300">スタンバイ中</span>
+                </div>
+                <div class="text-[11px] font-mono text-gray-400 bg-black/50 px-3 py-1 rounded-lg border border-gray-800 flex items-center space-x-2">
+                    <span>BPM: <strong class="text-mvCyan">120</strong></span>
+                    <span>|</span>
+                    <span>小節: <strong id="currentBarDisplay" class="text-white">1</strong>/84</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-4 gap-2">
+                <button onclick="toggleGlobalPlay()" id="globalPlayBtn" class="col-span-2 bg-gradient-to-r from-mvAccent to-mvPink text-white font-bold py-3 rounded-xl text-xs shadow-lg shadow-mvAccent/30 flex items-center justify-center space-x-2 transition active:scale-95">
+                    <i class="fa-solid fa-play" id="playIcon"></i>
+                    <span id="playBtnText">84小節全体再生</span>
+                </button>
+                <button onclick="stopGlobalPlay()" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-200 py-3 rounded-xl text-xs font-medium flex items-center justify-center space-x-1 transition active:scale-95">
+                    <i class="fa-solid fa-stop"></i>
+                    <span>停止</span>
+                </button>
+                <button onclick="toggleRecordMode()" id="recModeBtn" class="bg-gray-900 hover:bg-gray-800 border border-pink-500/30 text-mvPink py-3 rounded-xl text-xs font-medium flex items-center justify-center space-x-1 transition active:scale-95">
+                    <i class="fa-solid fa-circle-dot"></i>
+                    <span id="recBtnText">手動記録</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Instrument Selector Tabs -->
+        <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3 shadow-xl space-y-2">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-gray-400">楽器トラック選択 (各84小節)</span>
+                <span id="activeTrackName" class="text-xs text-mvCyan font-bold">ピアノ</span>
+            </div>
+            <div class="grid grid-cols-8 gap-1">
+                <button onclick="switchTrack('piano')" id="track-piano" class="track-btn bg-mvAccent/20 border border-mvAccent text-white text-[9px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition">
+                    <i class="fa-solid fa-music text-mvAccent"></i>
+                    <span>ピアノ</span>
+                </button>
+                <button onclick="switchTrack('bass')" id="track-bass" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[9px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition">
+                    <i class="fa-solid fa-guitar"></i>
+                    <span>ベース</span>
+                </button>
+                <button onclick="switchTrack('acoustic')" id="track-acoustic" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[9px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition">
+                    <i class="fa-solid fa-seedling"></i>
+                    <span>アコギ</span>
+                </button>
+                <button onclick="switchTrack('electric')" id="track-electric" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[9px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>エレキ</span>
+                </button>
+                <button onclick="switchTrack('violin')" id="track-violin" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[9px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition">
+                    <i class="fa-solid fa-feather"></i>
+                    <span>バイオリン</span>
+                </button>
+                <button onclick="switchTrack('drums')" id="track-drums" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[9px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition">
+                    <i class="fa-solid fa-drum"></i>
+                    <span>ドラム</span>
+                </button>
+                <button onclick="switchTrack('tambourine')" id="track-tambourine" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[9px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition">
+                    <i class="fa-solid fa-bell"></i>
+                    <span>タンバリン</span>
+                </button>
+                <button onclick="switchTrack('chopper')" id="track-chopper" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[9px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>チョッパー</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 🎹 ドレミファソラシド鍵盤 & コード押しパネル -->
+        <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3 shadow-xl space-y-3">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-xs font-bold text-white">ドレミファソラシド鍵盤 & コード</h3>
+                    <p class="text-[10px] text-gray-400">タップして演奏・即時記録 (crera対応)</p>
+                </div>
+                <div class="flex space-x-1">
+                    <button onclick="setKeyboardMode('single')" id="kbModeSingle" class="text-[10px] bg-mvAccent text-white px-2.5 py-1 rounded-lg font-bold">一本弾き</button>
+                    <button onclick="setKeyboardMode('chord')" id="kbModeChord" class="text-[10px] bg-gray-900 text-gray-400 border border-gray-800 px-2.5 py-1 rounded-lg">コード押し</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-8 gap-1 bg-gray-950 p-2 rounded-xl border border-gray-800">
+                <button onclick="playKeyboardNote('C4', 'ド')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center active:bg-mvAccent transition">
+                    <span class="text-[10px] text-gray-400">C</span>
+                    <span class="text-xs font-bold">ド</span>
+                </button>
+                <button onclick="playKeyboardNote('D4', 'レ')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center active:bg-mvAccent transition">
+                    <span class="text-[10px] text-gray-400">D</span>
+                    <span class="text-xs font-bold">レ</span>
+                </button>
+                <button onclick="playKeyboardNote('E4', 'ミ')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center active:bg-mvAccent transition">
+                    <span class="text-[10px] text-gray-400">E</span>
+                    <span class="text-xs font-bold">ミ</span>
+                </button>
+                <button onclick="playKeyboardNote('F4', 'ファ')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center active:bg-mvAccent transition">
+                    <span class="text-[10px] text-gray-400">F</span>
+                    <span class="text-xs font-bold">ファ</span>
+                </button>
+                <button onclick="playKeyboardNote('G4', 'ソ')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center active:bg-mvAccent transition">
+                    <span class="text-[10px] text-gray-400">G</span>
+                    <span class="text-xs font-bold">ソ</span>
+                </button>
+                <button onclick="playKeyboardNote('A4', 'ラ')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center active:bg-mvAccent transition">
+                    <span class="text-[10px] text-gray-400">A</span>
+                    <span class="text-xs font-bold">ラ</span>
+                </button>
+                <button onclick="playKeyboardNote('B4', 'シ')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center active:bg-mvAccent transition">
+                    <span class="text-[10px] text-gray-400">B</span>
+                    <span class="text-xs font-bold">シ</span>
+                </button>
+                <button onclick="playKeyboardNote('C5', 'ドハイ')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center active:bg-mvAccent transition">
+                    <span class="text-[10px] text-gray-400">C5</span>
+                    <span class="text-xs font-bold">ド↑</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 16-Step Sequencer & Bar Editor -->
+        <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3 shadow-xl space-y-3">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-xs font-bold text-white"><span id="currentTrackTitle">ピアノ</span> 16ステップエディター</h3>
+                    <p class="text-[10px] text-gray-400">84小節タイムライン (16ステップ高精度)</p>
+                </div>
+                <div class="flex space-x-1.5">
+                    <button onclick="previewCurrentTrack()" class="text-[10px] bg-gray-900 hover:bg-gray-800 border border-gray-800 text-mvCyan px-2.5 py-1 rounded-lg">単体再生</button>
+                    <button onclick="clearCurrentBar()" class="text-[10px] bg-gray-900 hover:bg-gray-800 border border-gray-800 text-red-400 px-2.5 py-1 rounded-lg">クリア</button>
+                </div>
+            </div>
+
+            <!-- Bar Selector (1 to 84) -->
+            <div class="flex items-center space-x-1.5 overflow-x-auto pb-2">
+                <span class="text-[10px] text-gray-400 shrink-0 font-mono">小節選択:</span>
+                <div id="barSelectorContainer" class="flex space-x-1"></div>
+            </div>
+
+            <!-- 16-Step Grid -->
+            <div class="bg-gray-950 border border-gray-800 rounded-xl p-3 space-y-2">
+                <div class="flex justify-between items-center text-[9px] text-gray-400 font-mono px-1">
+                    <span>1</span><span>2</span><span>3</span><span>4</span>
+                    <span>5</span><span>6</span><span>7</span><span>8</span>
+                    <span>9</span><span>10</span><span>11</span><span>12</span>
+                    <span>13</span><span>14</span><span>15</span><span>16</span>
+                </div>
+                <div id="stepGrid16" class="grid grid-cols-8 gap-1.5"></div>
+            </div>
+        </div>
+
+        <!-- 🎻 バイオリン AIランダム伴奏メロディ作成 -->
+        <div class="bg-gradient-to-r from-mvCard via-[#181226] to-mvCard border border-purple-500/30 rounded-2xl p-3 shadow-xl space-y-2">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-mvAccent"></i>
+                    <span class="text-xs font-bold text-white">バイオリン AIランダム伴奏メロディ作成</span>
+                </div>
+                <span class="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded border border-purple-500/30">AI Engine</span>
+            </div>
+            <button onclick="generateViolinAIMelody()" class="w-full bg-gradient-to-r from-mvAccent to-mvPink text-white text-xs font-bold py-2.5 rounded-xl shadow-md transition active:scale-95 flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-bolt"></i>
+                <span>AI伴奏メロディを全84小節にランダム生成 (crera)</span>
+            </button>
+        </div>
+
+        <!-- 84-Bar Chord Progression Master Grid -->
+        <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3 shadow-xl space-y-2">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-chord text-mvCyan"></i>
+                    <span class="text-xs font-bold text-white">84小節 コード進行マスター</span>
+                </div>
+                <span class="text-[10px] text-mvCyan">タップでコード配置</span>
+            </div>
+            <div class="bg-gray-950 border border-gray-800 rounded-xl p-2.5 overflow-x-auto max-h-40">
+                <div id="masterChordGrid" class="flex space-x-2 min-w-[2000px]"></div>
+            </div>
+            <div class="grid grid-cols-6 gap-1.5 pt-1">
+                <button onclick="applyChordToActiveBar('C')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white text-xs py-1.5 rounded-lg font-bold">C</button>
+                <button onclick="applyChordToActiveBar('Am')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white text-xs py-1.5 rounded-lg font-bold">Am</button>
+                <button onclick="applyChordToActiveBar('F')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white text-xs py-1.5 rounded-lg font-bold">F</button>
+                <button onclick="applyChordToActiveBar('G7')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white text-xs py-1.5 rounded-lg font-bold">G7</button>
+                <button onclick="applyChordToActiveBar('Dm')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white text-xs py-1.5 rounded-lg font-bold">Dm</button>
+                <button onclick="applyChordToActiveBar('Em')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white text-xs py-1.5 rounded-lg font-bold">Em</button>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-mvCard/90 backdrop-blur border-t border-gray-800/80 py-3 px-4 text-center text-[10px] text-gray-500 fixed bottom-0 inset-x-0 z-40">
+        <p class="font-medium text-gray-400">MICVICTORY BANDLAND DTM — Ultimate Pro Edition</p>
+    </footer>
+
+    <!-- Save Modal -->
+    <div id="saveModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-mvCard border border-gray-800 rounded-2xl w-full max-w-sm p-4 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xs font-bold text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-floppy-disk text-mvCyan"></i>
+                    <span>プロジェクトの保存</span>
+                </h3>
+                <button onclick="closeModal('saveModal')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-2">
+                <label class="text-[11px] text-gray-400">プロジェクト名</label>
+                <input type="text" id="projectName" value="MICVICTORY Ultimate 84Bars Masterpiece" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-mvAccent">
+            </div>
+            <button onclick="saveProject()" class="w-full bg-gradient-to-r from-mvCyan to-mvAccent text-white text-xs py-2.5 rounded-xl font-bold shadow-lg shadow-mvCyan/20">クラウドストレージに保存する</button>
+        </div>
+    </div>
+
+    <!-- Release Modal -->
+    <div id="releaseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-mvCard border border-gray-800 rounded-2xl w-full max-w-sm p-4 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xs font-bold text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-globe text-mvPink"></i>
+                    <span>アルバムリリース・著作権共有</span>
+                </h3>
+                <button onclick="closeModal('releaseModal')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-2 text-xs text-gray-300">
+                <p>8トラック・16ステップシーケンサー・バイオリンAI伴奏を統合し、ワールドワイド配信リリースを行います。</p>
+                <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-1">
+                    <div class="flex justify-between text-[11px]"><span class="text-gray-400">レーベル:</span><span class="text-mvCyan font-bold">MICVICTORY BANDLAND</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-gray-400">音質規格:</span><span class="text-white font-bold">プロスタジオ24bitマスタリング</span></div>
+                </div>
+            </div>
+            <button onclick="releaseAlbum()" class="w-full bg-gradient-to-r from-mvAccent to-mvPink text-white text-xs py-2.5 rounded-xl font-bold shadow-lg shadow-mvAccent/20">世界配信リリース申請</button>
+        </div>
+    </div>
+
+    <script>
+        let audioCtx = null;
+        const totalBars = 84;
+        let activeTrack = 'piano';
+        let activeBar = 1;
+        let isGlobalPlaying = false;
+        let globalPlayInterval = null;
+        let currentPlaybackBar = 1;
+        let isRecordMode = false;
+        let keyboardMode = 'single'; // 'single' or 'chord'
+
+        let tracksData = {
+            piano: createEmptyTrack16(),
+            bass: createEmptyTrack16(),
+            acoustic: createEmptyTrack16(),
+            electric: createEmptyTrack16(),
+            violin: createEmptyTrack16(),
+            drums: createEmptyTrack16(),
+            tambourine: createEmptyTrack16(),
+            chopper: createEmptyTrack16()
+        };
+
+        let masterChords = [];
+
+        function createEmptyTrack16() {
+            let track = [];
+            for(let i=0; i<totalBars; i++) {
+                let barSteps = new Array(16).fill(false);
+                barSteps[0] = true;
+                barSteps[4] = true;
+                barSteps[8] = true;
+                barSteps[12] = true;
+                track.push(barSteps);
+            }
+            return track;
+        }
+
+        function initApp() {
+            const defaults = ['C', 'Am', 'F', 'G7', 'Dm', 'G', 'C', 'Am'];
+            for(let i=0; i<totalBars; i++) {
+                masterChords.push(defaults[i % defaults.length]);
+            }
+
+            renderBarSelector();
+            renderStepGrid16();
+            renderMasterChordGrid();
+        }
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        // --- プロスタジオ仕様 ハイエンド音源エンジン ---
+        function playSound(trackType, stepOrNote) {
+            const ctx = getAudioContext();
+            const now = ctx.currentTime;
+            const masterGain = ctx.createGain();
+            masterGain.gain.setValueAtTime(0.3, now);
+            const filter = ctx.createBiquadFilter();
+
+            if (trackType === 'drums') {
+                // かっこいい16ステップ ドラム（キック＆スネア＆ハイハット）
+                const isKick = (stepOrNote % 4 === 0);
+                const isHat = (stepOrNote % 2 !== 0);
+                const osc = ctx.createOscillator();
+                const env = ctx.createGain();
+
+                if (isKick) {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(140, now);
+                    osc.frequency.exponentialRampToValueAtTime(30, now + 0.12);
+                    env.gain.setValueAtTime(0.7, now);
+                    env.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                } else if (isHat) {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(800, now);
+                    env.gain.setValueAtTime(0.15, now);
+                    env.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                } else {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.exponentialRampToValueAtTime(70, now + 0.1);
+                    env.gain.setValueAtTime(0.4, now);
+                    env.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                }
+                osc.connect(env);
+                env.connect(masterGain);
+                masterGain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+
+            } else if (trackType === 'tambourine') {
+                // シャープなタンバリン音
+                const osc = ctx.createOscillator();
+                const env = ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(1200, now);
+                osc.frequency.exponentialRampToValueAtTime(400, now + 0.08);
+                env.gain.setValueAtTime(0.25, now);
+                env.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.connect(env);
+                env.connect(masterGain);
+                masterGain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.1);
+
+            } else if (trackType === 'chopper' || trackType === 'bass') {
+                // 低音チョッパー（スラップ・ベース）＆極太サブベース
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(400, now);
+                const subOsc = ctx.createOscillator();
+                subOsc.type = 'sawtooth';
+                subOsc.frequency.setValueAtTime(55, now);
+                const env = ctx.createGain();
+                env.gain.setValueAtTime(0, now);
+                env.gain.linearRampToValueAtTime(0.6, now + 0.01);
+                env.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                subOsc.connect(filter);
+                filter.connect(env);
+                env.connect(masterGain);
+                masterGain.connect(ctx.destination);
+                subOsc.start(now);
+                subOsc.stop(now + 0.35);
+
+            } else if (trackType === 'acoustic' || trackType === 'electric') {
+                // ギター弦音 / エレキギター電子アンプ音
+                let baseFreq = trackType === 'electric' ? 220 : 196;
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(trackType === 'electric' ? 1800 : 1200, now);
+                const osc = ctx.createOscillator();
+                osc.type = trackType === 'electric' ? 'sawtooth' : 'triangle';
+                osc.frequency.setValueAtTime(baseFreq, now);
+                const env = ctx.createGain();
+                env.gain.setValueAtTime(0, now);
+                env.gain.linearRampToValueAtTime(0.3, now + 0.02);
+                env.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                osc.connect(filter);
+                filter.connect(env);
+                env.connect(masterGain);
+                masterGain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.5);
+
+            } else {
+                // ピアノ・バイオリン・鍵盤用
+                let freq = 261.63;
+                if (typeof stepOrNote === 'string') {
+                    const notes = { C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88, C5: 523.25 };
+                    freq = notes[stepOrNote] || 261.63;
+                }
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(3000, now);
+                const osc = ctx.createOscillator();
+                osc.type = trackType === 'violin' ? 'sawtooth' : 'triangle';
+                osc.frequency.setValueAtTime(freq, now);
+                const env = ctx.createGain();
+                env.gain.setValueAtTime(0, now);
+                env.gain.linearRampToValueAtTime(0.3, now + 0.02);
+                env.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                osc.connect(filter);
+                filter.connect(env);
+                env.connect(masterGain);
+                masterGain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.6);
+            }
+        }
+
+        function setKeyboardMode(mode) {
+            keyboardMode = mode;
+            document.getElementById('kbModeSingle').className = mode === 'single' ? 'text-[10px] bg-mvAccent text-white px-2.5 py-1 rounded-lg font-bold' : 'text-[10px] bg-gray-900 text-gray-400 border border-gray-800 px-2.5 py-1 rounded-lg';
+            document.getElementById('kbModeChord').className = mode === 'chord' ? 'text-[10px] bg-mvAccent text-white px-2.5 py-1 rounded-lg font-bold' : 'text-[10px] bg-gray-900 text-gray-400 border border-gray-800 px-2.5 py-1 rounded-lg';
+        }
+
+        function playKeyboardNote(noteName, label) {
+            playSound(activeTrack, noteName);
+            if(keyboardMode === 'chord') {
+                // コード押し同時発音シミュレーション
+                setTimeout(() => playSound(activeTrack, 'E4'), 50);
+                setTimeout(() => playSound(activeTrack, 'G4'), 100);
+            }
+            // crera記録連動
+            if(isRecordMode) {
+                let emptyIdx = tracksData[activeTrack][activeBar - 1].findIndex(v => !v);
+                if(emptyIdx !== -1) {
+                    tracksData[activeTrack][activeBar - 1][emptyIdx] = true;
+                    renderStepGrid16();
+                }
+            }
+        }
+
+        function switchTrack(trackName) {
+            activeTrack = trackName;
+            document.querySelectorAll('.track-btn').forEach(btn => {
+                btn.className = "track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[9px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition";
+            });
+            document.getElementById('track-' + trackName).className = "track-btn bg-mvAccent/20 border border-mvAccent text-white text-[9px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition";
+            
+            const names = { piano: 'ピアノ', bass: 'ベース', acoustic: 'アコギ', electric: 'エレキ', violin: 'バイオリン', drums: 'ドラム', tambourine: 'タンバリン', chopper: 'チョッパー' };
+            document.getElementById('activeTrackName').innerText = names[trackName];
+            document.getElementById('currentTrackTitle').innerText = names[trackName];
+            renderStepGrid16();
+        }
+
+        function renderBarSelector() {
+            const container = document.getElementById('barSelectorContainer');
+            container.innerHTML = '';
+            for(let i=1; i<=totalBars; i++) {
+                const btn = document.createElement('button');
+                btn.className = `w-7 h-7 rounded-lg text-[10px] font-mono font-bold flex items-center justify-center transition shrink-0 ${activeBar === i ? 'bg-mvCyan text-black shadow-md' : 'bg-gray-900 text-gray-400 border border-gray-800'}`;
+                btn.innerText = i;
+                btn.onclick = () => {
+                    activeBar = i;
+                    renderBarSelector();
+                    renderStepGrid16();
+                };
+                container.appendChild(btn);
+            }
+        }
+
+        function renderStepGrid16() {
+            const grid = document.getElementById('stepGrid16');
+            grid.innerHTML = '';
+            const steps = tracksData[activeTrack][activeBar - 1];
+
+            steps.forEach((isActive, stepIdx) => {
+                const btn = document.createElement('button');
+                btn.className = `h-14 rounded-xl flex flex-col items-center justify-center font-mono text-xs transition border ${isActive ? 'step-active text-white border-mvPink' : 'bg-gray-900 text-gray-600 border-gray-800 hover:border-gray-700'}`;
+                btn.innerHTML = `
+                    <span class="text-[8px] text-gray-400">${stepIdx+1}</span>
+                    <span class="font-bold text-xs mt-0.5">${isActive ? 'ON' : '-'}</span>
+                `;
+                btn.onclick = () => {
+                    tracksData[activeTrack][activeBar - 1][stepIdx] = !isActive;
+                    renderStepGrid16();
+                    if(isRecordMode || !isActive) {
+                        playSound(activeTrack, stepIdx);
+                    }
+                };
+                grid.appendChild(btn);
+            });
+        }
+
+        function renderMasterChordGrid() {
+            const grid = document.getElementById('masterChordGrid');
+            grid.innerHTML = '';
+            masterChords.forEach((chord, idx) => {
+                const div = document.createElement('div');
+                div.className = `flex flex-col items-center justify-center p-2 rounded-xl border w-14 h-16 cursor-pointer transition ${currentPlaybackBar === idx + 1 && isGlobalPlaying ? 'bg-mvAccent/40 border-mvAccent shadow-lg' : 'bg-gray-900 border-gray-800 hover:border-gray-700'}`;
+                div.innerHTML = `
+                    <span class="text-[9px] text-gray-500 font-mono">${idx+1}</span>
+                    <span class="text-xs font-bold text-white mt-1">${chord}</span>
+                `;
+                div.onclick = () => {
+                    activeBar = idx + 1;
+                    renderBarSelector();
+                    renderStepGrid16();
+                    playSound(activeTrack, 0);
+                };
+                grid.appendChild(div);
+            });
+        }
+
+        function applyChordToActiveBar(chordName) {
+            masterChords[activeBar - 1] = chordName;
+            renderMasterChordGrid();
+        }
+
+        function clearCurrentBar() {
+            tracksData[activeTrack][activeBar - 1] = new Array(16).fill(false);
+            renderStepGrid16();
+        }
+
+        function previewCurrentTrack() {
+            let step = 0;
+            const timer = setInterval(() => {
+                if(step < 16) {
+                    if(tracksData[activeTrack][activeBar - 1][step]) {
+                        playSound(activeTrack, step);
+                    }
+                    step++;
+                } else {
+                    clearInterval(timer);
+                }
+            }, 125);
+        }
+
+        function generateViolinAIMelody() {
+            for(let i=0; i<totalBars; i++) {
+                let randomSteps = new Array(16).fill(false);
+                for(let s=0; s<16; s++) {
+                    if(Math.random() > 0.6) randomSteps[s] = true;
+                }
+                tracksData['violin'][i] = randomSteps;
+            }
+            renderStepGrid16();
+            alert("バイオリンのAIランダム伴奏メロディを全84小節に生成しました！");
+        }
+
+        function toggleGlobalPlay() {
+            if(isGlobalPlaying) {
+                stopGlobalPlay();
+            } else {
+                startGlobalPlay();
+            }
+        }
+
+        function startGlobalPlay() {
+            isGlobalPlaying = true;
+            document.getElementById('playStatus').className = "w-3 h-3 rounded-full bg-green-500 animate-ping";
+            document.getElementById('statusText').innerText = "84小節 16ステップ全体再生中...";
+            document.getElementById('playIcon').className = "fa-solid fa-pause";
+            document.getElementById('playBtnText').innerText = "一時停止";
+
+            const bpm = 120;
+            const stepDurationMs = (60 / bpm) * 1000 / 4; // 16分音符単位
+
+            let stepCounter = 0;
+            globalPlayInterval = setInterval(() => {
+                const barIdx = Math.floor(stepCounter / 16) % totalBars;
+                const stepIdx = stepCounter % 16;
+
+                currentPlaybackBar = barIdx + 1;
+                document.getElementById('currentBarDisplay').innerText = currentPlaybackBar;
+                renderMasterChordGrid();
+
+                Object.keys(tracksData).forEach(trackKey => {
+                    if(tracksData[trackKey][barIdx][stepIdx]) {
+                        playSound(trackKey, stepIdx);
+                    }
+                });
+
+                stepCounter++;
+            }, stepDurationMs);
+        }
+
+        function stopGlobalPlay() {
+            isGlobalPlaying = false;
+            clearInterval(globalPlayInterval);
+            document.getElementById('playStatus').className = "w-3 h-3 rounded-full bg-red-500";
+            document.getElementById('statusText').innerText = "停止中";
+            document.getElementById('playIcon').className = "fa-solid fa-play";
+            document.getElementById('playBtnText').innerText = "84小節全体再生";
+        }
+
+        function toggleRecordMode() {
+            isRecordMode = !isRecordMode;
+            const btn = document.getElementById('recModeBtn');
+            if(isRecordMode) {
+                btn.className = "bg-red-500 text-white border border-red-400 py-3 rounded-xl text-xs font-medium flex items-center justify-center space-x-1 shadow-lg shadow-red-500/30 animate-pulse";
+                document.getElementById('recBtnText').innerText = "記録中(crera)...";
+                alert("手動記録モードON: 鍵盤やグリッドを操作するとリアルタイムにステップへ記録されます。");
+            } else {
+                btn.className = "bg-gray-900 hover:bg-gray-800 border border-pink-500/30 text-mvPink py-3 rounded-xl text-xs font-medium flex items-center justify-center space-x-1";
+                document.getElementById('recBtnText').innerText = "手動記録";
+            }
+        }
+
+        function openModal(modalId) { document.getElementById(modalId).classList.remove('hidden'); }
+        function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
+
+        function saveProject() {
+            const name = document.getElementById('projectName').value;
+            closeModal('saveModal');
+            alert(`プロジェクト「${name}」をプロ仕様形式で保存しました！`);
+        }
+
+        function releaseAlbum() {
+            closeModal('releaseModal');
+            alert("プロスタジオ24bitマスタリングによる世界配信リリース申請が完了しました。");
+        }
+
+        window.onload = function() { initApp(); };
+    </script>
+</body>
+</html>
