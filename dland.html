@@ -60,7 +60,7 @@
             </div>
             <div>
                 <h1 class="text-xs font-black tracking-wider bg-gradient-to-r from-mvCyan via-mvAccent to-mvPink bg-clip-text text-transparent uppercase">Bandland DTM</h1>
-                <p class="text-[9px] text-gray-400">Ultimate Live Don-Pasha Master</p>
+                <p class="text-[9px] text-gray-400">Master Grade Don-Pasha Engine</p>
             </div>
         </div>
         <div class="flex items-center space-x-2">
@@ -118,7 +118,7 @@
         <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3 shadow-xl space-y-2">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-semibold text-gray-400">楽器トラック選択 (各84小節)</span>
-                <span id="activeTrackName" class="text-xs text-mvCyan font-bold">ドラム (ドンパシャ・ライブ)</span>
+                <span id="activeTrackName" class="text-xs text-mvCyan font-bold">ドラム (マスター・ドンパシャ)</span>
             </div>
             <div class="grid grid-cols-8 gap-1">
                 <button onclick="switchTrack('piano')" id="track-piano" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[9px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition">
@@ -210,7 +210,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h3 class="text-xs font-bold text-white"><span id="currentTrackTitle">ドラム</span> 16ステップエディター</h3>
-                    <p class="text-[10px] text-gray-400">84小節タイムライン (ドンパシャ最強サウンド)</p>
+                    <p class="text-[10px] text-gray-400">84小節タイムライン (マスター・ドンパシャ)</p>
                 </div>
                 <div class="flex space-x-1.5">
                     <button onclick="previewCurrentTrack()" class="text-[10px] bg-gray-900 hover:bg-gray-800 border border-gray-800 text-mvCyan px-2.5 py-1 rounded-lg">単体再生</button>
@@ -316,6 +316,7 @@
 
     <script>
         let audioCtx = null;
+        let masterGain = null;
         const totalBars = 84;
         let activeTrack = 'drums';
         let activeBar = 1;
@@ -351,12 +352,10 @@
             let track = [];
             for(let i=0; i<totalBars; i++) {
                 let barSteps = new Array(16).fill(false);
-                // 1, 5, 9, 13ステップ目 = 「ドン」(胸に響く超重低音キック)
                 barSteps[0] = true;
                 barSteps[4] = true;
                 barSteps[8] = true;
                 barSteps[12] = true;
-                // 4, 8, 12, 16ステップ目 = 「パシャ」(抜け抜群のスネア＆ハイハット)
                 barSteps[3] = true;
                 barSteps[7] = true;
                 barSteps[11] = true;
@@ -378,7 +377,13 @@
 
         function getAudioContext() {
             if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+                
+                // マスターゲイン（音割れ防止＆全体音量管理）
+                masterGain = audioCtx.createGain();
+                masterGain.gain.setValueAtTime(0.85, audioCtx.currentTime);
+                masterGain.connect(audioCtx.destination);
             }
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
@@ -386,95 +391,96 @@
             return audioCtx;
         }
 
-        // --- 🥁 「ドン・パシャ」最高峰ライブサウンド・エンジン ---
+        // --- 🥁 上長クラス・極上ライブ「ドン・パシャ」エンジン ---
         function playSound(trackType, stepOrNote) {
-            const ctx = getAudioContext();
-            const now = ctx.currentTime;
-            const masterGain = ctx.createGain();
-            masterGain.gain.setValueAtTime(0.5, now);
+            getAudioContext();
+            const now = audioCtx.currentTime;
 
             if (trackType === 'drums') {
                 const isPasha = ((stepOrNote + 1) % 4 === 0) || (stepOrNote % 4 === 3);
                 
                 if (!isPasha) {
-                    // 🥁 「ドン」：胸に突き刺さる超重低音キック＋サブベース
-                    const osc = ctx.createOscillator();
-                    const subOsc = ctx.createOscillator();
-                    const env = ctx.createGain();
-                    
-                    osc.type = 'sine';
+                    // 🥁 【重低音ドン】アタック強烈キック ＋ 超低音サブベース
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
                     osc.frequency.setValueAtTime(180, now);
-                    osc.frequency.exponentialRampYToValueAtTime ? osc.frequency.exponentialRampToValueAtTime(30, now + 0.2) : osc.frequency.linearRampToValueAtTime(30, now + 0.2);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.12);
 
-                    subOsc.type = 'triangle';
-                    subOsc.frequency.setValueAtTime(90, now);
-                    subOsc.frequency.exponentialRampToValueAtTime(15, now + 0.18);
+                    const sub = audioCtx.createOscillator();
+                    const subGain = audioCtx.createGain();
+                    sub.type = 'sine';
+                    sub.frequency.setValueAtTime(90, now);
+                    sub.frequency.exponentialRampToValueAtTime(22, now + 0.3);
 
-                    env.gain.setValueAtTime(1.0, now);
-                    env.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                    gain.gain.setValueAtTime(1.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
 
-                    osc.connect(env);
-                    subOsc.connect(env);
-                    env.connect(masterGain);
-                    masterGain.connect(ctx.destination);
+                    subGain.gain.setValueAtTime(1.0, now);
+                    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+                    osc.connect(gain);
+                    sub.connect(subGain);
+                    gain.connect(masterGain);
+                    subGain.connect(masterGain);
 
                     osc.start(now);
-                    subOsc.start(now);
-                    osc.stop(now + 0.35);
-                    subOsc.stop(now + 0.35);
+                    sub.start(now);
+                    osc.stop(now + 0.25);
+                    sub.stop(now + 0.35);
                 } else {
-                    // 💥 「パシャ」：キレ味抜群のスネア＆ハイハット ワイドライブ音源
-                    const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.25, ctx.sampleRate);
-                    const output = noiseBuffer.getChannelData(0);
-                    for (let i = 0; i < noiseBuffer.length; i++) {
-                        output[i] = (Math.random() * 2 - 1);
+                    // 💥 【鋭いパシャ】リアルスナッピー（ホワイトノイズ＋バンドパス）＋胴鳴り
+                    const bufferSize = audioCtx.sampleRate * 0.25;
+                    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = Math.random() * 2 - 1;
                     }
-                    const whiteNoise = ctx.createBufferSource();
-                    whiteNoise.buffer = noiseBuffer;
 
-                    const filter = ctx.createBiquadFilter();
+                    const noise = audioCtx.createBufferSource();
+                    noise.buffer = buffer;
+
+                    const filter = audioCtx.createBiquadFilter();
                     filter.type = 'bandpass';
-                    filter.frequency.setValueAtTime(2200, now);
-                    filter.Q.setValueAtTime(1.5, now);
+                    filter.frequency.setValueAtTime(3200, now);
+                    filter.Q.setValueAtTime(1.2, now);
 
-                    const noiseEnv = ctx.createGain();
-                    noiseEnv.gain.setValueAtTime(0.7, now);
-                    noiseEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                    const noiseGain = audioCtx.createGain();
+                    noiseGain.gain.setValueAtTime(0.9, now);
+                    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
 
-                    const osc = ctx.createOscillator();
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(380, now);
-                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.12);
-                    const oscEnv = ctx.createGain();
-                    oscEnv.gain.setValueAtTime(0.4, now);
-                    oscEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                    const osc = audioCtx.createOscillator();
+                    const oscGain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(240, now);
+                    osc.frequency.exponentialRampToValueAtTime(90, now + 0.08);
 
-                    whiteNoise.connect(filter);
-                    filter.connect(noiseEnv);
-                    noiseEnv.connect(masterGain);
+                    oscGain.gain.setValueAtTime(0.6, now);
+                    oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
 
-                    osc.connect(oscEnv);
-                    oscEnv.connect(masterGain);
+                    noise.connect(filter);
+                    filter.connect(noiseGain);
+                    noiseGain.connect(masterGain);
 
-                    masterGain.connect(ctx.destination);
+                    osc.connect(oscGain);
+                    oscGain.connect(masterGain);
 
-                    whiteNoise.start(now);
+                    noise.start(now);
                     osc.start(now);
-                    whiteNoise.stop(now + 0.22);
-                    osc.stop(now + 0.15);
+                    noise.stop(now + 0.2);
+                    osc.stop(now + 0.09);
                 }
 
             } else if (trackType === 'tambourine') {
-                const osc = ctx.createOscillator();
-                const env = ctx.createGain();
+                const osc = audioCtx.createOscillator();
+                const env = audioCtx.createGain();
                 osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(1600, now);
-                osc.frequency.exponentialRampToValueAtTime(600, now + 0.08);
-                env.gain.setValueAtTime(0.35, now);
+                osc.frequency.setValueAtTime(1800, now);
+                osc.frequency.exponentialRampToValueAtTime(700, now + 0.08);
+                env.gain.setValueAtTime(0.4, now);
                 env.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
                 osc.connect(env);
                 env.connect(masterGain);
-                masterGain.connect(ctx.destination);
                 osc.start(now);
                 osc.stop(now + 0.12);
 
@@ -484,16 +490,15 @@
                     const notes = { C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88, C5: 523.25 };
                     freq = notes[stepOrNote] || 261.63;
                 }
-                const osc = ctx.createOscillator();
-                const env = ctx.createGain();
+                const osc = audioCtx.createOscillator();
+                const env = audioCtx.createGain();
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(freq, now);
                 env.gain.setValueAtTime(0, now);
-                env.gain.linearRampToValueAtTime(0.35, now + 0.02);
+                env.gain.linearRampToValueAtTime(0.4, now + 0.02);
                 env.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
                 osc.connect(env);
                 env.connect(masterGain);
-                masterGain.connect(ctx.destination);
                 osc.start(now);
                 osc.stop(now + 0.5);
             }
@@ -536,7 +541,7 @@
             });
             document.getElementById('track-' + trackName).className = "track-btn bg-mvAccent/20 border border-mvAccent text-white text-[9px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition";
             
-            const names = { piano: 'ピアノ', bass: 'ベース', acoustic: 'アコギ', electric: 'エレキ', violin: 'バイオリン', drums: 'ドラム (ドンパシャ)', tambourine: 'タンバリン', chopper: 'チョッパー' };
+            const names = { piano: 'ピアノ', bass: 'ベース', acoustic: 'アコギ', electric: 'エレキ', violin: 'バイオリン', drums: 'ドラム (マスター)', tambourine: 'タンバリン', chopper: 'チョッパー' };
             document.getElementById('activeTrackName').innerText = names[trackName];
             document.getElementById('currentTrackTitle').innerText = names[trackName];
             renderStepGrid16();
@@ -648,7 +653,7 @@
         function startGlobalPlay() {
             isGlobalPlaying = true;
             document.getElementById('playStatus').className = "w-3 h-3 rounded-full bg-green-500 animate-ping";
-            document.getElementById('statusText').innerText = "84小節 ライブ演奏中 (ドンパシャ)...";
+            document.getElementById('statusText').innerText = "84小節 ライブ演奏中 (マスター仕様)...";
             document.getElementById('playIcon').className = "fa-solid fa-pause";
             document.getElementById('playBtnText').innerText = "一時停止";
 
@@ -706,7 +711,7 @@
 
         function releaseAlbum() {
             closeModal('releaseModal');
-            alert("ドンパシャライブサウンドの配信リリース申請が完了しました。");
+            alert("マスターライブサウンドの配信リリース申請が完了しました。");
         }
 
         window.onload = function() { initApp(); };
