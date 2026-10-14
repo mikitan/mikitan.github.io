@@ -297,6 +297,17 @@ Fade out... Fin.</p>
                 </button>
             </div>
 
+            <!-- ⭐ 手動演奏追従 AIパートナー作曲ボタン -->
+            <div class="bg-gradient-to-r from-mvCyan/20 to-mvAccent/20 border border-mvCyan/40 p-2.5 rounded-xl flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-brain text-mvCyan"></i>
+                    <span class="text-xs text-white font-bold">手動演奏追従 AIパートナー作曲</span>
+                </div>
+                <button onclick="generateAICompanionMelody()" class="bg-gradient-to-r from-mvCyan to-mvAccent text-black text-[11px] px-3 py-1.5 rounded-lg font-extrabold shadow-md hover:opacity-90 active:scale-95 transition">
+                    弾いた演奏に合わせてAI作曲
+                </button>
+            </div>
+
             <!-- Bar Selector (1 to 84) -->
             <div class="flex items-center space-x-1.5 overflow-x-auto pb-2">
                 <span class="text-[10px] text-gray-400 shrink-0 font-mono">小節:</span>
@@ -357,6 +368,9 @@ Fade out... Fin.</p>
         let mediaRecorder;
         let audioChunks = [];
         let recordedAudioBlob = null;
+
+        // 手動演奏を記憶する履歴配列
+        let userRecordedNotesHistory = [];
 
         function createEmptyTrackExpression16() {
             let track = [];
@@ -504,6 +518,11 @@ Fade out... Fin.</p>
             playSoundWithExpression(activeTrack, expr);
 
             tracksData[activeTrack][activeBar - 1][currentStepPointer] = expr;
+            
+            // ユーザーの手動演奏ノートを履歴に記録
+            userRecordedNotesHistory.push(noteName);
+            if(userRecordedNotesHistory.length > 32) { userRecordedNotesHistory.shift(); }
+
             renderStepGrid16();
             currentStepPointer++;
             if(currentStepPointer >= 16) {
@@ -618,6 +637,36 @@ Fade out... Fin.</p>
                 }
                 tracksData[trackName][b] = barSteps;
             }
+        }
+
+        // ⭐ 手動演奏の履歴に追従してAI作曲する関数
+        function generateAICompanionMelody() {
+            if(userRecordedNotesHistory.length === 0) {
+                alert("⚠️ まず「ドレミファソラシド鍵盤」でいくつかの音を自分で弾いてみてください！その演奏に合わせてAIが作曲します。");
+                return;
+            }
+
+            const harmonyOffsets = { 'C4': 'E4', 'D4': 'F4', 'E4': 'G4', 'F4': 'A4', 'G4': 'B4', 'A4': 'C5', 'B4': 'D5', 'C5': 'E5' };
+
+            for(let b = 0; b < totalBars; b++) {
+                let barSteps = new Array(16).fill(null);
+                for(let s = 0; s < 16; s++) {
+                    if(Math.random() < 0.7) {
+                        let baseNote = userRecordedNotesHistory[Math.floor(Math.random() * userRecordedNotesHistory.length)];
+                        let harmonizedNote = harmonyOffsets[baseNote] || 'C4';
+
+                        barSteps[s] = {
+                            note: harmonizedNote,
+                            duration: currentParams.duration,
+                            velocity: 0.8
+                        };
+                    }
+                }
+                tracksData[activeTrack][b] = barSteps;
+            }
+
+            renderStepGrid16();
+            alert(`✨ あなたの手動演奏（${userRecordedNotesHistory.length}音の入力）をAIが解析し、調和するメロディを [${trackNamesMap[activeTrack]}] に生成しました！`);
         }
 
         function generateCurrentTrackAIMelody() {
