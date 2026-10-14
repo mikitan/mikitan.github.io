@@ -100,6 +100,12 @@
                     <span>全9トラックAI一括作成</span>
                 </button>
             </div>
+
+            <!-- 全音楽データ一括クリアボタン -->
+            <button onclick="clearAllTracksData()" class="w-full bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-400 text-xs py-2.5 rounded-xl font-bold transition flex items-center justify-center space-x-1.5 active:scale-95">
+                <i class="fa-solid fa-trash-can"></i>
+                <span>全音楽データ一括クリア</span>
+            </button>
         </div>
 
         <!-- 🎤 マイク音声録音・再生セクション -->
@@ -348,10 +354,17 @@ Fade out... Fin.</p>
 
         let currentParams = { duration: 0.5, velocity: 0.7 };
 
-        // マイク録音用変数
         let mediaRecorder;
         let audioChunks = [];
         let recordedAudioBlob = null;
+
+        function createEmptyTrackExpression16() {
+            let track = [];
+            for(let i=0; i<totalBars; i++) {
+                track.push(new Array(16).fill(null));
+            }
+            return track;
+        }
 
         let tracksData = {
             piano: createEmptyTrackExpression16(),
@@ -371,18 +384,14 @@ Fade out... Fin.</p>
             drums: 'ドラム', tambourine: 'タンバリン', chopper: 'チョッパー' 
         };
 
-        function createEmptyTrackExpression16() {
-            let track = [];
-            for(let i=0; i<totalBars; i++) {
-                track.push(new Array(16).fill(null));
-            }
-            return track;
-        }
-
         function initApp() {
-            renderBarSelector();
-            renderStepGrid16();
-            updatePointerDisplay();
+            try {
+                renderBarSelector();
+                renderStepGrid16();
+                updatePointerDisplay();
+            } catch (err) {
+                console.error("Init Error:", err);
+            }
         }
 
         function getAudioContext() {
@@ -563,13 +572,24 @@ Fade out... Fin.</p>
             updatePointerDisplay();
         }
 
+        function clearAllTracksData() {
+            if (confirm("本当にすべてのトラック（全84小節）のデータをクリアしますか？")) {
+                Object.keys(tracksData).forEach(trackKey => {
+                    tracksData[trackKey] = createEmptyTrackExpression16();
+                });
+                currentStepPointer = 0;
+                updatePointerDisplay();
+                renderStepGrid16();
+                alert("✨ すべてのトラックのデータがクリアされました。");
+            }
+        }
+
         function generateAILyrics() {
             const sample = `【イントロ】果てしない夜空を切り裂くネオンの光。\n【サビ】響かせろ！MICVICTORY、世界を揺らす魂のメロディ！`;
             document.getElementById('aiLyricsDisplay').innerText = sample;
             alert("✨ 800文字構成のAI歌詞ストーリーが更新されました！");
         }
 
-        // --- 🤖 各楽器別のAI自動生成ロジック ---
         function generateAIMelodyForTrack(trackName) {
             const scalePools = {
                 piano: ['C4', 'E4', 'G4', 'C5', 'A4', 'F4', 'G4'],
@@ -600,14 +620,12 @@ Fade out... Fin.</p>
             }
         }
 
-        // 現在選択中の楽器のみAI作曲する関数
         function generateCurrentTrackAIMelody() {
             generateAIMelodyForTrack(activeTrack);
             renderStepGrid16();
             alert(`✨ AIが [${trackNamesMap[activeTrack]}] トラック専用の84小節メロディを作成しました！`);
         }
 
-        // 全トラック一括AI作曲
         function generateAllTracksAIMelody() {
             Object.keys(tracksData).forEach(trackKey => generateAIMelodyForTrack(trackKey));
             renderStepGrid16();
