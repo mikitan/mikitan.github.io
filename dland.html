@@ -51,7 +51,7 @@
             </div>
             <div>
                 <h1 class="text-xs font-black tracking-wider bg-gradient-to-r from-mvCyan via-mvAccent to-mvPink bg-clip-text text-transparent uppercase">AI Melody & Voice DTM</h1>
-                <p class="text-[9px] text-gray-400">個別楽器AI作曲・800字AI歌詞・84小節対応</p>
+                <p class="text-[9px] text-gray-400">内部・外部切り替え録音対応</p>
             </div>
         </div>
         <div class="flex items-center space-x-2">
@@ -108,36 +108,72 @@
             </button>
         </div>
 
-        <!-- 🎤 マイク音声録音・再生セクション -->
+        <!-- 🎙️ 録音モード切り替えセクション（内部録音 ⇄ 外部単体マイク録音） -->
         <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3.5 shadow-xl space-y-3">
             <div class="flex items-center justify-between">
                 <h3 class="text-xs font-bold text-white flex items-center space-x-2">
                     <i class="fa-solid fa-microphone-lines text-mvPink"></i>
-                    <span>マイク音声録音・再生 (Voice Recorder)</span>
+                    <span>録音モード切り替え (Internal / External)</span>
                 </h3>
-                <span id="micStatus" class="text-[10px] font-mono text-gray-400 bg-gray-900 px-2 py-0.5 rounded border border-gray-800">待機中</span>
+                <span id="recModeBadge" class="text-[10px] font-mono text-mvCyan bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/30">内部録音モード</span>
             </div>
-            
-            <div class="grid grid-cols-2 gap-2">
-                <button onclick="startVoiceRecording()" id="recStartBtn" class="bg-red-600/80 hover:bg-red-600 text-white text-xs py-2.5 rounded-xl font-bold flex items-center justify-center space-x-1.5 transition shadow-md active:scale-95">
-                    <i class="fa-solid fa-circle text-[10px] animate-pulse"></i>
-                    <span>音声録音開始</span>
+
+            <!-- 切り替えタブボタン -->
+            <div class="grid grid-cols-2 gap-1 bg-gray-950 p-1 rounded-xl border border-gray-800">
+                <button onclick="switchRecordMode('internal')" id="modeBtnInternal" class="py-2 text-xs font-bold rounded-lg transition bg-mvCyan/20 border border-mvCyan text-mvCyan flex items-center justify-center space-x-1.5">
+                    <i class="fa-solid fa-headphones"></i>
+                    <span>内部録音（ヘッドホン聴きながら）</span>
                 </button>
-                <button onclick="stopVoiceRecording()" id="recStopBtn" disabled class="bg-gray-800 text-gray-500 text-xs py-2.5 rounded-xl font-bold flex items-center justify-center space-x-1.5 transition cursor-not-allowed">
-                    <i class="fa-solid fa-stop"></i>
-                    <span>録音停止</span>
+                <button onclick="switchRecordMode('external')" id="modeBtnExternal" class="py-2 text-xs font-bold rounded-lg transition text-gray-400 hover:text-white flex items-center justify-center space-x-1.5">
+                    <i class="fa-solid fa-microphone"></i>
+                    <span>外部録音（マイク単体）</span>
                 </button>
             </div>
 
+            <!-- 内部録音パネル -->
+            <div id="panelInternal" class="space-y-2.5">
+                <p class="text-[10px] text-gray-400 leading-relaxed">
+                    ヘッドホンで聴きながら「内部録音開始」を押すと、全9トラックの演奏＋マイク音声がミックスされて綺麗に記録されます。
+                </p>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="startInternalRecording()" id="internalRecStartBtn" class="bg-gradient-to-r from-mvCyan to-mvAccent text-black text-xs py-2.5 rounded-xl font-extrabold flex items-center justify-center space-x-1.5 transition shadow-md active:scale-95">
+                        <i class="fa-solid fa-circle text-[10px] animate-pulse text-red-500"></i>
+                        <span>内部録音開始</span>
+                    </button>
+                    <button onclick="stopInternalRecording()" id="internalRecStopBtn" disabled class="bg-gray-800 text-gray-500 text-xs py-2.5 rounded-xl font-bold flex items-center justify-center space-x-1.5 transition cursor-not-allowed">
+                        <i class="fa-solid fa-stop"></i>
+                        <span>録音停止</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 外部録音パネル -->
+            <div id="panelExternal" class="space-y-2.5 hidden">
+                <p class="text-[10px] text-gray-400 leading-relaxed">
+                    DAWの音を鳴らさず、マイクからの音声のみを外部ボイスとして単体でクリアに録音します。
+                </p>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="startExternalRecording()" id="extRecStartBtn" class="bg-red-600/80 hover:bg-red-600 text-white text-xs py-2.5 rounded-xl font-bold flex items-center justify-center space-x-1.5 transition shadow-md active:scale-95">
+                        <i class="fa-solid fa-circle text-[10px] animate-pulse"></i>
+                        <span>外部録音開始</span>
+                    </button>
+                    <button onclick="stopExternalRecording()" id="extRecStopBtn" disabled class="bg-gray-800 text-gray-500 text-xs py-2.5 rounded-xl font-bold flex items-center justify-center space-x-1.5 transition cursor-not-allowed">
+                        <i class="fa-solid fa-stop"></i>
+                        <span>録音停止</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 共通のプレビュープレイヤー -->
             <div class="bg-gray-950 border border-gray-800 rounded-xl p-3 space-y-2">
                 <div class="flex items-center justify-between text-[11px] text-gray-300">
-                    <span>録音音声プレビュー:</span>
+                    <span id="recorderTypeLabel">録音音声プレビュー:</span>
                     <span id="recordedInfo" class="text-[10px] text-gray-500 font-mono">未録音</span>
                 </div>
-                <audio id="recordedAudioPlayer" controls class="w-full h-8 hidden"></audio>
-                <button onclick="playRecordedVoice()" id="playRecordedBtn" disabled class="w-full bg-gray-900 border border-gray-800 text-gray-500 text-xs py-2 rounded-lg font-medium transition cursor-not-allowed flex items-center justify-center space-x-1">
+                <audio id="sharedAudioPlayer" controls class="w-full h-8 hidden"></audio>
+                <button onclick="playRecordedAudio()" id="playRecordedBtn" disabled class="w-full bg-gray-900 border border-gray-800 text-gray-500 text-xs py-2 rounded-lg font-medium transition cursor-not-allowed flex items-center justify-center space-x-1">
                     <i class="fa-solid fa-volume-high"></i>
-                    <span>録音ボイスを再生する</span>
+                    <span>録音音声を再生する</span>
                 </button>
             </div>
         </div>
@@ -355,6 +391,13 @@ Fade out... Fin.</p>
     <script>
         let audioCtx = null;
         let masterGain = null;
+        let destStreamNode = null;
+        
+        let currentRecordMode = 'internal'; // 'internal' or 'external'
+        let activeMediaRecorder = null;
+        let recordedAudioChunks = [];
+        let savedAudioBlob = null;
+
         const totalBars = 84;
         let activeTrack = 'piano';
         let activeBar = 1;
@@ -364,12 +407,6 @@ Fade out... Fin.</p>
         let currentStepPointer = 0;
 
         let currentParams = { duration: 0.5, velocity: 0.7 };
-
-        let mediaRecorder;
-        let audioChunks = [];
-        let recordedAudioBlob = null;
-
-        // 手動演奏を記憶する履歴配列
         let userRecordedNotesHistory = [];
 
         function createEmptyTrackExpression16() {
@@ -412,64 +449,142 @@ Fade out... Fin.</p>
             if (!audioCtx) {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext();
+                
                 masterGain = audioCtx.createGain();
                 masterGain.gain.setValueAtTime(0.85, audioCtx.currentTime);
+
+                destStreamNode = audioCtx.createMediaStreamDestination();
+
                 masterGain.connect(audioCtx.destination);
+                masterGain.connect(destStreamNode);
             }
             if (audioCtx.state === 'suspended') { audioCtx.resume(); }
             return audioCtx;
         }
 
-        async function startVoiceRecording() {
-            audioChunks = [];
+        // 録音モードの切り替え (Internal / External)
+        function switchRecordMode(mode) {
+            currentRecordMode = mode;
+            const badge = document.getElementById('recModeBadge');
+            const btnInt = document.getElementById('modeBtnInternal');
+            const btnExt = document.getElementById('modeBtnExternal');
+            const panelInt = document.getElementById('panelInternal');
+            const panelExt = document.getElementById('panelExternal');
+
+            if (mode === 'internal') {
+                badge.innerText = "内部録音モード";
+                badge.className = "text-[10px] font-mono text-mvCyan bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/30";
+                btnInt.className = "py-2 text-xs font-bold rounded-lg transition bg-mvCyan/20 border border-mvCyan text-mvCyan flex items-center justify-center space-x-1.5";
+                btnExt.className = "py-2 text-xs font-bold rounded-lg transition text-gray-400 hover:text-white flex items-center justify-center space-x-1.5";
+                panelInt.classList.remove('hidden');
+                panelExt.classList.add('hidden');
+            } else {
+                badge.innerText = "外部録音モード";
+                badge.className = "text-[10px] font-mono text-mvPink bg-pink-500/10 px-2 py-0.5 rounded border border-pink-500/30";
+                btnExt.className = "py-2 text-xs font-bold rounded-lg transition bg-mvPink/20 border border-mvPink text-mvPink flex items-center justify-center space-x-1.5";
+                btnInt.className = "py-2 text-xs font-bold rounded-lg transition text-gray-400 hover:text-white flex items-center justify-center space-x-1.5";
+                panelExt.classList.remove('hidden');
+                panelInt.classList.add('hidden');
+            }
+        }
+
+        // 🎧️ ヘッドホン聴きながら内部DAWミックス録音を開始
+        async function startInternalRecording() {
+            getAudioContext();
+            recordedAudioChunks = [];
+
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                
-                mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
-                mediaRecorder.onstop = () => {
-                    recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    const audioUrl = URL.createObjectURL(recordedAudioBlob);
-                    const player = document.getElementById('recordedAudioPlayer');
-                    player.src = audioUrl;
-                    player.classList.remove('hidden');
+                const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const micSource = audioCtx.createMediaStreamSource(micStream);
+                const micGain = audioCtx.createGain();
+                micGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
 
-                    const playBtn = document.getElementById('playRecordedBtn');
-                    playBtn.disabled = false;
-                    playBtn.className = "w-full bg-mvPink/20 border border-mvPink text-mvPink text-xs py-2 rounded-lg font-bold transition flex items-center justify-center space-x-1";
-                    
-                    document.getElementById('recordedInfo').innerText = "録音完了 (" + Math.round(recordedAudioBlob.size / 1024) + " KB)";
-                    document.getElementById('micStatus').innerText = "録音完了";
-                    document.getElementById('micStatus').className = "text-[10px] font-mono text-mvPink bg-pink-500/10 px-2 py-0.5 rounded border border-pink-500/30";
-                };
+                micSource.connect(micGain);
+                micGain.connect(masterGain);
+                micGain.connect(destStreamNode);
 
-                mediaRecorder.start();
-                document.getElementById('recStartBtn').disabled = true;
-                document.getElementById('recStartBtn').className = "bg-gray-800 text-gray-500 text-xs py-2.5 rounded-xl font-bold cursor-not-allowed";
-                document.getElementById('recStopBtn').disabled = false;
-                document.getElementById('recStopBtn').className = "bg-red-600 hover:bg-red-500 text-white text-xs py-2.5 rounded-xl font-bold transition shadow-md active:scale-95";
+                activeMediaRecorder = new MediaRecorder(destStreamNode.stream, { mimeType: 'audio/webm' });
+                setupRecorderEvents("内部ミックス録音完了");
+
+                activeMediaRecorder.start();
+                document.getElementById('internalRecStartBtn').disabled = true;
+                document.getElementById('internalRecStartBtn').className = "bg-gray-800 text-gray-500 text-xs py-2.5 rounded-xl font-bold cursor-not-allowed";
+                document.getElementById('internalRecStopBtn').disabled = false;
+                document.getElementById('internalRecStopBtn').className = "bg-red-600 hover:bg-red-500 text-white text-xs py-2.5 rounded-xl font-bold transition shadow-md active:scale-95";
                 
-                document.getElementById('micStatus').innerText = "録音中...";
-                document.getElementById('micStatus').className = "text-[10px] font-mono text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/30 animate-pulse";
+                document.getElementById('internalRecStatus').innerText = "内部録音中...";
+                document.getElementById('internalRecStatus').className = "text-[10px] font-mono text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/30 animate-pulse";
             } catch (err) {
                 alert("マイクへのアクセスが許可されていないか、利用できません。");
                 console.error(err);
             }
         }
 
-        function stopVoiceRecording() {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-                document.getElementById('recStartBtn').disabled = false;
-                document.getElementById('recStartBtn').className = "bg-red-600/80 hover:bg-red-600 text-white text-xs py-2.5 rounded-xl font-bold transition shadow-md active:scale-95";
-                document.getElementById('recStopBtn').disabled = true;
-                document.getElementById('recStopBtn').className = "bg-gray-800 text-gray-500 text-xs py-2.5 rounded-xl font-bold cursor-not-allowed";
+        function stopInternalRecording() {
+            if (activeMediaRecorder && activeMediaRecorder.state !== 'inactive') {
+                activeMediaRecorder.stop();
+                document.getElementById('internalRecStartBtn').disabled = false;
+                document.getElementById('internalRecStartBtn').className = "bg-gradient-to-r from-mvCyan to-mvAccent text-black text-xs py-2.5 rounded-xl font-extrabold flex items-center justify-center space-x-1.5 transition shadow-md active:scale-95";
+                document.getElementById('internalRecStopBtn').disabled = true;
+                document.getElementById('internalRecStopBtn').className = "bg-gray-800 text-gray-500 text-xs py-2.5 rounded-xl font-bold cursor-not-allowed";
+                document.getElementById('internalRecStatus').innerText = "完了";
             }
         }
 
-        function playRecordedVoice() {
-            if (recordedAudioBlob) {
-                const player = document.getElementById('recordedAudioPlayer');
+        // 🎙️ 外部マイク単体録音を開始
+        async function startExternalRecording() {
+            recordedAudioChunks = [];
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                activeMediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                setupRecorderEvents("外部マイク録音完了");
+
+                activeMediaRecorder.start();
+                document.getElementById('extRecStartBtn').disabled = true;
+                document.getElementById('extRecStartBtn').className = "bg-gray-800 text-gray-500 text-xs py-2.5 rounded-xl font-bold cursor-not-allowed";
+                document.getElementById('extRecStopBtn').disabled = false;
+                document.getElementById('extRecStopBtn').className = "bg-red-600 hover:bg-red-500 text-white text-xs py-2.5 rounded-xl font-bold transition shadow-md active:scale-95";
+            } catch (err) {
+                alert("外部マイクへのアクセスが許可されていません。");
+                console.error(err);
+            }
+        }
+
+        function stopExternalRecording() {
+            if (activeMediaRecorder && activeMediaRecorder.state !== 'inactive') {
+                activeMediaRecorder.stop();
+                document.getElementById('extRecStartBtn').disabled = false;
+                document.getElementById('extRecStartBtn').className = "bg-red-600/80 hover:bg-red-600 text-white text-xs py-2.5 rounded-xl font-bold transition shadow-md active:scale-95";
+                document.getElementById('extRecStopBtn').disabled = true;
+                document.getElementById('extRecStopBtn').className = "bg-gray-800 text-gray-500 text-xs py-2.5 rounded-xl font-bold cursor-not-allowed";
+            }
+        }
+
+        function setupRecorderEvents(completeLabel) {
+            activeMediaRecorder.ondataavailable = event => {
+                if (event.data && event.data.size > 0) {
+                    recordedAudioChunks.push(event.data);
+                }
+            };
+
+            activeMediaRecorder.onstop = () => {
+                savedAudioBlob = new Blob(recordedAudioChunks, { type: 'audio/webm' });
+                const audioUrl = URL.createObjectURL(savedAudioBlob);
+                const player = document.getElementById('sharedAudioPlayer');
+                player.src = audioUrl;
+                player.classList.remove('hidden');
+
+                const playBtn = document.getElementById('playRecordedBtn');
+                playBtn.disabled = false;
+                playBtn.className = "w-full bg-mvPink/20 border border-mvPink text-mvPink text-xs py-2 rounded-lg font-bold transition flex items-center justify-center space-x-1";
+                
+                document.getElementById('recordedInfo').innerText = completeLabel + " (" + Math.round(savedAudioBlob.size / 1024) + " KB)";
+            };
+        }
+
+        function playRecordedAudio() {
+            if (savedAudioBlob) {
+                const player = document.getElementById('sharedAudioPlayer');
                 player.play();
             }
         }
@@ -519,7 +634,6 @@ Fade out... Fin.</p>
 
             tracksData[activeTrack][activeBar - 1][currentStepPointer] = expr;
             
-            // ユーザーの手動演奏ノートを履歴に記録
             userRecordedNotesHistory.push(noteName);
             if(userRecordedNotesHistory.length > 32) { userRecordedNotesHistory.shift(); }
 
@@ -639,10 +753,9 @@ Fade out... Fin.</p>
             }
         }
 
-        // ⭐ 手動演奏の履歴に追従してAI作曲する関数
         function generateAICompanionMelody() {
             if(userRecordedNotesHistory.length === 0) {
-                alert("⚠️ まず「ドレミファソラシド鍵盤」でいくつかの音を自分で弾いてみてください！その演奏に合わせてAIが作曲します。");
+                alert("⚠️ まず鍵盤でいくつかの音を弾いてみてください！その演奏に合わせてAIが作曲します。");
                 return;
             }
 
@@ -666,13 +779,13 @@ Fade out... Fin.</p>
             }
 
             renderStepGrid16();
-            alert(`✨ あなたの手動演奏（${userRecordedNotesHistory.length}音の入力）をAIが解析し、調和するメロディを [${trackNamesMap[activeTrack]}] に生成しました！`);
+            alert(`✨ あなたの手動演奏をAIが解析し、 [${trackNamesMap[activeTrack]}] に対旋律を生成しました！`);
         }
 
         function generateCurrentTrackAIMelody() {
             generateAIMelodyForTrack(activeTrack);
             renderStepGrid16();
-            alert(`✨ AIが [${trackNamesMap[activeTrack]}] トラック専用の84小節メロディを作成しました！`);
+            alert(`✨ AIが [${trackNamesMap[activeTrack]}] トラックの84小節メロディを作成しました！`);
         }
 
         function generateAllTracksAIMelody() {
@@ -704,12 +817,6 @@ Fade out... Fin.</p>
             document.getElementById('playIcon').className = "fa-solid fa-pause";
             document.getElementById('playBtnText').innerText = "一時停止";
 
-            const voicePlayer = document.getElementById('recordedAudioPlayer');
-            if(recordedAudioBlob && voicePlayer) {
-                voicePlayer.currentTime = 0;
-                voicePlayer.play().catch(e => console.log(e));
-            }
-
             const stepDurationMs = (60 / currentBpm) * 1000 / 4;
             let stepCounter = 0;
 
@@ -729,8 +836,6 @@ Fade out... Fin.</p>
         function stopGlobalPlay() {
             isGlobalPlaying = false;
             clearInterval(globalPlayInterval);
-            const voicePlayer = document.getElementById('recordedAudioPlayer');
-            if(voicePlayer) { voicePlayer.pause(); }
 
             document.getElementById('playStatus').className = "w-3 h-3 rounded-full bg-red-500";
             document.getElementById('statusText').innerText = "停止中";
