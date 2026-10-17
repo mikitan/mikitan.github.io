@@ -961,6 +961,579 @@ href="https://www.facebook.com/" target="_blank" class="btn-channel facebook">Fa
 href="https://www.amazon.co.jp/" target="_blank" class="btn-channel amazon">Amazon</a>
     </div>
 </section>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>軌道 — 人生のレール</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600;900&family=Shippori+Mincho:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #05070c;
+            --card-bg: rgba(12, 16, 28, 0.65);
+            --border-color: rgba(255, 215, 0, 0.25);
+            --accent-gold: #e5c158;
+            --accent-cyan: #4deeea;
+            --text-main: #f0f4f8;
+            --text-sub: #a0aec0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Noto Serif JP', serif;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        /* Canvas Background */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Content Overlay */
+        .content-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 100px 20px 150px;
+        }
+
+        /* Header / Title */
+        header {
+            text-align: center;
+            margin-bottom: 80px;
+            animation: fadeInDown 1.5s ease-out;
+        }
+
+        header h1 {
+            font-family: 'Shippori Mincho', serif;
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: 800;
+            letter-spacing: 0.3em;
+            color: #ffffff;
+            text-shadow: 0 0 20px rgba(229, 193, 88, 0.4), 0 0 40px rgba(77, 238, 234, 0.2);
+            margin-bottom: 15px;
+        }
+
+        header p {
+            font-size: 0.95rem;
+            letter-spacing: 0.2em;
+            color: var(--accent-gold);
+            opacity: 0.85;
+        }
+
+        /* Poem Section Cards */
+        .section-card {
+            width: 100%;
+            max-width: 850px;
+            min-height: 380px;
+            margin-bottom: 120px;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 50px 40px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6),
+                        inset 0 0 20px rgba(255, 255, 255, 0.02);
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content: space-around;
+            align-items: center;
+            opacity: 0;
+            transform: translateY(40px);
+            transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1), transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .section-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .vertical-text {
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+            font-family: 'Shippori Mincho', serif;
+            font-size: clamp(1.25rem, 2.8vw, 1.85rem);
+            line-height: 2.2;
+            letter-spacing: 0.25em;
+            color: #ffffff;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+        }
+
+        .vertical-text span.highlight {
+            color: var(--accent-gold);
+            font-weight: 600;
+        }
+
+        .section-num {
+            font-family: 'Noto Serif JP', serif;
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+            letter-spacing: 0.3em;
+            opacity: 0.7;
+            writing-mode: horizontal-tb;
+            border-bottom: 1px solid rgba(77, 238, 234, 0.3);
+            padding-bottom: 6px;
+        }
+
+        /* Control Panel Fixed Bottom */
+        .control-panel {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            background: rgba(10, 14, 23, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 40px;
+            padding: 12px 28px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+        }
+
+        .btn {
+            background: transparent;
+            border: 1px solid var(--accent-gold);
+            color: var(--accent-gold);
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-family: 'Noto Serif JP', serif;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            outline: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: var(--accent-gold);
+            color: #000;
+            box-shadow: 0 0 15px rgba(229, 193, 88, 0.5);
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.8rem;
+            color: var(--text-sub);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 90px;
+            background: rgba(255, 255, 255, 0.1);
+            height: 4px;
+            border-radius: 2px;
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--accent-cyan);
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 0 80px;
+            font-size: 0.8rem;
+            color: var(--text-sub);
+            letter-spacing: 0.15em;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .section-card {
+                padding: 35px 20px;
+                min-height: 420px;
+            }
+            .control-panel {
+                flex-wrap: wrap;
+                justify-content: center;
+                border-radius: 20px;
+                padding: 12px 18px;
+                width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="railCanvas"></canvas>
+    </div>
+
+    <div class="content-container">
+        <header>
+            <h1>人生の軌道</h1>
+            <p>― 理想への行進と、平穏無事を勝ち取る闘い ―</p>
+        </header>
+
+        <!-- 第1章 -->
+        <div class="section-card">
+            <div class="section-num">壱</div>
+            <div class="vertical-text">
+                人生を<span class="highlight">レール</span>に例えるなら<br>
+                軌道 自らの<span class="highlight">理想への行進</span>
+            </div>
+        </div>
+
+        <!-- 第2章 -->
+        <div class="section-card">
+            <div class="section-num">弐</div>
+            <div class="vertical-text">
+                電車は走っていれば色々な景色を観るが<br>
+                感情に流されば、度合い、停滞ない観賞も<br>
+                夢の呟く過ぎ去る
+            </div>
+        </div>
+
+        <!-- 第3章 -->
+        <div class="section-card">
+            <div class="section-num">参</div>
+            <div class="vertical-text">
+                ただ目的地に進まなんと<span class="highlight">注文通り配達</span>と<br>
+                汗をだし、成し遂げる戦いである
+            </div>
+        </div>
+
+        <!-- 第4章 -->
+        <div class="section-card">
+            <div class="section-num">四</div>
+            <div class="vertical-text">
+                合言葉は何であれ、良い、<br>
+                <span class="highlight">油断なく、工夫し</span><br>
+                平穏無事を勝ち取る闘いである
+            </div>
+        </div>
+
+        <footer>
+            <p>© Mic Victory — Life Journey Canvas</p>
+        </footer>
+    </div>
+
+    <!-- UI Controls -->
+    <div class="control-panel">
+        <button class="btn" id="audioToggle">
+            <span id="audioIcon">🔊</span> <span id="audioLabel">音響：ON</span>
+        </button>
+        <button class="btn" id="boostBtn">
+            ⚡ 前進・加速
+        </button>
+        <div class="speed-control">
+            <span>速度</span>
+            <input type="range" id="speedSlider" min="1" max="5" value="2" step="0.5">
+        </div>
+    </div>
+
+    <script>
+        /* ----------------------------------------------------
+           1. CANVAS 3D PERSPECTIVE RAILWAY ANIMATION
+        ---------------------------------------------------- */
+        const canvas = document.getElementById('railCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let speed = 2.0;
+        let baseSpeed = 2.0;
+        let offset = 0;
+
+        function resizeCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Star Background
+        const stars = Array.from({ length: 180 }, () => ({
+            x: Math.random() * 2 - 1,
+            y: Math.random() * 0.6 - 0.3,
+            size: Math.random() * 1.8 + 0.5,
+            alpha: Math.random()
+        }));
+
+        function drawScene() {
+            ctx.fillStyle = '#05070c';
+            ctx.fillRect(0, 0, width, height);
+
+            const cx = width / 2;
+            const cy = height * 0.45; // Horizon height
+
+            // Sky Gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, cy);
+            skyGrad.addColorStop(0, '#030509');
+            skyGrad.addColorStop(1, '#0e1726');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, width, cy);
+
+            // Draw Stars
+            stars.forEach(star => {
+                const sx = cx + star.x * width * 0.5;
+                const sy = cy + star.y * height * 0.8;
+                if (sy < cy) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + 0.7 * Math.sin(Date.now() * 0.002 + star.alpha * 10)})`;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, star.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+
+            // Ground Gradient
+            const groundGrad = ctx.createLinearGradient(0, cy, 0, height);
+            groundGrad.addColorStop(0, '#080d1a');
+            groundGrad.addColorStop(1, '#030508');
+            ctx.fillStyle = groundGrad;
+            ctx.fillRect(0, cy, width, height - cy);
+
+            // Perspective Rails
+            offset = (offset + speed * 2) % 60;
+
+            const perspective = 0.8;
+            const bottomWidth = width * 0.7;
+            const topWidth = 2;
+
+            // Draw Sleepers (枕木)
+            ctx.strokeStyle = 'rgba(229, 193, 88, 0.18)';
+            ctx.lineWidth = 2;
+
+            for (let z = 10; z < 600; z += 25) {
+                let actualZ = (z - offset + 600) % 600;
+                if (actualZ < 15) continue;
+
+                let progress = actualZ / 600;
+                let y = cy + Math.pow(progress, 2.2) * (height - cy);
+                let currentWidth = bottomWidth * Math.pow(progress, 2.2);
+
+                ctx.beginPath();
+                ctx.moveTo(cx - currentWidth / 2, y);
+                ctx.lineTo(cx + currentWidth / 2, y);
+                ctx.strokeStyle = `rgba(229, 193, 88, ${0.6 * (1 - progress)})`;
+                ctx.stroke();
+            }
+
+            // Draw Steel Track Lines (二本のレール)
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#4deeea';
+            ctx.strokeStyle = '#4deeea';
+            ctx.lineWidth = 3;
+
+            // Left Rail
+            ctx.beginPath();
+            ctx.moveTo(cx - topWidth, cy);
+            ctx.lineTo(cx - bottomWidth / 2, height);
+            ctx.stroke();
+
+            // Right Rail
+            ctx.beginPath();
+            ctx.moveTo(cx + topWidth, cy);
+            ctx.lineTo(cx + bottomWidth / 2, height);
+            ctx.stroke();
+
+            ctx.shadowBlur = 0; // Reset shadow
+
+            // Light Beams / Speed Effect
+            ctx.strokeStyle = 'rgba(77, 238, 234, 0.08)';
+            ctx.lineWidth = 1;
+            for (let i = -3; i <= 3; i += 2) {
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + (i * bottomWidth) / 3, height);
+                ctx.stroke();
+            }
+
+            requestAnimationFrame(drawScene);
+        }
+
+        requestAnimationFrame(drawScene);
+
+        /* ----------------------------------------------------
+           2. INTERSECTION OBSERVER (SCROLL REVEAL)
+        ---------------------------------------------------- */
+        const cards = document.querySelectorAll('.section-card');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    playChimeSound();
+                }
+            });
+        }, { threshold: 0.35 });
+
+        cards.forEach(card => observer.observe(card));
+
+        /* ----------------------------------------------------
+           3. WEB AUDIO API SYNTHESIZER (TRACK SOUND ENGINE)
+        ---------------------------------------------------- */
+        let audioCtx = null;
+        let isAudioOn = true;
+        let lastClackTime = 0;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playTrackRhythm() {
+            if (!isAudioOn || !audioCtx) return;
+
+            const now = audioCtx.currentTime;
+            const interval = 1.2 / speed; // Dynamic rhythm speed
+
+            if (now - lastClackTime > interval) {
+                // Double rhythm click (ガタゴト音)
+                createClickNoise(now, 0.08);
+                createClickNoise(now + 0.1, 0.05);
+                lastClackTime = now;
+            }
+        }
+
+        function createClickNoise(time, duration) {
+            const bufferSize = audioCtx.sampleRate * duration;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.value = 400 + Math.random() * 200;
+            filter.Q.value = 3.0;
+
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.12, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            noise.start(time);
+        }
+
+        function playChimeSound() {
+            if (!isAudioOn || !audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+            osc.frequency.exponentialRampToValueAtTime(1046.50, audioCtx.currentTime + 0.8); // C6
+
+            gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.8);
+        }
+
+        setInterval(() => {
+            if (audioCtx) playTrackRhythm();
+        }, 100);
+
+        /* ----------------------------------------------------
+           4. CONTROLS INTERACTIVITY
+        ---------------------------------------------------- */
+        const audioToggle = document.getElementById('audioToggle');
+        const audioIcon = document.getElementById('audioIcon');
+        const audioLabel = document.getElementById('audioLabel');
+        const boostBtn = document.getElementById('boostBtn');
+        const speedSlider = document.getElementById('speedSlider');
+
+        // Unlock Web Audio on user gesture
+        document.body.addEventListener('click', () => {
+            initAudio();
+        }, { once: true });
+
+        audioToggle.addEventListener('click', () => {
+            initAudio();
+            isAudioOn = !isAudioOn;
+            audioIcon.textContent = isAudioOn ? '🔊' : '🔇';
+            audioLabel.textContent = isAudioOn ? '音響：ON' : '音響：OFF';
+        });
+
+        boostBtn.addEventListener('click', () => {
+            initAudio();
+            speed = 7.0;
+            playChimeSound();
+            setTimeout(() => {
+                speed = parseFloat(speedSlider.value);
+            }, 1200);
+        });
+
+        speedSlider.addEventListener('input', (e) => {
+            speed = parseFloat(e.target.value);
+            baseSpeed = speed;
+        });
+
+        // Dynamic Speed up on Scroll
+        let scrollTimeout;
+        window.addEventListener('scroll', () => {
+            speed = baseSpeed * 1.8;
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                speed = baseSpeed;
+            }, 150);
+        });
+    </script>
+</body>
+</html>
 
 
 <footer style="background:var(--primary); color:var(--accent); text-align:center; padding:30px; font-size:0.8rem;">
