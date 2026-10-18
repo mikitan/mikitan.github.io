@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>映画視聴記録リスト</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <!-- ヘッダー -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold tracking-wider text-amber-400 mb-2">🎬 映画視聴記録リスト</h1>
+            <p class="text-slate-400 text-sm">観た映画を記録して、自分だけのライブラリを作ろう</p>
+        </header>
+
+        <!-- 入力フォーム -->
+        <div class="bg-slate-800 p-6 rounded-xl shadow-lg mb-8 border border-slate-700">
+            <h2 class="text-xl font-semibold mb-4 text-amber-300">新規記録を追加</h2>
+            <form id="movieForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">作品名 <span class="text-red-400">*</span></label>
+                    <input type="text" id="title" required class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-amber-400 text-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">監督名</label>
+                    <input type="text" id="director" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-amber-400 text-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">鑑賞日</label>
+                    <input type="date" id="watchDate" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-amber-400 text-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">鑑賞方法・プラットフォーム</label>
+                    <select id="platform" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-amber-400 text-white">
+                        <option value="Netflix">Netflix</option>
+                        <option value="Amazon Prime Video">Amazon Prime Video</option>
+                        <option value="Disney+">Disney+</option>
+                        <option value="U-NEXT">U-NEXT</option>
+                        <option value="映画館">映画館</option>
+                        <option value="Blu-ray/DVD">Blu-ray/DVD</option>
+                        <option value="その他">その他</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">評価 (星5段階)</label>
+                    <select id="rating" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-amber-400 text-white">
+                        <option value="5">⭐⭐⭐⭐⭐ (5 - 最高)</option>
+                        <option value="4">⭐⭐⭐⭐ (4 - 良い)</option>
+                        <option value="3" selected>⭐⭐⭐ (3 - 普通)</option>
+                        <option value="2">⭐⭐ (2 - いまいち)</option>
+                        <option value="1">⭐ (1 - 期待外れ)</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-slate-300 mb-1">感想・メモ</label>
+                    <textarea id="memo" rows="2" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-amber-400 text-white" placeholder="心に残ったセリフや感想など..."></textarea>
+                </div>
+                <div class="md:col-span-2 flex justify-end">
+                    <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-6 py-2 rounded-lg transition-colors cursor-pointer">
+                        リストに追加
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 一覧セクション -->
+        <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h2 class="text-xl font-semibold text-amber-300">視聴済みリスト (<span id="movieCount">0</span>件)</h2>
+                <input type="text" id="searchInput" placeholder="作品名・監督名で検索..." class="w-full md:w-64 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-amber-400 text-white text-sm">
+            </div>
+
+            <div id="movieList" class="space-y-4">
+                <!-- JavaScriptでここにリストが挿入されます -->
+            </div>
+            
+            <div id="emptyMessage" class="text-center py-12 text-slate-500 hidden">
+                まだ記録がありません。上のフォームから追加してみましょう！
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScriptアプリケーションロジック -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const movieForm = document.getElementById('movieForm');
+            const movieList = document.getElementById('movieList');
+            const movieCount = document.getElementById('movieCount');
+            const emptyMessage = document.getElementById('emptyMessage');
+            const searchInput = document.getElementById('searchInput');
+
+            // 今日の一番早い日付を初期値にセット
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('watchDate').value = today;
+
+            // ローカルストレージからデータ取得
+            let movies = JSON.parse(localStorage.getItem('movie_logs')) || [];
+
+            function saveAndRender() {
+                localStorage.setItem('movie_logs', JSON.stringify(movies));
+                renderMovies(searchInput.value);
+            }
+
+            function renderMovies(filter = '') {
+                movieList.innerHTML = '';
+                
+                const filteredMovies = movies.filter(movie => 
+                    movie.title.toLowerCase().includes(filter.toLowerCase()) || 
+                    (movie.director && movie.director.toLowerCase().includes(filter.toLowerCase()))
+                );
+
+                movieCount.textContent = movies.length;
+
+                if (filteredMovies.length === 0) {
+                    emptyMessage.classList.remove('hidden');
+                } else {
+                    emptyMessage.classList.add('hidden');
+                }
+
+                // 新しい順に並び替え
+                filteredMovies.slice().reverse().forEach((movie, index) => {
+                    const originalIndex = movies.length - 1 - index;
+                    const card = document.createElement('div');
+                    card.className = 'bg-slate-900 p-4 rounded-lg border border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4';
+                    
+                    const stars = '⭐'.repeat(Number(movie.rating));
+
+                    card.innerHTML = `
+                        <div class="space-y-1 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 class="text-lg font-bold text-white">${escapeHtml(movie.title)}</h3>
+                                <span class="text-xs px-2 py-0.5 bg-slate-800 text-amber-400 border border-slate-700 rounded-full">${escapeHtml(movie.platform)}</span>
+                                <span class="text-sm">${stars}</span>
+                            </div>
+                            <div class="text-xs text-slate-400 flex gap-4">
+                                ${movie.director ? `<span>監督: ${escapeHtml(movie.director)}</span>` : ''}
+                                <span>鑑賞日: ${movie.watchDate || '未設定'}</span>
+                            </div>
+                            ${movie.memo ? `<p class="text-sm text-slate-300 mt-2 bg-slate-800/50 p-2 rounded">${escapeHtml(movie.memo)}</p>` : ''}
+                        </div>
+                        <button onclick="deleteMovie(${originalIndex})" class="text-xs bg-red-900/50 hover:bg-red-800 text-red-300 border border-red-700 px-3 py-1.5 rounded-md transition-colors self-end md:self-center cursor-pointer">
+                            削除
+                        </button>
+                    `;
+                    movieList.appendChild(card);
+                });
+            }
+
+            // フォーム送信時
+            movieForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const newMovie = {
+                    title: document.getElementById('title').value,
+                    director: document.getElementById('director').value,
+                    watchDate: document.getElementById('watchDate').value,
+                    platform: document.getElementById('platform').value,
+                    rating: document.getElementById('rating').value,
+                    memo: document.getElementById('memo').value
+                };
+
+                movies.push(newMovie);
+                saveAndRender();
+                
+                // フォームリセット（日付は維持）
+                document.getElementById('title').value = '';
+                document.getElementById('director').value = '';
+                document.getElementById('memo').value = '';
+            });
+
+            // 削除関数をグローバルに登録
+            window.deleteMovie = function(index) {
+                if (confirm('この記録を削除してもよろしいですか？')) {
+                    movies.splice(index, 1);
+                    saveAndRender();
+                }
+            };
+
+            // 検索フィルタ
+            searchInput.addEventListener('input', (e) => {
+                renderMovies(e.target.value);
+            });
+
+            function escapeHtml(str) {
+                return str.replace(/[&<>'"\n]/g, function(match) {
+                    return {
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        '"': '&quot;',
+                        "'": '&#39;',
+                        '\n': '<br>'
+                    }[match];
+                });
+            }
+
+            // 初回描画
+            renderMovies();
+        });
+    </script>
+</body>
+</html>
