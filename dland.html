@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MICVICTORY BANDLAND DTM - Premium Synth Edition</title>
+    <title>MICVICTORY BANDLAND DTM - Heavy Don-Pasha Drums Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -51,7 +51,7 @@
             </div>
             <div>
                 <h1 class="text-xs font-black tracking-wider bg-gradient-to-r from-mvCyan via-mvAccent to-mvPink bg-clip-text text-transparent uppercase">AI Melody & Voice DTM</h1>
-                <p class="text-[9px] text-gray-400">高品質ハイブリッド音源エンジン搭載版</p>
+                <p class="text-[9px] text-gray-400">重低音どんパシャドラム特化版</p>
             </div>
         </div>
         <div class="flex items-center space-x-2">
@@ -250,7 +250,7 @@ Fade out... Fin.</p>
                 <button onclick="switchTrack('acoustic')" id="track-acoustic" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[8px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-seedling"></i><span>アコギ</span></button>
                 <button onclick="switchTrack('electric')" id="track-electric" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[8px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-bolt"></i><span>エレキ</span></button>
                 <button onclick="switchTrack('violin')" id="track-violin" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[8px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-feather"></i><span>バイオリン</span></button>
-                <button onclick="switchTrack('drums')" id="track-drums" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[8px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-drum"></i><span>ドラム</span></button>
+                <button onclick="switchTrack('drums')" id="track-drums" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[8px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-drum text-mvCyan"></i><span>ドラム</span></button>
                 <button onclick="switchTrack('tambourine')" id="track-tambourine" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[8px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-bell"></i><span>タンバリン</span></button>
                 <button onclick="switchTrack('chopper')" id="track-chopper" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[8px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-sliders"></i><span>チョッパー</span></button>
             </div>
@@ -454,7 +454,6 @@ Fade out... Fin.</p>
                 masterGain.connect(audioCtx.destination);
                 masterGain.connect(destStreamNode);
 
-                // ホワイトノイズ生成（ドラム・タンバリン用）
                 const bufferSize = audioCtx.sampleRate * 2;
                 noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
                 const output = noiseBuffer.getChannelData(0);
@@ -597,7 +596,7 @@ Fade out... Fin.</p>
             if(paramName === 'velocity') document.getElementById('valVelocity').innerText = val.toFixed(1);
         }
 
-        // ⭐ 大幅改良：リアル＆重厚な合成音源エンジン
+        // ⭐ どんパシャ（重低音ドン ＋ パンチ力あるパシャ）ドラムオーディオ合成エンジン
         function playSoundWithExpression(trackType, expr, stepIndex = 0) {
             getAudioContext();
             const now = audioCtx.currentTime;
@@ -608,37 +607,114 @@ Fade out... Fin.</p>
             const notesFreq = { C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88, C5: 523.25, D5: 587.33, E5: 659.25 };
             let freq = notesFreq[note] || 261.63;
 
-            if (trackType === 'piano') {
-                // ピアノ: 複振幅 ＋ フィルター減衰
+            if (trackType === 'drums') {
+                const stepPos = stepIndex % 16;
+
+                // 1) 💥 「ドン」（バスドラム: 1, 9, 11ステップなど）
+                if (stepPos === 0 || stepPos === 8 || stepPos === 10) {
+                    const oscSub = audioCtx.createOscillator();
+                    const oscClick = audioCtx.createOscillator();
+                    const filter = audioCtx.createBiquadFilter();
+                    const gain = audioCtx.createGain();
+
+                    // 超低域サブバス（180Hz -> 28Hz 超高速ドスンピッチドロップ）
+                    oscSub.type = 'sine';
+                    oscSub.frequency.setValueAtTime(180, now);
+                    oscSub.frequency.exponentialRampToValueAtTime(28, now + 0.1);
+
+                    // クリック感（アタック）
+                    oscClick.type = 'triangle';
+                    oscClick.frequency.setValueAtTime(300, now);
+                    oscClick.frequency.exponentialRampToValueAtTime(50, now + 0.04);
+
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(220, now);
+
+                    gain.gain.setValueAtTime(velocity * 2.5, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+                    oscSub.connect(filter);
+                    oscClick.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(masterGain);
+
+                    oscSub.start(now); oscClick.start(now);
+                    oscSub.stop(now + 0.3); oscClick.stop(now + 0.3);
+
+                // 2) ⚡ 「パシャ」（スネアドラム: 4, 12ステップ）
+                } else if (stepPos === 4 || stepPos === 12) {
+                    const toneOsc = audioCtx.createOscillator();
+                    const noise = audioCtx.createBufferSource();
+                    const filter = audioCtx.createBiquadFilter();
+                    const gain = audioCtx.createGain();
+
+                    // スネアの胴鳴りトーン（180Hz）
+                    toneOsc.type = 'triangle';
+                    toneOsc.frequency.setValueAtTime(180, now);
+                    toneOsc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
+
+                    // パシャーンノイズ（高域〜中域ワイヤー音）
+                    noise.buffer = noiseBuffer;
+                    filter.type = 'highpass';
+                    filter.frequency.setValueAtTime(1000, now);
+
+                    gain.gain.setValueAtTime(velocity * 1.8, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+                    toneOsc.connect(gain);
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(masterGain);
+
+                    toneOsc.start(now); noise.start(now);
+                    toneOsc.stop(now + 0.22); noise.stop(now + 0.22);
+
+                // 3) 🎵 「チチッ」（ハイハット: その他裏拍ステップ）
+                } else {
+                    const noise = audioCtx.createBufferSource();
+                    const filter = audioCtx.createBiquadFilter();
+                    const gain = audioCtx.createGain();
+
+                    noise.buffer = noiseBuffer;
+                    filter.type = 'highpass';
+                    filter.frequency.setValueAtTime(5500, now);
+
+                    gain.gain.setValueAtTime(velocity * 0.7, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(masterGain);
+
+                    noise.start(now); noise.stop(now + 0.05);
+                }
+
+            } else if (trackType === 'piano') {
                 const osc1 = audioCtx.createOscillator();
                 const osc2 = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
 
-                osc1.type = 'triangle';
-                osc2.type = 'sine';
+                osc1.type = 'triangle'; osc2.type = 'sine';
                 osc1.frequency.setValueAtTime(freq, now);
-                osc2.frequency.setValueAtTime(freq * 2, now); // 倍音
+                osc2.frequency.setValueAtTime(freq * 2, now);
 
                 gain.gain.setValueAtTime(velocity * 0.8, now);
                 gain.gain.exponentialRampToValueAtTime(0.0001, now + duration * 1.2);
 
-                osc1.connect(gain);
-                osc2.connect(gain);
+                osc1.connect(gain); osc2.connect(gain);
                 gain.connect(masterGain);
 
                 osc1.start(now); osc2.start(now);
                 osc1.stop(now + duration * 1.2); osc2.stop(now + duration * 1.2);
 
             } else if (trackType === 'vocal') {
-                // ボーカル: メイン ＋ フォルマント感 ＋ ビブラート
                 const osc = audioCtx.createOscillator();
                 const vib = audioCtx.createOscillator();
                 const vibGain = audioCtx.createGain();
                 const gain = audioCtx.createGain();
 
-                osc.type = 'sine';
-                vib.type = 'sine';
-                vib.frequency.setValueAtTime(5.5, now); // 5.5Hzビブラート
+                osc.type = 'sine'; vib.type = 'sine';
+                vib.frequency.setValueAtTime(5.5, now);
                 vibGain.gain.setValueAtTime(freq * 0.012, now);
 
                 vib.connect(osc.frequency);
@@ -648,76 +724,64 @@ Fade out... Fin.</p>
                 gain.gain.linearRampToValueAtTime(velocity * 0.9, now + 0.06);
                 gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
-                osc.connect(gain);
-                gain.connect(masterGain);
+                osc.connect(gain); gain.connect(masterGain);
 
                 vib.start(now); osc.start(now);
                 vib.stop(now + duration); osc.stop(now + duration);
 
             } else if (trackType === 'bass') {
-                // ベース: 重低音ローパスフィルター付き鋸歯状波
                 const osc = audioCtx.createOscillator();
                 const filter = audioCtx.createBiquadFilter();
                 const gain = audioCtx.createGain();
 
                 osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(freq / 2, now); // 1オクターブ下
+                osc.frequency.setValueAtTime(freq / 2, now);
 
                 filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(600, now);
+                filter.frequency.setValueAtTime(550, now);
 
-                gain.gain.setValueAtTime(velocity * 1.1, now);
+                gain.gain.setValueAtTime(velocity * 1.2, now);
                 gain.gain.exponentialRampToValueAtTime(0.0001, now + duration * 0.9);
 
-                osc.connect(filter);
-                filter.connect(gain);
-                gain.connect(masterGain);
+                osc.connect(filter); filter.connect(gain); gain.connect(masterGain);
 
-                osc.start(now);
-                osc.stop(now + duration * 0.9);
+                osc.start(now); osc.stop(now + duration * 0.9);
 
             } else if (trackType === 'chopper') {
-                // チョッパー（スラップベース）: 高音アタック ＋ ディープバス
                 const osc = audioCtx.createOscillator();
                 const slap = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
 
-                osc.type = 'square';
-                slap.type = 'triangle';
+                osc.type = 'square'; slap.type = 'triangle';
                 osc.frequency.setValueAtTime(freq / 2, now);
-                slap.frequency.setValueAtTime(freq * 3, now); // 金属的アタック
+                slap.frequency.setValueAtTime(freq * 3, now);
 
                 gain.gain.setValueAtTime(velocity * 1.3, now);
                 gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
 
-                osc.connect(gain); slap.connect(gain);
-                gain.connect(masterGain);
+                osc.connect(gain); slap.connect(gain); gain.connect(masterGain);
 
                 osc.start(now); slap.start(now);
                 osc.stop(now + 0.22); slap.stop(now + 0.22);
 
             } else if (trackType === 'electric') {
-                // エレキギター: 矩形波＋鋸歯状波のアタック
                 const osc1 = audioCtx.createOscillator();
                 const osc2 = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
 
-                osc1.type = 'sawtooth';
-                osc2.type = 'square';
+                osc1.type = 'sawtooth'; osc2.type = 'square';
                 osc1.frequency.setValueAtTime(freq, now);
-                osc2.frequency.setValueAtTime(freq * 1.005, now); // デチューン
+                osc2.frequency.setValueAtTime(freq * 1.005, now);
 
                 gain.gain.setValueAtTime(velocity * 0.85, now);
                 gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
-                osc1.connect(gain); osc2.connect(gain);
-                gain.connect(masterGain);
+                osc1.connect(gain); osc2.connect(gain); gain.connect(masterGain);
 
                 osc1.start(now); osc2.start(now);
                 osc1.stop(now + duration); osc2.stop(now + duration);
 
             } else if (trackType === 'acoustic') {
-                // アコースティックギター: 弦のピッキングアタック
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
 
@@ -727,14 +791,11 @@ Fade out... Fin.</p>
                 gain.gain.setValueAtTime(velocity * 1.0, now);
                 gain.gain.exponentialRampToValueAtTime(0.0001, now + duration * 0.7);
 
-                osc.connect(gain);
-                gain.connect(masterGain);
+                osc.connect(gain); gain.connect(masterGain);
 
-                osc.start(now);
-                osc.stop(now + duration * 0.7);
+                osc.start(now); osc.stop(now + duration * 0.7);
 
             } else if (trackType === 'violin') {
-                // バイオリン: 弓の立ち上がりとなめらかなストリングス
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
 
@@ -742,42 +803,14 @@ Fade out... Fin.</p>
                 osc.frequency.setValueAtTime(freq, now);
 
                 gain.gain.setValueAtTime(0.001, now);
-                gain.gain.linearRampToValueAtTime(velocity * 0.75, now + 0.12); // なめらかなアタック
+                gain.gain.linearRampToValueAtTime(velocity * 0.75, now + 0.12);
                 gain.gain.exponentialRampToValueAtTime(0.0001, now + duration * 1.1);
 
-                osc.connect(gain);
-                gain.connect(masterGain);
+                osc.connect(gain); gain.connect(masterGain);
 
-                osc.start(now);
-                osc.stop(now + duration * 1.1);
-
-            } else if (trackType === 'drums') {
-                // ドラム: 拍（stepIndex）に応じたキック / スネア / ハイハット
-                if (stepIndex % 4 === 0) {
-                    // キック (バスドラム)
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.frequency.setValueAtTime(130, now);
-                    osc.frequency.exponentialRampToValueAtTime(35, now + 0.08);
-                    gain.gain.setValueAtTime(velocity * 1.5, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-                    osc.connect(gain); gain.connect(masterGain);
-                    osc.start(now); osc.stop(now + 0.12);
-                } else {
-                    // スネア / ノイズ
-                    const noise = audioCtx.createBufferSource();
-                    const filter = audioCtx.createBiquadFilter();
-                    const gain = audioCtx.createGain();
-                    noise.buffer = noiseBuffer;
-                    filter.type = 'highpass'; filter.frequency.setValueAtTime(800, now);
-                    gain.gain.setValueAtTime(velocity * 1.0, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-                    noise.connect(filter); filter.connect(gain); gain.connect(masterGain);
-                    noise.start(now); noise.stop(now + 0.1);
-                }
+                osc.start(now); osc.stop(now + duration * 1.1);
 
             } else if (trackType === 'tambourine') {
-                // タンバリン: 高域ハイパスノイズ
                 const noise = audioCtx.createBufferSource();
                 const filter = audioCtx.createBiquadFilter();
                 const gain = audioCtx.createGain();
@@ -912,7 +945,7 @@ Fade out... Fin.</p>
                     let prob = profile.density;
 
                     if(trackName === 'drums') {
-                        prob = (s % 4 === 0 || s === 6 || s === 14) ? 0.9 : 0.15;
+                        prob = (s % 4 === 0 || s === 4 || s === 8 || s === 12) ? 0.95 : 0.2;
                     } else if(trackName === 'tambourine') {
                         prob = (s % 4 === 2) ? 0.85 : 0.1;
                     } else if(trackName === 'bass' || trackName === 'chopper') {
