@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MICVICTORY BANDLAND DTM - Track Volume Mixer Edition</title>
+    <title>MICVICTORY BANDLAND DTM - Solo, Mute & Effects Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -40,6 +40,10 @@
         }
         .glow-accent { box-shadow: 0 0 20px rgba(139, 92, 246, 0.3); }
         .key-btn:active { transform: scale(0.95); background-color: #8b5cf6 !important; }
+        
+        /* Solo / Mute active styles */
+        .btn-mute-active { background-color: #ef4444 !important; color: white !important; border-color: #f87171 !important; }
+        .btn-solo-active { background-color: #f59e0b !important; color: black !important; border-color: #fbbf24 !important; font-weight: bold; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between overflow-x-hidden pb-24">
@@ -51,7 +55,7 @@
             </div>
             <div>
                 <h1 class="text-xs font-black tracking-wider bg-gradient-to-r from-mvCyan via-mvAccent to-mvPink bg-clip-text text-transparent uppercase">AI Melody & Voice DTM</h1>
-                <p class="text-[9px] text-gray-400">各楽器音量調整ミキサー搭載版</p>
+                <p class="text-[9px] text-gray-400">34小節 Solo/Mute & Effects 搭載版</p>
             </div>
         </div>
         <div class="flex items-center space-x-2">
@@ -78,7 +82,7 @@
                 <div class="text-[11px] font-mono text-gray-400 bg-black/50 px-3 py-1 rounded-lg border border-gray-800 flex items-center space-x-2">
                     <span>BPM: <strong id="bpmDisplay" class="text-mvCyan">128</strong></span>
                     <span>|</span>
-                    <span>小節: <strong id="currentBarDisplay" class="text-white">1</strong>/84</span>
+                    <span>小節: <strong id="currentBarDisplay" class="text-white">1</strong>/34</span>
                 </div>
             </div>
 
@@ -93,11 +97,11 @@
             <div class="grid grid-cols-2 gap-2">
                 <button onclick="toggleGlobalPlay()" id="globalPlayBtn" class="bg-gradient-to-r from-mvAccent to-mvPink text-white font-bold py-3 rounded-xl text-xs shadow-lg shadow-mvAccent/30 flex items-center justify-center space-x-2 transition active:scale-95">
                     <i class="fa-solid fa-play" id="playIcon"></i>
-                    <span id="playBtnText">84小節ライブ再生</span>
+                    <span id="playBtnText">34小節ライブ再生</span>
                 </button>
                 <button onclick="generateAllTracksAIMelody()" class="bg-gradient-to-r from-mvCyan to-mvGreen text-black font-extrabold py-3 rounded-xl text-xs shadow-lg flex items-center justify-center space-x-1.5 transition active:scale-95">
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
-                    <span>全9トラックBandai AI一括作成</span>
+                    <span>全9トラックAI一括作成</span>
                 </button>
             </div>
 
@@ -108,53 +112,159 @@
             </button>
         </div>
 
-        <!-- 🎚️ 各楽器音量調整ミキサーパネル -->
+        <!-- ✨ マスターエフェクトコントロール（リバーブ & ディレイ） -->
+        <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3.5 shadow-xl space-y-3">
+            <h3 class="text-xs font-bold text-white flex items-center space-x-2">
+                <i class="fa-solid fa-compact-disc text-mvYellow"></i>
+                <span>空間系マスターエフェクト (Reverb & Delay Echo)</span>
+            </h3>
+            <div class="grid grid-cols-2 gap-2 text-[11px]">
+                <div class="bg-gray-950 p-2.5 rounded-xl border border-gray-800 space-y-1">
+                    <div class="flex justify-between text-gray-300">
+                        <span>空間リバーブ残響:</span>
+                        <strong id="valReverb" class="text-mvYellow">30%</strong>
+                    </div>
+                    <input type="range" min="0" max="1.0" step="0.05" value="0.3" oninput="updateEffect('reverb', this.value)" class="w-full accent-mvYellow cursor-pointer">
+                </div>
+                <div class="bg-gray-950 p-2.5 rounded-xl border border-gray-800 space-y-1">
+                    <div class="flex justify-between text-gray-300">
+                        <span>やまびこディレイ:</span>
+                        <strong id="valDelay" class="text-mvCyan">20%</strong>
+                    </div>
+                    <input type="range" min="0" max="0.8" step="0.05" value="0.2" oninput="updateEffect('delay', this.value)" class="w-full accent-mvCyan cursor-pointer">
+                </div>
+            </div>
+        </div>
+
+        <!-- 🎚️ 各楽器音量調整 & Solo/Mute ミキサーパネル -->
         <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3.5 shadow-xl space-y-3">
             <div class="flex items-center justify-between">
                 <h3 class="text-xs font-bold text-white flex items-center space-x-2">
                     <i class="fa-solid fa-sliders text-mvCyan"></i>
-                    <span>各楽器トラック音量バランス調整 (Mixer)</span>
+                    <span>各楽器ミキサー (音量 / Solo / Mute)</span>
                 </h3>
                 <button onclick="resetVolumeBalance()" class="text-[10px] text-gray-400 hover:text-white bg-gray-900 border border-gray-800 px-2 py-0.5 rounded-lg">リセット</button>
             </div>
 
             <div class="grid grid-cols-3 gap-2 text-[10px]">
-                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1">
-                    <div class="flex justify-between text-gray-300"><span>🎹 ピアノ</span><strong id="volVal-piano" class="text-mvCyan">100%</strong></div>
+
+                <!-- 🎹 ピアノ -->
+                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1.5">
+                    <div class="flex justify-between items-center text-gray-300">
+                        <span>🎹 ピアノ</span>
+                        <strong id="volVal-piano" class="text-mvCyan">100%</strong>
+                    </div>
                     <input type="range" min="0" max="1.5" step="0.05" value="1.0" oninput="updateTrackVolume('piano', this.value)" class="w-full accent-mvCyan cursor-pointer">
+                    <div class="grid grid-cols-2 gap-1 pt-0.5">
+                        <button onclick="toggleMute('piano')" id="btn-mute-piano" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">M</button>
+                        <button onclick="toggleSolo('piano')" id="btn-solo-piano" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">S</button>
+                    </div>
                 </div>
-                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1">
-                    <div class="flex justify-between text-gray-300"><span>🎤 ボーカル</span><strong id="volVal-vocal" class="text-mvPink">100%</strong></div>
+
+                <!-- 🎤 ボーカル -->
+                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1.5">
+                    <div class="flex justify-between items-center text-gray-300">
+                        <span>🎤 ボーカル</span>
+                        <strong id="volVal-vocal" class="text-mvPink">100%</strong>
+                    </div>
                     <input type="range" min="0" max="1.5" step="0.05" value="1.0" oninput="updateTrackVolume('vocal', this.value)" class="w-full accent-mvPink cursor-pointer">
+                    <div class="grid grid-cols-2 gap-1 pt-0.5">
+                        <button onclick="toggleMute('vocal')" id="btn-mute-vocal" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">M</button>
+                        <button onclick="toggleSolo('vocal')" id="btn-solo-vocal" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">S</button>
+                    </div>
                 </div>
-                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1">
-                    <div class="flex justify-between text-gray-300"><span>🎸 ベース</span><strong id="volVal-bass" class="text-mvYellow">110%</strong></div>
+
+                <!-- 🎸 ベース -->
+                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1.5">
+                    <div class="flex justify-between items-center text-gray-300">
+                        <span>🎸 ベース</span>
+                        <strong id="volVal-bass" class="text-mvYellow">110%</strong>
+                    </div>
                     <input type="range" min="0" max="1.5" step="0.05" value="1.1" oninput="updateTrackVolume('bass', this.value)" class="w-full accent-mvYellow cursor-pointer">
+                    <div class="grid grid-cols-2 gap-1 pt-0.5">
+                        <button onclick="toggleMute('bass')" id="btn-mute-bass" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">M</button>
+                        <button onclick="toggleSolo('bass')" id="btn-solo-bass" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">S</button>
+                    </div>
                 </div>
-                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1">
-                    <div class="flex justify-between text-gray-300"><span>🎸 アコギ</span><strong id="volVal-acoustic" class="text-mvGreen">100%</strong></div>
+
+                <!-- 🎸 アコギ -->
+                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1.5">
+                    <div class="flex justify-between items-center text-gray-300">
+                        <span>🎸 アコギ</span>
+                        <strong id="volVal-acoustic" class="text-mvGreen">100%</strong>
+                    </div>
                     <input type="range" min="0" max="1.5" step="0.05" value="1.0" oninput="updateTrackVolume('acoustic', this.value)" class="w-full accent-mvGreen cursor-pointer">
+                    <div class="grid grid-cols-2 gap-1 pt-0.5">
+                        <button onclick="toggleMute('acoustic')" id="btn-mute-acoustic" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">M</button>
+                        <button onclick="toggleSolo('acoustic')" id="btn-solo-acoustic" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">S</button>
+                    </div>
                 </div>
-                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1">
-                    <div class="flex justify-between text-gray-300"><span>⚡ エレキ</span><strong id="volVal-electric" class="text-mvAccent">100%</strong></div>
+
+                <!-- ⚡ エレキ -->
+                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1.5">
+                    <div class="flex justify-between items-center text-gray-300">
+                        <span>⚡ エレキ</span>
+                        <strong id="volVal-electric" class="text-mvAccent">100%</strong>
+                    </div>
                     <input type="range" min="0" max="1.5" step="0.05" value="1.0" oninput="updateTrackVolume('electric', this.value)" class="w-full accent-mvAccent cursor-pointer">
+                    <div class="grid grid-cols-2 gap-1 pt-0.5">
+                        <button onclick="toggleMute('electric')" id="btn-mute-electric" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">M</button>
+                        <button onclick="toggleSolo('electric')" id="btn-solo-electric" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">S</button>
+                    </div>
                 </div>
-                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1">
-                    <div class="flex justify-between text-gray-300"><span>🎻 バイオリン</span><strong id="volVal-violin" class="text-mvCyan">100%</strong></div>
+
+                <!-- 🎻 バイオリン -->
+                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1.5">
+                    <div class="flex justify-between items-center text-gray-300">
+                        <span>🎻 バイオリン</span>
+                        <strong id="volVal-violin" class="text-mvCyan">100%</strong>
+                    </div>
                     <input type="range" min="0" max="1.5" step="0.05" value="1.0" oninput="updateTrackVolume('violin', this.value)" class="w-full accent-mvCyan cursor-pointer">
+                    <div class="grid grid-cols-2 gap-1 pt-0.5">
+                        <button onclick="toggleMute('violin')" id="btn-mute-violin" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">M</button>
+                        <button onclick="toggleSolo('violin')" id="btn-solo-violin" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">S</button>
+                    </div>
                 </div>
-                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1">
-                    <div class="flex justify-between text-gray-300"><span>🥁 ドラム</span><strong id="volVal-drums" class="text-mvPink">120%</strong></div>
+
+                <!-- 🥁 ドラム -->
+                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1.5">
+                    <div class="flex justify-between items-center text-gray-300">
+                        <span>🥁 ドラム</span>
+                        <strong id="volVal-drums" class="text-mvPink">120%</strong>
+                    </div>
                     <input type="range" min="0" max="1.5" step="0.05" value="1.2" oninput="updateTrackVolume('drums', this.value)" class="w-full accent-mvPink cursor-pointer">
+                    <div class="grid grid-cols-2 gap-1 pt-0.5">
+                        <button onclick="toggleMute('drums')" id="btn-mute-drums" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">M</button>
+                        <button onclick="toggleSolo('drums')" id="btn-solo-drums" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">S</button>
+                    </div>
                 </div>
-                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1">
-                    <div class="flex justify-between text-gray-300"><span>🔔 タンバリン</span><strong id="volVal-tambourine" class="text-mvYellow">90%</strong></div>
+
+                <!-- 🔔 タンバリン -->
+                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1.5">
+                    <div class="flex justify-between items-center text-gray-300">
+                        <span>🔔 タンバリン</span>
+                        <strong id="volVal-tambourine" class="text-mvYellow">90%</strong>
+                    </div>
                     <input type="range" min="0" max="1.5" step="0.05" value="0.9" oninput="updateTrackVolume('tambourine', this.value)" class="w-full accent-mvYellow cursor-pointer">
+                    <div class="grid grid-cols-2 gap-1 pt-0.5">
+                        <button onclick="toggleMute('tambourine')" id="btn-mute-tambourine" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">M</button>
+                        <button onclick="toggleSolo('tambourine')" id="btn-solo-tambourine" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">S</button>
+                    </div>
                 </div>
-                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1">
-                    <div class="flex justify-between text-gray-300"><span>🎛️ チョッパー</span><strong id="volVal-chopper" class="text-mvGreen">100%</strong></div>
+
+                <!-- 🎛️ チョッパー -->
+                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 space-y-1.5">
+                    <div class="flex justify-between items-center text-gray-300">
+                        <span>🎛️ チョッパー</span>
+                        <strong id="volVal-chopper" class="text-mvGreen">100%</strong>
+                    </div>
                     <input type="range" min="0" max="1.5" step="0.05" value="1.0" oninput="updateTrackVolume('chopper', this.value)" class="w-full accent-mvGreen cursor-pointer">
+                    <div class="grid grid-cols-2 gap-1 pt-0.5">
+                        <button onclick="toggleMute('chopper')" id="btn-mute-chopper" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">M</button>
+                        <button onclick="toggleSolo('chopper')" id="btn-solo-chopper" class="bg-gray-900 border border-gray-800 text-gray-400 py-0.5 rounded text-[9px] font-mono hover:text-white">S</button>
+                    </div>
                 </div>
+
             </div>
         </div>
 
@@ -223,12 +333,12 @@
             </div>
         </div>
 
-        <!-- 🎤 800文字AI 歌詞 & ストーリー表示セクション -->
+        <!-- 🎤 AI 歌詞 & ストーリー表示セクション -->
         <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3.5 shadow-xl space-y-2">
             <div class="flex items-center justify-between">
                 <h3 class="text-xs font-bold text-white flex items-center space-x-2">
                     <i class="fa-solid fa-book-open text-mvYellow"></i>
-                    <span>AI歌詞・ボーカルストーリー (800字版)</span>
+                    <span>AI歌詞・ボーカルストーリー</span>
                 </h3>
                 <button onclick="generateAILyrics()" class="text-[10px] bg-mvYellow/25 hover:bg-mvYellow/35 text-mvYellow border border-mvYellow/40 px-2.5 py-1 rounded-lg font-bold transition flex items-center space-x-1">
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -247,50 +357,19 @@
 ポケットの中でこぶしを強く握りしめた
 「このままでいいのか？」と問いかける影
 迷いながらも歩き続けた細い路地裏
-ビルの谷間に光る、かすかな星の瞬きが
-凍えた胸の奥に、小さな熱を灯していく
-
-【Bメロ】
-失くした夢の欠片を集めては
-不器用に描いた理想の地図
-一人きりじゃ届かない場所へだって
-君と出会えた奇跡が、背中を押してくれるから
-もう振り返ることはしない、走り出せ！
 
 【サビ】
 響かせろ！MICVICTORY、世界を揺らす魂のメロディ！
 どんなに暗い闇だって、この歌声で切り裂いてやる
-何度倒れそうになっても、君の手を離さない
-描いた未来をこの手で掴むまで
-終わらない歌を、今、空の向こうへ届きと歌い続けよう！
-
-【間奏】
-エレクトリックなギターの旋律と、重厚なビートが交錯する。
-高まる感情が、限界を超えて加速していく。
-
-【Cメロ】
-すれ違った言葉、零した涙の数だけ
-僕らは強くなれた、優しさを知ることができた
-誰もが孤独な旅人だけど、同じ空の下で繋がっている
-だからもう怖くない、恐れずに明日へ飛び込もう
-
-【大サビ】
-響かせろ！MICVICTORY、世界を揺らす魂のメロディ！
-涙の向こう側に広がる、眩しい光を目指して
-叫べ、僕らの生きた証をこの歌に込めて
-未来の扉を今、力強くこじ開けろ！
-
-【アウトロ】
-鳴りやまない歓声と、胸を打つ鼓動の余韻。
-光に満ちた世界へ、物語は永遠に続いていく——。
-Fade out... Fin.</p>
+描いた未来をこの手で掴むまで、歌い続けよう！
+Fin.</p>
             </div>
         </div>
 
         <!-- Instrument Selector Tabs -->
         <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3 shadow-xl space-y-2">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-gray-400">楽器・ボーカルトラック選択 (各84小節)</span>
+                <span class="text-xs font-semibold text-gray-400">楽器・ボーカルトラック選択 (各34小節)</span>
                 <span id="activeTrackName" class="text-xs text-mvCyan font-bold">ピアノ</span>
             </div>
             <div class="grid grid-cols-9 gap-1">
@@ -359,7 +438,7 @@ Fade out... Fin.</p>
             <div class="flex items-center justify-between">
                 <div>
                     <h3 class="text-xs font-bold text-white"><span id="currentTrackTitle">ピアノ</span> 16ステップエディター</h3>
-                    <p class="text-[10px] text-gray-400">84小節タイムライン</p>
+                    <p class="text-[10px] text-gray-400">34小節タイムライン</p>
                 </div>
                 <div class="flex space-x-1.5">
                     <button onclick="previewCurrentTrack()" class="text-[10px] bg-gray-900 hover:bg-gray-800 border border-gray-800 text-mvCyan px-2 py-1 rounded-lg">小節再生</button>
@@ -371,7 +450,7 @@ Fade out... Fin.</p>
             <div class="bg-gradient-to-r from-mvAccent/20 to-mvPink/20 border border-mvAccent/40 p-2.5 rounded-xl flex items-center justify-between">
                 <div class="flex items-center space-x-2">
                     <i class="fa-solid fa-wand-magic-sparkles text-mvYellow"></i>
-                    <span class="text-xs text-white font-bold">[<span id="aiTargetName">ピアノ</span>] 専用 Bandai AI作曲</span>
+                    <span class="text-xs text-white font-bold">[<span id="aiTargetName">ピアノ</span>] 専用 AI作曲</span>
                 </div>
                 <button onclick="generateCurrentTrackAIMelody()" class="bg-gradient-to-r from-mvAccent to-mvPink text-white text-[11px] px-3 py-1.5 rounded-lg font-bold shadow-md hover:opacity-90 active:scale-95 transition">
                     この楽器をAI作曲
@@ -389,7 +468,7 @@ Fade out... Fin.</p>
                 </button>
             </div>
 
-            <!-- Bar Selector (1 to 84) -->
+            <!-- Bar Selector (1 to 34) -->
             <div class="flex items-center space-x-1.5 overflow-x-auto pb-2">
                 <span class="text-[10px] text-gray-400 shrink-0 font-mono">小節:</span>
                 <div id="barSelectorContainer" class="flex space-x-1"></div>
@@ -413,7 +492,7 @@ Fade out... Fin.</p>
                 </h3>
                 <button onclick="closeModal('saveModal')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <input type="text" id="projectName" value="AI & Voice Masterpiece 84Bars" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-mvAccent">
+            <input type="text" id="projectName" value="AI & Voice Masterpiece 34Bars" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-mvAccent">
             <button onclick="saveProject()" class="w-full bg-gradient-to-r from-mvCyan to-mvAccent text-white text-xs py-2.5 rounded-xl font-bold shadow-lg">保存する</button>
         </div>
     </div>
@@ -439,26 +518,27 @@ Fade out... Fin.</p>
         let destStreamNode = null;
         let noiseBuffer = null;
         
-        // 各楽器トラック専用ゲインノード
+        // 空間系エフェクトノード
+        let reverbGainNode = null;
+        let delayGainNode = null;
+        let delayNode = null;
+
         let trackGains = {};
         let trackVolumes = {
-            piano: 1.0,
-            vocal: 1.0,
-            bass: 1.1,
-            acoustic: 1.0,
-            electric: 1.0,
-            violin: 1.0,
-            drums: 1.2,
-            tambourine: 0.9,
-            chopper: 1.0
+            piano: 1.0, vocal: 1.0, bass: 1.1, acoustic: 1.0,
+            electric: 1.0, violin: 1.0, drums: 1.2, tambourine: 0.9, chopper: 1.0
         };
+
+        // Solo / Mute 管理用オブジェクト
+        let trackMutes = { piano: false, vocal: false, bass: false, acoustic: false, electric: false, violin: false, drums: false, tambourine: false, chopper: false };
+        let trackSolos = { piano: false, vocal: false, bass: false, acoustic: false, electric: false, violin: false, drums: false, tambourine: false, chopper: false };
 
         let currentRecordMode = 'internal';
         let activeMediaRecorder = null;
         let recordedAudioChunks = [];
         let savedAudioBlob = null;
 
-        const totalBars = 84;
+        const totalBars = 34;
         let activeTrack = 'piano';
         let activeBar = 1;
         let isGlobalPlaying = false;
@@ -518,11 +598,48 @@ Fade out... Fin.</p>
                 masterGain.connect(audioCtx.destination);
                 masterGain.connect(destStreamNode);
 
-                // 各トラック用ゲインノード作成
+                // ✨ マスターエフェクト回路の構築
+                reverbGainNode = audioCtx.createGain();
+                reverbGainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+
+                // インパルス応答（擬似リバーブ残響）作成
+                const convolver = audioCtx.createConvolver();
+                const rate = audioCtx.sampleRate;
+                const length = rate * 1.8;
+                const impulse = audioCtx.createBuffer(2, length, rate);
+                for(let c=0; c<2; c++) {
+                    const channel = impulse.getChannelData(c);
+                    for(let i=0; i<length; i++) {
+                        channel[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.5);
+                    }
+                }
+                convolver.buffer = impulse;
+                convolver.connect(reverbGainNode);
+                reverbGainNode.connect(masterGain);
+
+                // やまびこディレイ回路
+                delayNode = audioCtx.createDelay();
+                delayNode.delayTime.setValueAtTime(0.24, audioCtx.currentTime);
+                delayGainNode = audioCtx.createGain();
+                delayGainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+
+                const delayFeedback = audioCtx.createGain();
+                delayFeedback.gain.setValueAtTime(0.35, audioCtx.currentTime);
+
+                delayNode.connect(delayFeedback);
+                delayFeedback.connect(delayNode);
+                delayNode.connect(delayGainNode);
+                delayGainNode.connect(masterGain);
+
+                // 各トラックのゲインノード作成とエフェクトルーティング
                 Object.keys(trackVolumes).forEach(trackKey => {
                     const gNode = audioCtx.createGain();
                     gNode.gain.setValueAtTime(trackVolumes[trackKey], audioCtx.currentTime);
+                    
                     gNode.connect(masterGain);
+                    gNode.connect(convolver); // リバーブ送り
+                    gNode.connect(delayNode); // ディレイ送り
+
                     trackGains[trackKey] = gNode;
                 });
 
@@ -537,6 +654,19 @@ Fade out... Fin.</p>
             return audioCtx;
         }
 
+        // ✨ エフェクト量リアルタイム調整
+        function updateEffect(type, val) {
+            val = parseFloat(val);
+            getAudioContext();
+            if(type === 'reverb') {
+                reverbGainNode.gain.setValueAtTime(val, audioCtx.currentTime);
+                document.getElementById('valReverb').innerText = Math.round(val * 100) + '%';
+            } else if(type === 'delay') {
+                delayGainNode.gain.setValueAtTime(val, audioCtx.currentTime);
+                document.getElementById('valDelay').innerText = Math.round(val * 100) + '%';
+            }
+        }
+
         function updateTrackVolume(trackKey, val) {
             val = parseFloat(val);
             trackVolumes[trackKey] = val;
@@ -548,10 +678,47 @@ Fade out... Fin.</p>
             }
         }
 
+        // 🎛️ ミュート（M）切り替え
+        function toggleMute(trackKey) {
+            trackMutes[trackKey] = !trackMutes[trackKey];
+            const btn = document.getElementById('btn-mute-' + trackKey);
+            if(trackMutes[trackKey]) {
+                btn.classList.add('btn-mute-active');
+            } else {
+                btn.classList.remove('btn-mute-active');
+            }
+        }
+
+        // 🎛️ ソロ（S）切り替え
+        function toggleSolo(trackKey) {
+            trackSolos[trackKey] = !trackSolos[trackKey];
+            const btn = document.getElementById('btn-solo-' + trackKey);
+            if(trackSolos[trackKey]) {
+                btn.classList.add('btn-solo-active');
+            } else {
+                btn.classList.remove('btn-solo-active');
+            }
+        }
+
+        // 判定：現在このトラックを発音すべきか？ (Solo/Muteルール)
+        function shouldPlayTrack(trackKey) {
+            if (trackMutes[trackKey]) return false;
+
+            const isAnySoloActive = Object.values(trackSolos).some(val => val === true);
+            if (isAnySoloActive) {
+                return trackSolos[trackKey] === true;
+            }
+            return true;
+        }
+
         function resetVolumeBalance() {
             const defaults = { piano: 1.0, vocal: 1.0, bass: 1.1, acoustic: 1.0, electric: 1.0, violin: 1.0, drums: 1.2, tambourine: 0.9, chopper: 1.0 };
             Object.keys(defaults).forEach(key => {
                 updateTrackVolume(key, defaults[key]);
+                trackMutes[key] = false;
+                trackSolos[key] = false;
+                document.getElementById('btn-mute-' + key).classList.remove('btn-mute-active');
+                document.getElementById('btn-solo-' + key).classList.remove('btn-solo-active');
             });
         }
 
@@ -583,7 +750,6 @@ Fade out... Fin.</p>
         async function startInternalRecording() {
             getAudioContext();
             recordedAudioChunks = [];
-
             try {
                 const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 const micSource = audioCtx.createMediaStreamSource(micStream);
@@ -652,11 +818,8 @@ Fade out... Fin.</p>
 
         function setupRecorderEvents(completeLabel) {
             activeMediaRecorder.ondataavailable = event => {
-                if (event.data && event.data.size > 0) {
-                    recordedAudioChunks.push(event.data);
-                }
+                if (event.data && event.data.size > 0) { recordedAudioChunks.push(event.data); }
             };
-
             activeMediaRecorder.onstop = () => {
                 savedAudioBlob = new Blob(recordedAudioChunks, { type: 'audio/webm' });
                 const audioUrl = URL.createObjectURL(savedAudioBlob);
@@ -667,16 +830,12 @@ Fade out... Fin.</p>
                 const playBtn = document.getElementById('playRecordedBtn');
                 playBtn.disabled = false;
                 playBtn.className = "w-full bg-mvPink/20 border border-mvPink text-mvPink text-xs py-2 rounded-lg font-bold transition flex items-center justify-center space-x-1";
-                
                 document.getElementById('recordedInfo').innerText = completeLabel + " (" + Math.round(savedAudioBlob.size / 1024) + " KB)";
             };
         }
 
         function playRecordedAudio() {
-            if (savedAudioBlob) {
-                const player = document.getElementById('sharedAudioPlayer');
-                player.play();
-            }
+            if (savedAudioBlob) { document.getElementById('sharedAudioPlayer').play(); }
         }
 
         function updateParam(paramName, val) {
@@ -686,215 +845,164 @@ Fade out... Fin.</p>
             if(paramName === 'velocity') document.getElementById('valVelocity').innerText = val.toFixed(1);
         }
 
-        // ⭐ 各トラック独立音量ルーティング対応オーディオエンジン
         function playSoundWithExpression(trackType, expr, stepIndex = 0) {
+            // Solo/Mute 判定チェック
+            if (!shouldPlayTrack(trackType)) return;
+
             getAudioContext();
             const now = audioCtx.currentTime;
             const note = expr.note || 'C4';
             const duration = expr.duration || 0.5;
             const velocity = expr.velocity || 0.7;
-
-            // 各トラックのゲインノードを出力先に指定
             const targetOutputNode = trackGains[trackType] || masterGain;
 
             const notesFreq = { C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88, C5: 523.25, D5: 587.33, E5: 659.25 };
             let freq = notesFreq[note] || 261.63;
 
-            // 1. 🎹 ピアノ
             if (trackType === 'piano') {
                 const osc1 = audioCtx.createOscillator();
                 const osc2 = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-
                 osc1.type = 'triangle'; osc2.type = 'sine';
                 osc1.frequency.setValueAtTime(freq, now);
                 osc2.frequency.setValueAtTime(freq * 2, now);
-
                 gain.gain.setValueAtTime(velocity * 0.85, now);
                 gain.gain.exponentialRampToValueAtTime(0.0001, now + duration * 1.2);
-
                 osc1.connect(gain); osc2.connect(gain); gain.connect(targetOutputNode);
                 osc1.start(now); osc2.start(now);
                 osc1.stop(now + duration * 1.2); osc2.stop(now + duration * 1.2);
 
-            // 2. 🎤 ボーカル
             } else if (trackType === 'vocal') {
                 const osc = audioCtx.createOscillator();
                 const vib = audioCtx.createOscillator();
                 const vibGain = audioCtx.createGain();
                 const gain = audioCtx.createGain();
-
                 osc.type = 'sine'; vib.type = 'sine';
                 vib.frequency.setValueAtTime(5.8, now);
                 vibGain.gain.setValueAtTime(freq * 0.015, now);
-
                 vib.connect(osc.frequency);
                 osc.frequency.setValueAtTime(freq, now);
-
                 gain.gain.setValueAtTime(0.001, now);
                 gain.gain.linearRampToValueAtTime(velocity * 0.95, now + 0.045);
                 gain.gain.exponentialRampToValueAtTime(0.0001, now + duration * 1.05);
-
                 osc.connect(gain); gain.connect(targetOutputNode);
                 vib.start(now); osc.start(now);
                 vib.stop(now + duration * 1.05); osc.stop(now + duration * 1.05);
 
-            // 3. 🎸 ベース
             } else if (trackType === 'bass') {
                 const osc = audioCtx.createOscillator();
                 const filter = audioCtx.createBiquadFilter();
                 const gain = audioCtx.createGain();
-
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(freq / 2, now);
-
-                filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(450, now);
-
+                filter.type = 'lowpass'; filter.frequency.setValueAtTime(450, now);
                 gain.gain.setValueAtTime(velocity * 1.25, now);
                 gain.gain.exponentialRampToValueAtTime(0.0001, now + duration * 0.85);
-
                 osc.connect(filter); filter.connect(gain); gain.connect(targetOutputNode);
                 osc.start(now); osc.stop(now + duration * 0.85);
 
-            // 4. 🎸 アコースティックギター
             } else if (trackType === 'acoustic') {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(freq, now);
-
                 gain.gain.setValueAtTime(velocity * 1.1, now);
                 gain.gain.exponentialRampToValueAtTime(0.0001, now + duration * 0.75);
-
                 osc.connect(gain); gain.connect(targetOutputNode);
                 osc.start(now); osc.stop(now + duration * 0.75);
 
-            // 5. ⚡ エレキギター
             } else if (trackType === 'electric') {
                 const osc1 = audioCtx.createOscillator();
                 const osc2 = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-
                 osc1.type = 'sawtooth'; osc2.type = 'square';
                 osc1.frequency.setValueAtTime(freq, now);
                 osc2.frequency.setValueAtTime(freq * 1.004, now);
-
                 gain.gain.setValueAtTime(velocity * 0.85, now);
                 gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
                 osc1.connect(gain); osc2.connect(gain); gain.connect(targetOutputNode);
                 osc1.start(now); osc2.start(now);
                 osc1.stop(now + duration); osc2.stop(now + duration);
 
-            // 6. 🎻 バイオリン
             } else if (trackType === 'violin') {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(freq, now);
-
                 gain.gain.setValueAtTime(0.001, now);
                 gain.gain.linearRampToValueAtTime(velocity * 0.8, now + 0.1);
                 gain.gain.exponentialRampToValueAtTime(0.0001, now + duration * 1.15);
-
                 osc.connect(gain); gain.connect(targetOutputNode);
                 osc.start(now); osc.stop(now + duration * 1.15);
 
-            // 7. 🥁 ドラム（どんパシャ）
             } else if (trackType === 'drums') {
                 const stepPos = stepIndex % 16;
-
                 if (stepPos === 0 || stepPos === 8 || stepPos === 10) {
                     const oscSub = audioCtx.createOscillator();
                     const oscClick = audioCtx.createOscillator();
                     const filter = audioCtx.createBiquadFilter();
                     const gain = audioCtx.createGain();
-
                     oscSub.type = 'sine';
                     oscSub.frequency.setValueAtTime(180, now);
                     oscSub.frequency.exponentialRampToValueAtTime(28, now + 0.1);
-
                     oscClick.type = 'triangle';
                     oscClick.frequency.setValueAtTime(300, now);
                     oscClick.frequency.exponentialRampToValueAtTime(50, now + 0.04);
-
                     filter.type = 'lowpass'; filter.frequency.setValueAtTime(220, now);
-
                     gain.gain.setValueAtTime(velocity * 2.5, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-
                     oscSub.connect(filter); oscClick.connect(filter);
                     filter.connect(gain); gain.connect(targetOutputNode);
                     oscSub.start(now); oscClick.start(now);
                     oscSub.stop(now + 0.3); oscClick.stop(now + 0.3);
-
                 } else if (stepPos === 4 || stepPos === 12) {
                     const toneOsc = audioCtx.createOscillator();
                     const noise = audioCtx.createBufferSource();
                     const filter = audioCtx.createBiquadFilter();
                     const gain = audioCtx.createGain();
-
                     toneOsc.type = 'triangle';
                     toneOsc.frequency.setValueAtTime(180, now);
                     toneOsc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
-
                     noise.buffer = noiseBuffer;
                     filter.type = 'highpass'; filter.frequency.setValueAtTime(1200, now);
-
                     gain.gain.setValueAtTime(velocity * 1.8, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-
                     toneOsc.connect(gain); noise.connect(filter);
                     filter.connect(gain); gain.connect(targetOutputNode);
                     toneOsc.start(now); noise.start(now);
                     toneOsc.stop(now + 0.22); noise.stop(now + 0.22);
-
                 } else {
                     const noise = audioCtx.createBufferSource();
                     const filter = audioCtx.createBiquadFilter();
                     const gain = audioCtx.createGain();
-
                     noise.buffer = noiseBuffer;
                     filter.type = 'highpass'; filter.frequency.setValueAtTime(6000, now);
-
                     gain.gain.setValueAtTime(velocity * 0.7, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-
                     noise.connect(filter); filter.connect(gain); gain.connect(targetOutputNode);
                     noise.start(now); noise.stop(now + 0.05);
                 }
 
-            // 8. 🔔 タンバリン
             } else if (trackType === 'tambourine') {
                 const noise = audioCtx.createBufferSource();
                 const filter = audioCtx.createBiquadFilter();
                 const gain = audioCtx.createGain();
-
                 noise.buffer = noiseBuffer;
                 filter.type = 'highpass'; filter.frequency.setValueAtTime(4800, now);
-
                 gain.gain.setValueAtTime(velocity * 0.55, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-
                 noise.connect(filter); filter.connect(gain); gain.connect(targetOutputNode);
                 noise.start(now); noise.stop(now + 0.06);
 
-            // 9. 🎛️ チョッパーベース
             } else if (trackType === 'chopper') {
                 const osc = audioCtx.createOscillator();
                 const slap = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-
                 osc.type = 'square'; slap.type = 'triangle';
                 osc.frequency.setValueAtTime(freq / 2, now);
                 slap.frequency.setValueAtTime(freq * 3, now);
-
                 gain.gain.setValueAtTime(velocity * 1.35, now);
                 gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
-
                 osc.connect(gain); slap.connect(gain); gain.connect(targetOutputNode);
                 osc.start(now); slap.start(now);
                 osc.stop(now + 0.2); slap.stop(now + 0.2);
@@ -910,7 +1018,6 @@ Fade out... Fin.</p>
         function playKeyboardNote(noteName) {
             const expr = { note: noteName, duration: currentParams.duration, velocity: currentParams.velocity };
             playSoundWithExpression(activeTrack, expr, currentStepPointer);
-
             tracksData[activeTrack][activeBar - 1][currentStepPointer] = expr;
             
             userRecordedNotesHistory.push(noteName);
@@ -985,10 +1092,8 @@ Fade out... Fin.</p>
         }
 
         function clearAllTracksData() {
-            if (confirm("本当にすべてのトラック（全84小節）のデータをクリアしますか？")) {
-                Object.keys(tracksData).forEach(trackKey => {
-                    tracksData[trackKey] = createEmptyTrackExpression16();
-                });
+            if (confirm("本当にすべてのトラック（全34小節）のデータをクリアしますか？")) {
+                Object.keys(tracksData).forEach(trackKey => { tracksData[trackKey] = createEmptyTrackExpression16(); });
                 currentStepPointer = 0;
                 updatePointerDisplay();
                 renderStepGrid16();
@@ -997,9 +1102,8 @@ Fade out... Fin.</p>
         }
 
         function generateAILyrics() {
-            const sample = `【イントロ】果てしない夜空を切り裂くネオンの光。\n【サビ】響かせろ！MICVICTORY、世界を揺らす魂のメロディ！`;
-            document.getElementById('aiLyricsDisplay').innerText = sample;
-            alert("✨ 800文字構成のAI歌詞ストーリーが更新されました！");
+            document.getElementById('aiLyricsDisplay').innerText = "【イントロ】ネオンの光が未来を照らす。\n【サビ】響かせろ！MICVICTORY、魂のメロディ！";
+            alert("✨ AI歌詞ストーリーが更新されました！");
         }
 
         function generateAIMelodyForTrack(trackName) {
@@ -1016,29 +1120,13 @@ Fade out... Fin.</p>
             };
 
             const profile = trackProfiles[trackName] || trackProfiles.piano;
-
             for(let b=0; b<totalBars; b++) {
                 let barSteps = new Array(16).fill(null);
                 for(let s=0; s<16; s++) {
                     let prob = profile.density;
-
-                    if(trackName === 'drums') {
-                        prob = (s % 4 === 0 || s === 4 || s === 8 || s === 12) ? 0.95 : 0.2;
-                    } else if(trackName === 'tambourine') {
-                        prob = (s % 4 === 2) ? 0.85 : 0.1;
-                    } else if(trackName === 'bass' || trackName === 'chopper') {
-                        prob = (s % 2 === 0) ? 0.8 : 0.25;
-                    } else if(trackName === 'vocal') {
-                        prob = (s % 4 !== 3) ? 0.55 : 0.15;
-                    }
-
+                    if(trackName === 'drums') prob = (s % 4 === 0 || s === 4 || s === 8 || s === 12) ? 0.95 : 0.2;
                     if(Math.random() < prob) {
-                        const randomNote = profile.scale[Math.floor(Math.random() * profile.scale.length)];
-                        barSteps[s] = { 
-                            note: randomNote, 
-                            duration: profile.defaultDur, 
-                            velocity: 0.7 + (Math.random() * 0.2) 
-                        };
+                        barSteps[s] = { note: profile.scale[Math.floor(Math.random() * profile.scale.length)], duration: profile.defaultDur, velocity: 0.7 + (Math.random() * 0.2) };
                     }
                 }
                 tracksData[trackName][b] = barSteps;
@@ -1046,44 +1134,32 @@ Fade out... Fin.</p>
         }
 
         function generateAICompanionMelody() {
-            if(userRecordedNotesHistory.length === 0) {
-                alert("⚠️ まず鍵盤でいくつかの音を弾いてみてください！その演奏に合わせてAIが作曲します。");
-                return;
-            }
-
+            if(userRecordedNotesHistory.length === 0) { alert("⚠️ まず鍵盤で音を弾いてみてください！"); return; }
             const harmonyOffsets = { 'C4': 'E4', 'D4': 'F4', 'E4': 'G4', 'F4': 'A4', 'G4': 'B4', 'A4': 'C5', 'B4': 'D5', 'C5': 'E5' };
-
-            for(let b = 0; b < totalBars; b++) {
+            for(let b=0; b<totalBars; b++) {
                 let barSteps = new Array(16).fill(null);
-                for(let s = 0; s < 16; s++) {
+                for(let s=0; s<16; s++) {
                     if(Math.random() < 0.7) {
                         let baseNote = userRecordedNotesHistory[Math.floor(Math.random() * userRecordedNotesHistory.length)];
-                        let harmonizedNote = harmonyOffsets[baseNote] || 'C4';
-
-                        barSteps[s] = {
-                            note: harmonizedNote,
-                            duration: currentParams.duration,
-                            velocity: 0.8
-                        };
+                        barSteps[s] = { note: harmonyOffsets[baseNote] || 'C4', duration: currentParams.duration, velocity: 0.8 };
                     }
                 }
                 tracksData[activeTrack][b] = barSteps;
             }
-
             renderStepGrid16();
-            alert(`✨ あなたの手動演奏をAIが解析し、 [${trackNamesMap[activeTrack]}] に対旋律を生成しました！`);
+            alert(`✨ [${trackNamesMap[activeTrack]}] に対旋律を生成しました！`);
         }
 
         function generateCurrentTrackAIMelody() {
             generateAIMelodyForTrack(activeTrack);
             renderStepGrid16();
-            alert(`✨ AIが [${trackNamesMap[activeTrack]}] トラックの84小節Bandaiメロディを作成しました！`);
+            alert(`✨ AIが [${trackNamesMap[activeTrack]}] の34小節メロディを作成しました！`);
         }
 
         function generateAllTracksAIMelody() {
             Object.keys(tracksData).forEach(trackKey => generateAIMelodyForTrack(trackKey));
             renderStepGrid16();
-            alert("✨ 全9トラックの84小節Bandai AIメロディが一括生成されました！");
+            alert("✨ 全9トラックの34小節AIメロディが一括生成されました！");
         }
 
         function previewCurrentTrack() {
@@ -1098,14 +1174,13 @@ Fade out... Fin.</p>
         }
 
         function toggleGlobalPlay() {
-            if(isGlobalPlaying) { stopGlobalPlay(); }
-            else { startGlobalPlay(); }
+            if(isGlobalPlaying) { stopGlobalPlay(); } else { startGlobalPlay(); }
         }
 
         function startGlobalPlay() {
             isGlobalPlaying = true;
             document.getElementById('playStatus').className = "w-3 h-3 rounded-full bg-green-500 animate-ping";
-            document.getElementById('statusText').innerText = "84小節 ライブ演奏中...";
+            document.getElementById('statusText').innerText = "34小節 ライブ演奏中...";
             document.getElementById('playIcon').className = "fa-solid fa-pause";
             document.getElementById('playBtnText').innerText = "一時停止";
 
@@ -1128,17 +1203,16 @@ Fade out... Fin.</p>
         function stopGlobalPlay() {
             isGlobalPlaying = false;
             clearInterval(globalPlayInterval);
-
             document.getElementById('playStatus').className = "w-3 h-3 rounded-full bg-red-500";
             document.getElementById('statusText').innerText = "停止中";
             document.getElementById('playIcon').className = "fa-solid fa-play";
-            document.getElementById('playBtnText').innerText = "84小節ライブ再生";
+            document.getElementById('playBtnText').innerText = "34小節ライブ再生";
         }
 
         function openModal(modalId) { document.getElementById(modalId).classList.remove('hidden'); }
         function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
         function saveProject() { closeModal('saveModal'); alert("プロジェクトを保存しました！"); }
-        function releaseAlbum() { closeModal('releaseModal'); alert("アルバムの配信リリース申請が完了しました！"); }
+        function releaseAlbum() { closeModal('releaseModal'); alert("アルバム配信申請が完了しました！"); }
 
         window.onload = function() { initApp(); };
     </script>
