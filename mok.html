@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>目標達成ダッシュボード</title>
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome (Icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen pb-12">
+
+    <!-- Header -->
+    <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2 text-indigo-400">
+                <i class="fa-solid font-bold fa-bullseye text-2xl"></i> Goal Tracker
+            </h1>
+            <div class="flex gap-2">
+                <button id="exportBtn" onclick="exportData()" class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-download"></i> バックアップ
+                </button>
+                <label class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-upload"></i> 復元
+                    <input type="file" id="importFile" onchange="importData(event)" class="hidden" accept=".json">
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 mt-8">
+
+        <!-- Control Bar (Add Goal & Share) -->
+        <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 mb-6">
+            <button onclick="openModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-plus"></i> 新しい目標を追加
+            </button>
+            <div class="flex gap-2">
+                <button onclick="shareList()" class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-xl shadow transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-share-nodes"></i> リスト共有リンク生成
+                </button>
+            </div>
+        </div>
+
+        <!-- Goals Container -->
+        <div id="goalsList" class="grid gap-6 md:grid-cols-2">
+            <!-- JavaScript dynamically populates goals here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-16 border-2 border-dashed border-slate-700 rounded-2xl">
+            <i class="fa-solid fa-flag-checkered text-5xl text-slate-600 mb-3"></i>
+            <p class="text-slate-400 text-lg">登録されている目標がありません。</p>
+            <p class="text-slate-500 text-sm mt-1">「新しい目標を追加」ボタンから設定してみましょう！</p>
+        </div>
+
+    </main>
+
+    <!-- Modal Form (Add / Edit) -->
+    <div id="modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h2 id="modalTitle" class="text-xl font-bold mb-4 text-indigo-300">新しい目標の設定</h2>
+            
+            <form id="goalForm" onsubmit="saveGoal(event)" class="space-y-4">
+                <input type="hidden" id="goalId">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">目標名</label>
+                    <input type="text" id="goalTitle" required placeholder="例: 資格試験に合格する" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">目標達成期日</label>
+                    <input type="datetime-local" id="goalDeadline" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">メモ / 詳細</label>
+                    <textarea id="goalNotes" rows="3" placeholder="達成に向けたメモや詳細を入力..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"></textarea>
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm">キャンセル</button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 font-semibold rounded-lg text-sm transition">保存する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-emerald-600 text-white px-4 py-2.5 rounded-lg shadow-xl translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-2 z-50">
+        <i class="fa-solid fa-circle-check"></i> <span id="toastMsg">通知メッセージ</span>
+    </div>
+
+    <script>
+        // Data Store
+        let goals = [];
+
+        // Load data on start
+        window.addEventListener('DOMContentLoaded', () => {
+            // Check URL query for shared data
+            const urlParams = new URLSearchParams(window.location.search);
+            const sharedData = urlParams.get('shared_goals');
+
+            if (sharedData) {
+                try {
+                    const decoded = JSON.parse(decodeURIComponent(escape(atob(sharedData))));
+                    if (confirm('共有された目標リストを読み込みますか？\n（現在のリストに追加保存されます）')) {
+                        goals = [...goals, ...decoded];
+                        saveToLocalStorage();
+                        // Clear URL params
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                } catch (e) {
+                    showToast('共有データの読み込みに失敗しました');
+                }
+            }
+
+            loadFromLocalStorage();
+            renderGoals();
+            setInterval(updateCountdown, 1000); // 1秒ごとにカウントダウン更新
+        });
+
+        // LocalStorage logic
+        function saveToLocalStorage() {
+            localStorage.setItem('user_goals_data', JSON.stringify(goals));
+        }
+
+        function loadFromLocalStorage() {
+            const data = localStorage.getItem('user_goals_data');
+            if (data) {
+                try { goals = JSON.parse(data); } catch(e) { goals = []; }
+            }
+        }
+
+        // Render goals to DOM
+        function renderGoals() {
+            const container = document.getElementById('goalsList');
+            const emptyState = document.getElementById('emptyState');
+
+            container.innerHTML = '';
+
+            if (goals.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            goals.forEach((goal) => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg relative flex flex-col justify-between";
+                card.id = `goal-card-${goal.id}`;
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="text-lg font-bold text-white leading-tight">${escapeHtml(goal.title)}</h3>
+                            <div class="flex items-center gap-1 text-slate-400">
+                                <button onclick="editGoal('${goal.id}')" class="p-1 hover:text-indigo-400 transition" title="編集"><i class="fa-solid fa-pen-to-square"></i></button>
+                                <button onclick="deleteGoal('${goal.id}')" class="p-1 hover:text-rose-400 transition" title="削除"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-400 mb-4"><i class="fa-regular fa-calendar-check mr-1"></i> 期限: ${new Date(goal.deadline).toLocaleString()}</p>
+                        
+                        <!-- Countdown Display -->
+                        <div class="bg-slate-900 border border-slate-700 rounded-xl p-3 mb-4 text-center">
+                            <div id="timer-${goal.id}" class="text-xl font-bold font-mono text-indigo-400">計算中...</div>
+                        </div>
+
+                        ${goal.notes ? `<p class="text-sm text-slate-300 bg-slate-900/50 p-2.5 rounded-lg border border-slate-700/50 whitespace-pre-wrap mb-4">${escapeHtml(goal.notes)}</p>` : ''}
+                    </div>
+
+                    <!-- Progress/Log Section -->
+                    <div class="border-t border-slate-700/80 pt-3 mt-2">
+                        <div class="flex justify-between items-center text-xs text-slate-400 mb-2">
+                            <span class="font-semibold"><i class="fa-solid fa-list-check mr-1"></i> 進捗記録リスト</span>
+                            <button onclick="addLogPrompt('${goal.id}')" class="text-indigo-400 hover:underline"><i class="fa-solid fa-plus"></i> 記録追加</button>
+                        </div>
+                        <ul class="space-y-1.5 max-h-32 overflow-y-auto pr-1 text-xs text-slate-300">
+                            ${(goal.logs || []).length > 0 ? 
+                                goal.logs.map((log, index) => `
+                                    <li class="bg-slate-900/80 p-2 rounded flex justify-between items-center">
+                                        <span>${escapeHtml(log.text)} <span class="text-[10px] text-slate-500">(${log.date})</span></span>
+                                        <button onclick="deleteLog('${goal.id}',${index})" class="text-slate-500 hover:text-rose-400 ml-2"><i class="fa-solid fa-xmark"></i></button>
+                                    </li>
+                                `).join('') : 
+                                '<li class="text-slate-500 text-center py-1">記録はまだありません</li>'
+                            }
+                        </ul>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            updateCountdown();
+        }
+
+        // Live Countdown Updater
+        function updateCountdown() {
+            const now = new Date().getTime();
+
+            goals.forEach((goal) => {
+                const element = document.getElementById(`timer-${goal.id}`);
+                if (!element) return;
+
+                const target = new Date(goal.deadline).getTime();
+                const distance = target - now;
+
+                if (distance < 0) {
+                    element.innerHTML = `<span class="text-rose-400 font-semibold"><i class="fa-solid fa-flag"></i> 期限切れ / 達成！</span>`;
+                    return;
+                }
+
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                element.innerHTML = `
+                    <span class="text-2xl">${days}</span><span class="text-xs text-slate-400 mr-2">日</span>
+                    <span class="text-xl">${pad(hours)}</span><span class="text-xs text-slate-400 mr-1">:</span>
+                    <span class="text-xl">${pad(minutes)}</span><span class="text-xs text-slate-400 mr-1">:</span>
+                    <span class="text-xl text-amber-400">${pad(seconds)}</span>
+                `;
+            });
+        }
+
+        function pad(n) { return n < 10 ? '0' + n : n; }
+
+        // Goal Form & CRUD Operations
+        function saveGoal(e) {
+            e.preventDefault();
+            const id = document.getElementById('goalId').value;
+            const title = document.getElementById('goalTitle').value.trim();
+            const deadline = document.getElementById('goalDeadline').value;
+            const notes = document.getElementById('goalNotes').value.trim();
+
+            if (id) {
+                // Update
+                const index = goals.findIndex(g => g.id === id);
+                if (index !== -1) {
+                    goals[index].title = title;
+                    goals[index].deadline = deadline;
+                    goals[index].notes = notes;
+                }
+                showToast('目標を更新しました');
+            } else {
+                // Create
+                const newGoal = {
+                    id: Date.now().toString(),
+                    title,
+                    deadline,
+                    notes,
+                    logs: []
+                };
+                goals.push(newGoal);
+                showToast('目標を新しく保存しました');
+            }
+
+            saveToLocalStorage();
+            renderGoals();
+            closeModal();
+        }
+
+        function editGoal(id) {
+            const goal = goals.find(g => g.id === id);
+            if (!goal) return;
+
+            document.getElementById('modalTitle').innerText = '目標の編集';
+            document.getElementById('goalId').value = goal.id;
+            document.getElementById('goalTitle').value = goal.title;
+            document.getElementById('goalDeadline').value = goal.deadline;
+            document.getElementById('goalNotes').value = goal.notes || '';
+            
+            openModal();
+        }
+
+        function deleteGoal(id) {
+            if (confirm('この目標を削除してもよろしいですか？')) {
+                goals = goals.filter(g => g.id !== id);
+                saveToLocalStorage();
+                renderGoals();
+                showToast('目標を削除しました');
+            }
+        }
+
+        // Progress Log Management
+        function addLogPrompt(goalId) {
+            const text = prompt('本日の進捗や一言メモを入力してください:');
+            if (text && text.trim()) {
+                const goal = goals.find(g => g.id === goalId);
+                if (goal) {
+                    if (!goal.logs) goal.logs = [];
+                    const today = new Date();
+                    const dateStr = `${today.getMonth()+1}/${today.getDate()} ${pad(today.getHours())}:${pad(today.getMinutes())}`;
+                    goal.logs.unshift({ text: text.trim(), date: dateStr });
+                    saveToLocalStorage();
+                    renderGoals();
+                    showToast('記録を追加しました');
+                }
+            }
+        }
+
+        function deleteLog(goalId, logIndex) {
+            const goal = goals.find(g => g.id === goalId);
+            if (goal && goal.logs) {
+                goal.logs.splice(logIndex, 1);
+                saveToLocalStorage();
+                renderGoals();
+                showToast('記録を削除しました');
+            }
+        }
+
+        // Share Feature (Encodes goals to URL query parameter)
+        function shareList() {
+            if (goals.length === 0) {
+                alert('共有する目標がありません。');
+                return;
+            }
+            try {
+                const jsonStr = JSON.stringify(goals);
+                const encoded = btoa(unescape(encodeURIComponent(jsonStr)));
+                const shareUrl = `${window.location.origin}${window.location.pathname}?shared_goals=${encoded}`;
+
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    showToast('共有URLをクリップボードにコピーしました！');
+                }).catch(() => {
+                    prompt('以下のURLをコピーして共有してください:', shareUrl);
+                });
+            } catch (e) {
+                alert('データサイズが大きすぎるため、共有リンクを作成できません。ファイル保存機能を使用してください。');
+            }
+        }
+
+        // Save & Restore File Backup (JSON)
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(goals, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `goals_backup_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast('バックアップファイルを保存しました');
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedGoals = JSON.parse(e.target.result);
+                    if (Array.isArray(importedGoals)) {
+                        if (confirm('既存のリストを上書きしてバックアップを復元しますか？')) {
+                            goals = importedGoals;
+                            saveToLocalStorage();
+                            renderGoals();
+                            showToast('データを復元しました');
+                        }
+                    } else {
+                        alert('無効なファイル形式です。');
+                    }
+                } catch (err) {
+                    alert('ファイルの読み込みに失敗しました。');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // UI Helpers (Modal / Toast)
+        function openModal() {
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+            document.getElementById('goalForm').reset();
+            document.getElementById('goalId').value = '';
+            document.getElementById('modalTitle').innerText = '新しい目標の設定';
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>
