@@ -3,15 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>目標達成ダッシュボード（Googleドライブ連携版）</title>
+    <title>目標達成ダッシュボード</title>
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome (Icons) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Identity Services -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <!-- Google API Client Library -->
-    <script src="https://apis.google.com/js/api.js" async defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
@@ -26,28 +22,12 @@
                 <i class="fa-solid font-bold fa-bullseye text-2xl"></i> Goal Tracker
             </h1>
             <div class="flex items-center gap-2">
-                <!-- Google Drive Auth / Sync Buttons -->
-                <button id="authBtn" onclick="handleAuthClick()" class="text-sm bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
-                    <i class="fa-brands fa-google"></i> Googleログイン
-                </button>
-                <div id="driveSyncContainer" class="hidden flex gap-2">
-                    <button onclick="saveToDrive()" class="text-sm bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5" title="Googleドライブに保存">
-                        <i class="fa-solid fa-cloud-arrow-up"></i> ドライブ保存
-                    </button>
-                    <button onclick="loadFromDrive()" class="text-sm bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5" title="Googleドライブから読込">
-                        <i class="fa-solid fa-cloud-arrow-down"></i> ドライブ読込
-                    </button>
-                    <button onclick="handleSignoutClick()" class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg transition" title="ログアウト">
-                        <i class="fa-solid fa-right-from-bracket"></i>
-                    </button>
-                </div>
-
                 <!-- Local Backup/Restore -->
                 <button id="exportBtn" onclick="exportData()" class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5" title="ローカルバックアップ">
-                    <i class="fa-solid fa-download"></i>
+                    <i class="fa-solid fa-download"></i> バックアップ
                 </button>
                 <label class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5 cursor-pointer" title="ローカル復元">
-                    <i class="fa-solid fa-upload"></i>
+                    <i class="fa-solid fa-upload"></i> 復元
                     <input type="file" id="importFile" onchange="importData(event)" class="hidden" accept=".json">
                 </label>
             </div>
@@ -118,191 +98,6 @@
     </div>
 
     <script>
-        // ======= Google Drive API 設定 =======
-        // ※Google Cloud Consoleで取得したクライアントIDをここに設定してください
-        const CLIENT_ID = 'YOUR_CLIENT_ID_HERE.apps.googleusercontent.com';
-        const API_KEY = ''; // 必要に応じてAPIキー
-        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
-        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
-        const DRIVE_FILENAME = 'goal_tracker_backup.json';
-
-        let tokenClient;
-        let gapiInited = false;
-        let gisInited = false;
-
-        function checkLoaded() {
-            if (gapiInited && gisInited) {
-                // 初期化完了時の処理があればここに記述
-            }
-        }
-
-        function gapiLoaded() {
-            gapi.load('client', initializeGapiClient);
-        }
-
-        async function initializeGapiClient() {
-            await gapi.client.init({
-                apiKey: API_KEY,
-                discoveryDocs: [DISCOVERY_DOC],
-            });
-            gapiInited = true;
-            checkLoaded();
-        }
-
-        function gisLoaded() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: '', // 後から動的に指定
-            });
-            gisInited = true;
-            checkLoaded();
-        }
-
-        function handleAuthClick() {
-            tokenClient.callback = async (resp) => {
-                if (resp.error !== undefined) {
-                    throw (resp);
-                }
-                document.getElementById('authBtn').classList.add('hidden');
-                document.getElementById('driveSyncContainer').classList.remove('hidden');
-                showToast('Googleアカウントにログインしました');
-            };
-
-            if (gapi.client.getToken() === null) {
-                tokenClient.requestAccessToken({prompt: 'consent'});
-            } else {
-                tokenClient.requestAccessToken({prompt: ''});
-            }
-        }
-
-        function handleSignoutClick() {
-            const token = gapi.client.getToken();
-            if (token !== null) {
-                google.accounts.oauth2.revoke(token.access_token, () => {
-                    gapi.client.setToken('');
-                    document.getElementById('authBtn').classList.remove('hidden');
-                    document.getElementById('driveSyncContainer').classList.add('hidden');
-                    showToast('ログアウトしました');
-                });
-            }
-        }
-
-        // Googleドライブへ保存（アップロード / 更新）
-        async function saveToDrive() {
-            try {
-                showToast('Googleドライブに保存中...');
-                const content = JSON.stringify(goals, null, 2);
-                
-                // 既存の同名ファイルがあるか検索
-                const response = await gapi.client.drive.files.list({
-                    q: `name = '${DRIVE_FILENAME}' and trashed = false`,
-                    spaces: 'drive',
-                    fields: 'files(id, name)',
-                });
-
-                const files = response.result.files;
-                const fileMetadata = {
-                    name: DRIVE_FILENAME,
-                    mimeType: 'application/json'
-                };
-
-                const media = {
-                    mimeType: 'application/json',
-                    body: content
-                };
-
-                if (files && files.length > 0) {
-                    // 既存ファイルを更新
-                    const fileId = files[0].id;
-                    await gapi.client.request({
-                        path: `/upload/drive/v3/files/${fileId}`,
-                        method: 'PATCH',
-                        params: { uploadType: 'multipart' },
-                        headers: { 'Content-Type': 'multipart/related' },
-                        body: createMultiPartBody(fileMetadata, media)
-                    });
-                } else {
-                    // 新規作成
-                    await gapi.client.request({
-                        path: '/upload/drive/v3/files',
-                        method: 'POST',
-                        params: { uploadType: 'multipart' },
-                        headers: { 'Content-Type': 'multipart/related' },
-                        body: createMultiPartBody(fileMetadata, media)
-                    });
-                }
-                showToast('Googleドライブへの保存が完了しました！');
-            } catch (err) {
-                console.error(err);
-                alert('Googleドライブへの保存に失敗しました。');
-            }
-        }
-
-        // Googleドライブから読み込み（復元）
-        async function loadFromDrive() {
-            try {
-                showToast('Googleドライブから読み込み中...');
-                const response = await gapi.client.drive.files.list({
-                    q: `name = '${DRIVE_FILENAME}' and trashed = false`,
-                    spaces: 'drive',
-                    fields: 'files(id, name)',
-                });
-
-                const files = response.result.files;
-                if (!files || files.length === 0) {
-                    alert('Googleドライブ上にバックアップファイルが見つかりません。');
-                    return;
-                }
-
-                const fileId = files[0].id;
-                const fileResponse = await gapi.client.drive.files.get({
-                    fileId: fileId,
-                    alt: 'media'
-                });
-
-                let loadedData;
-                if (typeof fileResponse.body === 'string') {
-                    loadedData = JSON.parse(fileResponse.body);
-                } else {
-                    loadedData = fileResponse.result;
-                }
-
-                if (Array.isArray(loadedData)) {
-                    if (confirm('Googleドライブのデータで現在のリストを上書きしますか？')) {
-                        goals = loadedData;
-                        saveToLocalStorage();
-                        renderGoals();
-                        showToast('Googleドライブからデータを復元しました！');
-                    }
-                } else {
-                    alert('データ形式が無効です。');
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Googleドライブからの読み込みに失敗しました。');
-            }
-        }
-
-        // Multipartリクエスト用ボディ生成ヘルパー
-        function createMultiPartBody(metadata, media) {
-            const boundary = '-------314159265358979323846';
-            const delimiter = "\r\n--" + boundary + "\r\n";
-            const close_delim = "\r\n--" + boundary + "--";
-
-            let multipartRequestBody =
-                delimiter +
-                'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
-                JSON.stringify(metadata) +
-                delimiter +
-                'Content-Type: ' + media.mimeType + '\r\n\r\n' +
-                media.body +
-                close_delim;
-
-            return multipartRequestBody;
-        }
-
-
         // ======= アプリケーション本体のロジック =======
         let goals = [];
 
@@ -360,8 +155,9 @@
                 card.innerHTML = `
                     <div>
                         <div class="flex justify-between items-start mb-2">
-                            <h3 class="text-lg font-bold text-white leading-tight">${escapeHtml(goal.title)}</h3>
-                            <div class="flex items-center gap-1 text-slate-400">
+                            <h3 class="text-lg font-bold text-white leading-tight pr-2">${escapeHtml(goal.title)}</h3>
+                            <div class="flex items-center gap-1 text-slate-400 shrink-0">
+                                <button onclick="copyGoalSummary('${goal.id}')" class="p-1 hover:text-emerald-400 transition" title="カード内容をコピー"><i class="fa-regular fa-copy"></i></button>
                                 <button onclick="editGoal('${goal.id}')" class="p-1 hover:text-indigo-400 transition" title="編集"><i class="fa-solid fa-pen-to-square"></i></button>
                                 <button onclick="deleteGoal('${goal.id}')" class="p-1 hover:text-rose-400 transition" title="削除"><i class="fa-solid fa-trash-can"></i></button>
                             </div>
@@ -385,7 +181,10 @@
                                 goal.logs.map((log, index) => `
                                     <li class="bg-slate-900/80 p-2 rounded flex justify-between items-center">
                                         <span>${escapeHtml(log.text)} <span class="text-[10px] text-slate-500">(${log.date})</span></span>
-                                        <button onclick="deleteLog('${goal.id}',${index})" class="text-slate-500 hover:text-rose-400 ml-2"><i class="fa-solid fa-xmark"></i></button>
+                                        <div class="flex items-center gap-1 shrink-0 ml-2">
+                                            <button onclick="copyText('${escapeJsString(log.text)}')" class="text-slate-500 hover:text-emerald-400" title="テキストをコピー"><i class="fa-regular fa-copy"></i></button>
+                                            <button onclick="deleteLog('${goal.id}',${index})" class="text-slate-500 hover:text-rose-400" title="削除"><i class="fa-solid fa-xmark"></i></button>
+                                        </div>
                                     </li>
                                 `).join('') : 
                                 '<li class="text-slate-500 text-center py-1">記録はまだありません</li>'
@@ -510,6 +309,35 @@
             }
         }
 
+        // ======= コピー機能 =======
+        function copyText(text) {
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('クリップボードにコピーしました！');
+            }).catch(() => {
+                showToast('コピーに失敗しました');
+            });
+        }
+
+        function copyGoalSummary(id) {
+            const goal = goals.find(g => g.id === id);
+            if (!goal) return;
+
+            let summary = `【目標】${goal.title}\n`;
+            summary += `【期日】${new Date(goal.deadline).toLocaleString()}\n`;
+            if (goal.notes) {
+                summary += `【メモ】\n${goal.notes}\n`;
+            }
+            if (goal.logs && goal.logs.length > 0) {
+                summary += `【進捗記録】\n`;
+                goal.logs.forEach(log => {
+                    summary += `・${log.text} (${log.date})\n`;
+                });
+            }
+
+            copyText(summary.trim());
+        }
+
         function shareList() {
             if (goals.length === 0) {
                 alert('共有する目標がありません。');
@@ -589,10 +417,10 @@
         function escapeHtml(str) {
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
+
+        function escapeJsString(str) {
+            return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+        }
     </script>
-    <!-- Google API & GIS Scripts Loader -->
-    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 </body>
 </html>
-
