@@ -3,11 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>目標達成ダッシュボード</title>
+    <title>目標達成ダッシュボード（Googleドライブ連携版）</title>
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome (Icons) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Google API Client Library -->
+    <script src="https://apis.google.com/js/api.js" async defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
@@ -21,12 +25,29 @@
             <h1 class="text-xl font-bold flex items-center gap-2 text-indigo-400">
                 <i class="fa-solid font-bold fa-bullseye text-2xl"></i> Goal Tracker
             </h1>
-            <div class="flex gap-2">
-                <button id="exportBtn" onclick="exportData()" class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-download"></i> バックアップ
+            <div class="flex items-center gap-2">
+                <!-- Google Drive Auth / Sync Buttons -->
+                <button id="authBtn" onclick="handleAuthClick()" class="text-sm bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+                    <i class="fa-brands fa-google"></i> Googleログイン
                 </button>
-                <label class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5 cursor-pointer">
-                    <i class="fa-solid fa-upload"></i> 復元
+                <div id="driveSyncContainer" class="hidden flex gap-2">
+                    <button onclick="saveToDrive()" class="text-sm bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5" title="Googleドライブに保存">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> ドライブ保存
+                    </button>
+                    <button onclick="loadFromDrive()" class="text-sm bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5" title="Googleドライブから読込">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> ドライブ読込
+                    </button>
+                    <button onclick="handleSignoutClick()" class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg transition" title="ログアウト">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+
+                <!-- Local Backup/Restore -->
+                <button id="exportBtn" onclick="exportData()" class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5" title="ローカルバックアップ">
+                    <i class="fa-solid fa-download"></i>
+                </button>
+                <label class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5 cursor-pointer" title="ローカル復元">
+                    <i class="fa-solid fa-upload"></i>
                     <input type="file" id="importFile" onchange="importData(event)" class="hidden" accept=".json">
                 </label>
             </div>
@@ -35,7 +56,7 @@
 
     <main class="max-w-4xl mx-auto px-4 mt-8">
 
-        <!-- Control Bar (Add Goal & Share) -->
+        <!-- Control Bar -->
         <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 mb-6">
             <button onclick="openModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
                 <i class="fa-solid fa-plus"></i> 新しい目標を追加
@@ -97,12 +118,195 @@
     </div>
 
     <script>
-        // Data Store
+        // ======= Google Drive API 設定 =======
+        // ※Google Cloud Consoleで取得したクライアントIDをここに設定してください
+        const CLIENT_ID = 'YOUR_CLIENT_ID_HERE.apps.googleusercontent.com';
+        const API_KEY = ''; // 必要に応じてAPIキー
+        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
+        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+        const DRIVE_FILENAME = 'goal_tracker_backup.json';
+
+        let tokenClient;
+        let gapiInited = false;
+        let gisInited = false;
+
+        function checkLoaded() {
+            if (gapiInited && gisInited) {
+                // 初期化完了時の処理があればここに記述
+            }
+        }
+
+        function gapiLoaded() {
+            gapi.load('client', initializeGapiClient);
+        }
+
+        async function initializeGapiClient() {
+            await gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: [DISCOVERY_DOC],
+            });
+            gapiInited = true;
+            checkLoaded();
+        }
+
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: '', // 後から動的に指定
+            });
+            gisInited = true;
+            checkLoaded();
+        }
+
+        function handleAuthClick() {
+            tokenClient.callback = async (resp) => {
+                if (resp.error !== undefined) {
+                    throw (resp);
+                }
+                document.getElementById('authBtn').classList.add('hidden');
+                document.getElementById('driveSyncContainer').classList.remove('hidden');
+                showToast('Googleアカウントにログインしました');
+            };
+
+            if (gapi.client.getToken() === null) {
+                tokenClient.requestAccessToken({prompt: 'consent'});
+            } else {
+                tokenClient.requestAccessToken({prompt: ''});
+            }
+        }
+
+        function handleSignoutClick() {
+            const token = gapi.client.getToken();
+            if (token !== null) {
+                google.accounts.oauth2.revoke(token.access_token, () => {
+                    gapi.client.setToken('');
+                    document.getElementById('authBtn').classList.remove('hidden');
+                    document.getElementById('driveSyncContainer').classList.add('hidden');
+                    showToast('ログアウトしました');
+                });
+            }
+        }
+
+        // Googleドライブへ保存（アップロード / 更新）
+        async function saveToDrive() {
+            try {
+                showToast('Googleドライブに保存中...');
+                const content = JSON.stringify(goals, null, 2);
+                
+                // 既存の同名ファイルがあるか検索
+                const response = await gapi.client.drive.files.list({
+                    q: `name = '${DRIVE_FILENAME}' and trashed = false`,
+                    spaces: 'drive',
+                    fields: 'files(id, name)',
+                });
+
+                const files = response.result.files;
+                const fileMetadata = {
+                    name: DRIVE_FILENAME,
+                    mimeType: 'application/json'
+                };
+
+                const media = {
+                    mimeType: 'application/json',
+                    body: content
+                };
+
+                if (files && files.length > 0) {
+                    // 既存ファイルを更新
+                    const fileId = files[0].id;
+                    await gapi.client.request({
+                        path: `/upload/drive/v3/files/${fileId}`,
+                        method: 'PATCH',
+                        params: { uploadType: 'multipart' },
+                        headers: { 'Content-Type': 'multipart/related' },
+                        body: createMultiPartBody(fileMetadata, media)
+                    });
+                } else {
+                    // 新規作成
+                    await gapi.client.request({
+                        path: '/upload/drive/v3/files',
+                        method: 'POST',
+                        params: { uploadType: 'multipart' },
+                        headers: { 'Content-Type': 'multipart/related' },
+                        body: createMultiPartBody(fileMetadata, media)
+                    });
+                }
+                showToast('Googleドライブへの保存が完了しました！');
+            } catch (err) {
+                console.error(err);
+                alert('Googleドライブへの保存に失敗しました。');
+            }
+        }
+
+        // Googleドライブから読み込み（復元）
+        async function loadFromDrive() {
+            try {
+                showToast('Googleドライブから読み込み中...');
+                const response = await gapi.client.drive.files.list({
+                    q: `name = '${DRIVE_FILENAME}' and trashed = false`,
+                    spaces: 'drive',
+                    fields: 'files(id, name)',
+                });
+
+                const files = response.result.files;
+                if (!files || files.length === 0) {
+                    alert('Googleドライブ上にバックアップファイルが見つかりません。');
+                    return;
+                }
+
+                const fileId = files[0].id;
+                const fileResponse = await gapi.client.drive.files.get({
+                    fileId: fileId,
+                    alt: 'media'
+                });
+
+                let loadedData;
+                if (typeof fileResponse.body === 'string') {
+                    loadedData = JSON.parse(fileResponse.body);
+                } else {
+                    loadedData = fileResponse.result;
+                }
+
+                if (Array.isArray(loadedData)) {
+                    if (confirm('Googleドライブのデータで現在のリストを上書きしますか？')) {
+                        goals = loadedData;
+                        saveToLocalStorage();
+                        renderGoals();
+                        showToast('Googleドライブからデータを復元しました！');
+                    }
+                } else {
+                    alert('データ形式が無効です。');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Googleドライブからの読み込みに失敗しました。');
+            }
+        }
+
+        // Multipartリクエスト用ボディ生成ヘルパー
+        function createMultiPartBody(metadata, media) {
+            const boundary = '-------314159265358979323846';
+            const delimiter = "\r\n--" + boundary + "\r\n";
+            const close_delim = "\r\n--" + boundary + "--";
+
+            let multipartRequestBody =
+                delimiter +
+                'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+                JSON.stringify(metadata) +
+                delimiter +
+                'Content-Type: ' + media.mimeType + '\r\n\r\n' +
+                media.body +
+                close_delim;
+
+            return multipartRequestBody;
+        }
+
+
+        // ======= アプリケーション本体のロジック =======
         let goals = [];
 
-        // Load data on start
         window.addEventListener('DOMContentLoaded', () => {
-            // Check URL query for shared data
             const urlParams = new URLSearchParams(window.location.search);
             const sharedData = urlParams.get('shared_goals');
 
@@ -112,7 +316,6 @@
                     if (confirm('共有された目標リストを読み込みますか？\n（現在のリストに追加保存されます）')) {
                         goals = [...goals, ...decoded];
                         saveToLocalStorage();
-                        // Clear URL params
                         window.history.replaceState({}, document.title, window.location.pathname);
                     }
                 } catch (e) {
@@ -122,10 +325,9 @@
 
             loadFromLocalStorage();
             renderGoals();
-            setInterval(updateCountdown, 1000); // 1秒ごとにカウントダウン更新
+            setInterval(updateCountdown, 1000);
         });
 
-        // LocalStorage logic
         function saveToLocalStorage() {
             localStorage.setItem('user_goals_data', JSON.stringify(goals));
         }
@@ -137,7 +339,6 @@
             }
         }
 
-        // Render goals to DOM
         function renderGoals() {
             const container = document.getElementById('goalsList');
             const emptyState = document.getElementById('emptyState');
@@ -167,7 +368,6 @@
                         </div>
                         <p class="text-xs text-slate-400 mb-4"><i class="fa-regular fa-calendar-check mr-1"></i> 期限: ${new Date(goal.deadline).toLocaleString()}</p>
                         
-                        <!-- Countdown Display -->
                         <div class="bg-slate-900 border border-slate-700 rounded-xl p-3 mb-4 text-center">
                             <div id="timer-${goal.id}" class="text-xl font-bold font-mono text-indigo-400">計算中...</div>
                         </div>
@@ -175,7 +375,6 @@
                         ${goal.notes ? `<p class="text-sm text-slate-300 bg-slate-900/50 p-2.5 rounded-lg border border-slate-700/50 whitespace-pre-wrap mb-4">${escapeHtml(goal.notes)}</p>` : ''}
                     </div>
 
-                    <!-- Progress/Log Section -->
                     <div class="border-t border-slate-700/80 pt-3 mt-2">
                         <div class="flex justify-between items-center text-xs text-slate-400 mb-2">
                             <span class="font-semibold"><i class="fa-solid fa-list-check mr-1"></i> 進捗記録リスト</span>
@@ -200,7 +399,6 @@
             updateCountdown();
         }
 
-        // Live Countdown Updater
         function updateCountdown() {
             const now = new Date().getTime();
 
@@ -232,7 +430,6 @@
 
         function pad(n) { return n < 10 ? '0' + n : n; }
 
-        // Goal Form & CRUD Operations
         function saveGoal(e) {
             e.preventDefault();
             const id = document.getElementById('goalId').value;
@@ -241,7 +438,6 @@
             const notes = document.getElementById('goalNotes').value.trim();
 
             if (id) {
-                // Update
                 const index = goals.findIndex(g => g.id === id);
                 if (index !== -1) {
                     goals[index].title = title;
@@ -250,7 +446,6 @@
                 }
                 showToast('目標を更新しました');
             } else {
-                // Create
                 const newGoal = {
                     id: Date.now().toString(),
                     title,
@@ -289,7 +484,6 @@
             }
         }
 
-        // Progress Log Management
         function addLogPrompt(goalId) {
             const text = prompt('本日の進捗や一言メモを入力してください:');
             if (text && text.trim()) {
@@ -316,7 +510,6 @@
             }
         }
 
-        // Share Feature (Encodes goals to URL query parameter)
         function shareList() {
             if (goals.length === 0) {
                 alert('共有する目標がありません。');
@@ -333,11 +526,10 @@
                     prompt('以下のURLをコピーして共有してください:', shareUrl);
                 });
             } catch (e) {
-                alert('データサイズが大きすぎるため、共有リンクを作成できません。ファイル保存機能を使用してください。');
+                alert('データサイズが大きすぎるため、共有リンクを作成できません。');
             }
         }
 
-        // Save & Restore File Backup (JSON)
         function exportData() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(goals, null, 2));
             const downloadAnchor = document.createElement('a');
@@ -374,7 +566,6 @@
             reader.readAsText(file);
         }
 
-        // UI Helpers (Modal / Toast)
         function openModal() {
             document.getElementById('modal').classList.remove('hidden');
         }
@@ -399,5 +590,8 @@
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
     </script>
+    <!-- Google API & GIS Scripts Loader -->
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 </body>
 </html>
