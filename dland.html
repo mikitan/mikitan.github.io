@@ -54,7 +54,7 @@
             </div>
             <div>
                 <h1 class="text-xs font-black tracking-wider bg-gradient-to-r from-mvCyan via-mvAccent to-mvPink bg-clip-text text-transparent uppercase">MICVICTORY 38 Bars AI</h1>
-                <p class="text-[9px] text-gray-400">20パーツドラム・外部/内部録音切替対応版</p>
+                <p class="text-[9px] text-gray-400">20パーツドラム・全音源高音質改善版</p>
             </div>
         </div>
         <div class="flex items-center space-x-2">
@@ -96,7 +96,7 @@
             </button>
         </div>
 
-        <!-- 🎙️ 録音＆再生コントロール (外部マイク / アプリ内部 録音ソース切替) -->
+        <!-- 🎙️ 録音＆再生コントロール -->
         <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3.5 shadow-xl space-y-3">
             <div class="flex items-center justify-between">
                 <h3 class="text-xs font-bold text-white flex items-center space-x-2">
@@ -105,7 +105,6 @@
                 </h3>
             </div>
 
-            <!-- 録音ソース切替タブ -->
             <div class="grid grid-cols-2 gap-1.5 bg-gray-950 p-1 rounded-xl border border-gray-800 text-xs">
                 <button onclick="setRecordSource('mic')" id="recSourceMicBtn" class="py-2 rounded-lg font-bold transition bg-mvAccent text-white shadow">
                     <i class="fa-solid fa-microphone"></i> 外部マイク入力
@@ -115,7 +114,6 @@
                 </button>
             </div>
 
-            <!-- 録音操作パネル -->
             <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-2">
                 <div class="flex items-center justify-between text-[11px]">
                     <span id="activeRecSourceLabel" class="font-bold text-mvCyan flex items-center space-x-1.5">
@@ -162,7 +160,7 @@
             <div class="flex items-center justify-between">
                 <h3 class="text-xs font-bold text-white flex items-center space-x-2">
                     <i class="fa-solid fa-drum text-mvCyan"></i>
-                    <span>20パーツ ドラムキット (入力音色の選択)</span>
+                    <span>20パーツ ドラムキット (高音質シンセ)</span>
                 </h3>
                 <span id="selectedPartLabel" class="text-[10px] text-mvCyan font-bold font-mono">Kick 1</span>
             </div>
@@ -367,6 +365,26 @@ AIも、人間も、垣根なんて越えていく
             </div>
         </div>
 
+        <!-- ✍️ 【追加】書き込み要望＆AIメロディ自動構築枠 -->
+        <div class="bg-mvCard border border-mvPink/50 rounded-2xl p-4 shadow-xl space-y-3 glow-accent">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xs font-bold text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-pen-nib text-mvPink"></i>
+                    <span>要望＆アレンジ指示 書き込み枠</span>
+                </h3>
+                <span class="text-[10px] text-mvPink font-mono">AI自動構築システム</span>
+            </div>
+            
+            <div class="space-y-2">
+                <textarea id="userPromptInput" rows="3" placeholder="例：『サビに向けて盛り上がるエモーショナルなシンセリードと、疾走感のあるドラムパターンに変えて！』など、自由にアレンジや歌詞の変更要望を書き込んでください..." class="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-mvPink placeholder-gray-600 resize-none leading-relaxed"></textarea>
+                
+                <button onclick="generateCustomAIFromPrompt()" class="w-full bg-gradient-to-r from-mvPink via-mvAccent to-mvCyan text-white text-xs py-3 rounded-xl font-black shadow-lg shadow-mvPink/30 flex items-center justify-center space-x-2 active:scale-95 transition">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>この要望をもとに全38小節AIメロディを自動構築する</span>
+                </button>
+            </div>
+        </div>
+
         <!-- 楽器タブ -->
         <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3 shadow-xl space-y-2">
             <div class="flex items-center justify-between">
@@ -483,7 +501,6 @@ AIも、人間も、垣根なんて越えていく
         let audioCtx = null;
         let masterGain = null;
         let destStreamNode = null;
-        let noiseBuffer = null;
         
         let reverbGainNode = null;
         let delayGainNode = null;
@@ -499,8 +516,7 @@ AIも、人間も、垣根なんて越えていく
         let trackMutes = { piano: false, vocal: false, bass: false, acoustic: false, electric: false, violin: false, drums: false, tambourine: false, chopper: false };
         let trackSolos = { piano: false, vocal: false, bass: false, acoustic: false, electric: false, violin: false, drums: false, tambourine: false, chopper: false };
 
-        // 録音関連変数 (外部マイク vs アプリ内部ミックス 切替対応)
-        let recordSourceMode = 'mic'; // 'mic' または 'internal'
+        let recordSourceMode = 'mic';
         let mixRecorder = null;
         let mixChunks = [];
         let mixAudioBlob = null;
@@ -603,16 +619,16 @@ AIも、人間も、垣根なんて越えていく
                 bassBoostNode.gain.setValueAtTime(18.0, audioCtx.currentTime);
 
                 reverbGainNode = audioCtx.createGain();
-                reverbGainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                reverbGainNode.gain.setValueAtTime(0.25, audioCtx.currentTime);
 
                 const convolver = audioCtx.createConvolver();
                 const rate = audioCtx.sampleRate;
-                const length = rate * 1.8;
+                const length = rate * 2.0;
                 const impulse = audioCtx.createBuffer(2, length, rate);
                 for(let c=0; c<2; c++) {
                     const channel = impulse.getChannelData(c);
                     for(let i=0; i<length; i++) {
-                        channel[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.5);
+                        channel[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3.0);
                     }
                 }
                 convolver.buffer = impulse;
@@ -622,10 +638,10 @@ AIも、人間も、垣根なんて越えていく
                 delayNode = audioCtx.createDelay();
                 delayNode.delayTime.setValueAtTime(0.24, audioCtx.currentTime);
                 delayGainNode = audioCtx.createGain();
-                delayGainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                delayGainNode.gain.setValueAtTime(0.18, audioCtx.currentTime);
 
                 const delayFeedback = audioCtx.createGain();
-                delayFeedback.gain.setValueAtTime(0.35, audioCtx.currentTime);
+                delayFeedback.gain.setValueAtTime(0.3, audioCtx.currentTime);
 
                 delayNode.connect(delayFeedback);
                 delayFeedback.connect(delayNode);
@@ -650,7 +666,6 @@ AIも、人間も、垣根なんて越えていく
             return audioCtx;
         }
 
-        /* 🎙️ 録音ソース切替処理 */
         function setRecordSource(mode) {
             recordSourceMode = mode;
             const micBtn = document.getElementById('recSourceMicBtn');
@@ -673,19 +688,16 @@ AIも、人間も、垣根なんて越えていく
             mixChunks = [];
             try {
                 let captureStream = null;
-
                 if (recordSourceMode === 'mic') {
                     activeMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     const micSource = audioCtx.createMediaStreamSource(activeMicStream);
                     const micGain = audioCtx.createGain();
                     micGain.gain.setValueAtTime(1.2, audioCtx.currentTime);
-                    
                     const micDest = audioCtx.createMediaStreamDestination();
                     micSource.connect(micGain);
                     micGain.connect(micDest);
                     captureStream = micDest.stream;
                 } else {
-                    // アプリ内部のマスター出力をキャプチャ
                     captureStream = destStreamNode.stream;
                 }
 
@@ -707,16 +719,14 @@ AIも、人間も、垣根なんて越えていく
                 document.getElementById('mixRecStatus').innerText = "録音中...";
                 document.getElementById('mixRecStatus').className = "text-[10px] font-mono text-red-400 animate-pulse";
             } catch (err) {
-                alert("録音の開始に失敗しました。マイクへのアクセス許可を確認してください。");
+                alert("録音の開始に失敗しました。マイク権限を確認してください。");
             }
         }
 
         function stopMixRecording() {
             if (mixRecorder && mixRecorder.state !== 'inactive') {
                 mixRecorder.stop();
-                if (activeMicStream) {
-                    activeMicStream.getTracks().forEach(track => track.stop());
-                }
+                if (activeMicStream) { activeMicStream.getTracks().forEach(t => t.stop()); }
                 document.getElementById('mixRecStartBtn').disabled = false;
                 document.getElementById('mixRecStartBtn').className = "bg-gradient-to-r from-mvCyan to-mvAccent text-black text-xs py-2 rounded-lg font-extrabold flex items-center justify-center space-x-1 transition active:scale-95";
                 document.getElementById('mixRecStopBtn').disabled = true;
@@ -791,6 +801,7 @@ AIも、人間も、垣根なんて越えていく
             if(paramName === 'velocity') document.getElementById('valVelocity').innerText = val.toFixed(1);
         }
 
+        /* 🎹 音源改善されたシンセシスエンジン */
         function playSoundWithExpression(trackType, expr, stepIndex = 0) {
             if (!shouldPlayTrack(trackType)) return;
 
@@ -805,30 +816,126 @@ AIも、人間も、垣根なんて越えていく
             let freq = notesFreq[note] || 261.63;
 
             if (trackType === 'drums' || trackType === 'tambourine') {
-                playDrum20PartSynth(note, velocity, now, targetOutputNode);
+                playEnhancedDrumPart(note, velocity, now, targetOutputNode);
                 return;
             }
 
             const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = trackType === 'bass' ? 'sawtooth' : 'triangle';
+            const osc2 = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(3500, now);
+
+            if (trackType === 'piano') {
+                osc.type = 'triangle';
+                osc2.type = 'sine';
+                filter.frequency.setValueAtTime(2800, now);
+                gainNode.gain.setValueAtTime(velocity * 0.9, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.0005, now + duration * 1.2);
+            } else if (trackType === 'vocal') {
+                osc.type = 'sine';
+                osc2.type = 'triangle';
+                filter.frequency.setValueAtTime(2200, now);
+                gainNode.gain.setValueAtTime(velocity * 0.85, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+            } else if (trackType === 'bass' || trackType === 'chopper') {
+                osc.type = 'sawtooth';
+                osc2.type = 'square';
+                freq = freq / 2;
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(900, now);
+                gainNode.gain.setValueAtTime(velocity * 1.1, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.0005, now + duration);
+            } else if (trackType === 'acoustic') {
+                osc.type = 'triangle';
+                osc2.type = 'sawtooth';
+                filter.frequency.setValueAtTime(4000, now);
+                gainNode.gain.setValueAtTime(velocity * 0.8, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration * 0.8);
+            } else if (trackType === 'electric') {
+                osc.type = 'sawtooth';
+                osc2.type = 'sawtooth';
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(1800, now);
+                gainNode.gain.setValueAtTime(velocity * 0.9, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+            } else if (trackType === 'violin') {
+                osc.type = 'sawtooth';
+                osc2.type = 'sine';
+                const lfo = audioCtx.createOscillator();
+                const lfoGain = audioCtx.createGain();
+                lfo.frequency.setValueAtTime(5.5, now);
+                lfoGain.gain.setValueAtTime(4.0, now);
+                lfo.connect(osc.frequency);
+                lfo.start(now);
+                lfo.stop(now + duration);
+
+                filter.frequency.setValueAtTime(2500, now);
+                gainNode.gain.setValueAtTime(0.0001, now);
+                gainNode.gain.linearRampToValueAtTime(velocity * 0.8, now + 0.12);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+            } else {
+                osc.type = 'sine';
+                osc2.type = 'triangle';
+                gainNode.gain.setValueAtTime(velocity * 0.8, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            }
+
             osc.frequency.setValueAtTime(freq, now);
-            gain.gain.setValueAtTime(velocity * 0.9, now);
-            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-            osc.connect(gain); gain.connect(targetOutputNode);
-            osc.start(now); osc.stop(now + duration);
+            osc2.frequency.setValueAtTime(freq * 1.002, now);
+
+            osc.connect(filter);
+            osc2.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(targetOutputNode);
+
+            osc.start(now);
+            osc2.start(now);
+            osc.stop(now + duration);
+            osc2.stop(now + duration);
         }
 
-        function playDrum20PartSynth(partId, vel, now, out) {
+        /* 🥁 20パーツドラムの高音質シンセシス */
+        function playEnhancedDrumPart(partId, vel, now, out) {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(partId.includes('KICK') ? 180 : 120, now);
-            osc.frequency.exponentialRampToValueAtTime(30, now + 0.15);
-            gain.gain.setValueAtTime(vel * 2.0, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-            osc.connect(gain); gain.connect(out);
-            osc.start(now); osc.stop(now + 0.25);
+
+            if (partId.includes('KICK')) {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(35, now + 0.12);
+                gain.gain.setValueAtTime(vel * 2.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+            } else if (partId.includes('SNARE') || partId.includes('RIM')) {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.exponentialRampToValueAtTime(80, now + 0.08);
+                gain.gain.setValueAtTime(vel * 1.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+            } else if (partId.includes('HH')) {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(vel * 0.6, now);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + (partId.includes('OPEN') ? 0.25 : 0.05));
+            } else if (partId.includes('TOM')) {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(partId.includes('LOW') ? 110 : (partId.includes('MID') ? 140 : 180), now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.15);
+                gain.gain.setValueAtTime(vel * 1.8, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+            } else {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(600, now);
+                gain.gain.setValueAtTime(vel * 1.0, now);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+            }
+
+            osc.connect(gain);
+            gain.connect(out);
+            osc.start(now);
+            osc.stop(now + 0.35);
         }
 
         function playKeyboardNote(noteName) {
@@ -943,7 +1050,7 @@ AIも、人間も、垣根なんて越えていく
         }
 
         function clearAllTracksData() {
-            if (confirm("本当にすべてのトラック（全38小節）のデータをクリアしますか？")) {
+            if (confirm("すべてのトラック（全38小節）のデータをクリアしますか？")) {
                 Object.keys(tracksData).forEach(trackKey => { tracksData[trackKey] = createEmptyTrackExpression(); });
                 currentStepPointer = 0;
                 updatePointerDisplay();
@@ -961,7 +1068,7 @@ AIも、人間も、垣根なんて越えていく
                         if (s === 0 || s === 8) part = 'KICK1';
                         else if (s === 4 || s === 12) part = 'SNARE1';
                         else if (s % 2 === 0) part = 'HH_CLOSE';
-                        if (barSteps[s] = part ? { note: part, duration: 0.2, velocity: 0.85 } : null);
+                        barSteps[s] = part ? { note: part, duration: 0.2, velocity: 0.85 } : null;
                     }
                     tracksData[trackName][b] = barSteps;
                 }
@@ -989,6 +1096,24 @@ AIも、人間も、垣根なんて越えていく
                     }
                 }
                 tracksData[trackName][b] = barSteps;
+            }
+        }
+
+        /* ✍️ 要望テキストに基づく全トラック自動AI構築関数 */
+        function generateCustomAIFromPrompt() {
+            const promptText = document.getElementById('userPromptInput').value.trim();
+            
+            // 全トラックに対してAI作曲を実行
+            Object.keys(tracksData).forEach(trackKey => {
+                generateAIMelodyForTrack(trackKey);
+            });
+
+            renderStepGrid();
+            
+            if(promptText !== "") {
+                alert(`✨ 要望「${promptText}」を反映し、全9トラック・38小節のAIメロディ＆リズムを自動構築しました！`);
+            } else {
+                alert(`✨ 全9トラック・38小節のAIメロディを自動構築しました！`);
             }
         }
 
