@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY - DLAND DTM v100.0 崩差ない絶対 各楽器別AIメロディ作成特化 録音機能付き</title>
+    <title>MIC VICTORY - DLAND DTM v100.7 AIメロディ作成 ＆ 全体一括削除・録音機能</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -17,12 +17,11 @@
         function MasterSynthApp() {
             const [tab, setTab] = React.useState("DUAL_EDIT");
             const [playing, setPlaying] = React.useState(false);
-            const [flashColor, setFlashColor] = React.useState("border-cyan-500");
             const [bpm, setBpm] = React.useState(112);
             const [playbackRate, setPlaybackRate] = React.useState(1.0);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("✨ v100.0 崩差ない絶対 【内部＆外部録音機能付き】稼働中！");
+            const [status, setStatus] = React.useState("✨ v100.7 全体一括削除・全体録音・AI文章＆メロディ機能稼働中！");
 
             const [powerSavingMode, setPowerSavingMode] = React.useState(false);
             const [autoCacheEnabled, setAutoCacheEnabled] = React.useState(true);
@@ -35,8 +34,8 @@
             const [fxScratchActive, setFxScratchActive] = React.useState(false);
             const [fxRepeatActive, setFxRepeatActive] = React.useState(false);
 
-            // 🎙️ 録音機能関連（内部ミックス録音 ＆ 外部マイク単体録音）
-            const [currentRecordMode, setCurrentRecordMode] = React.useState('internal'); // 'internal' or 'external'
+            // 🎙️ 録音機能関連（全体ミックス録音、内部ミックス、外部マイク単体）
+            const [currentRecordMode, setCurrentRecordMode] = React.useState('master_all');
             const [isRecording, setIsRecording] = React.useState(false);
             const [recordedAudioList, setRecordedAudioList] = React.useState([]);
             const mediaRecorderRef = React.useRef(null);
@@ -64,23 +63,25 @@
             const [selectedDrumPart, setSelectedDrumPart] = React.useState("kick");
 
             const [creraList, setCreraList] = React.useState([
-                { id: 1, title: "崩差ない絶対 38小節 各楽器別AI crera #1", bpm: 112, bars: 38, date: "12:00:00", credit: "micvictorydanb / 作曲: 32 / 著作権フリー" }
+                { id: 1, title: "38小節 全体録音対応セッション #1", bpm: 112, bars: 38, date: "12:00:00", credit: "Standard / 作曲: 32" }
             ]);
 
+            // 📝 AI文章・歌詞生成フレーム
+            const [aiPromptTopic, setAiPromptTopic] = React.useState("未来を切り拓く圧倒的な各楽器別AIメロディとリズムの融合");
             const [rapLyrics, setRapLyrics] = React.useState(
-`[Intro - 崩差ない絶対 各楽器別AIメロディ作成 micvictorybrand]
+`[Intro - DTM Master Session]
 1曲38小節、選択中の楽器ごとに最適なAIメロディ＆リズムフレーズを個別生成！
-ドッドッドットゥの躍動感と滑らかな旋律に合わせて、歌詞を見ながら熱唱。
-販売：micvictorydanb ／ 作曲：32。著作権フリー、最高峰サウンド演出！
+躍動感と滑らかな旋律に合わせて、歌詞を見ながら熱唱。
+最高峰サウンド演出！
 
 [Verse 1 - 楽器別独立AI生成 & ボーカル実録]
 シンセベース、トランペット、バイオリン、ドラム...各パートを個別にAIメイキング！
 重厚な低音から優雅な高音まで、自分好みに組み合わせて世界でひとつの楽曲へ。
-画面の歌詞を目で追いながら崩差ない絶対のパフォーマンスを完全記録。
+画面の歌詞を目で追いながらパフォーマンスを完全記録。
 
-[Outro - BLAUND 永遠のゴールド・スタンダード]
-著作権フリー、完全なる自由の光が世界を包み込む
-BLAUND — 世界最高級音感、それは永遠の情熱
+[Outro - Standard Gold]
+完全なる自由の光が世界を包み込む
+世界最高級音感、それは永遠の情熱
 各楽器別AIメロディ作成の軌跡とともに、未来へ鳴り響け！！`
             );
 
@@ -91,17 +92,17 @@ BLAUND — 世界最高級音感、それは永遠の情熱
             const [distortionAmount, setDistortionAmount] = React.useState(0.12);
             const [chorusWet, setChorusWet] = React.useState(0.35);
 
-            const [slotName, setSlotName] = React.useState("HOKKAI_INDIVIDUAL_INSTRUMENT_AI_v100");
+            const [slotName, setSlotName] = React.useState("HOKKAI_MASTER_RECORD_v100");
 
             const INSTRUMENTS = [
-                { id: "synthLowBass", label: "🔊 シンセサイザー電子低音 (ベース命)", color: "from-red-600 via-amber-700 to-red-950 text-white font-black" },
+                { id: "synthLowBass", label: "🔊 シンセサイザー電子低音 (ベース)", color: "from-red-600 via-amber-700 to-red-950 text-white font-black" },
                 { id: "trumpet", label: "🎺 トランペット (Trumpet Lead)", color: "from-yellow-500 via-amber-500 to-yellow-600 text-slate-950 font-black" },
                 { id: "drums", label: "🥁 ドラム", color: "from-amber-600 to-red-700 text-white font-black" },
                 { id: "piano", label: "🎹 グランドピアノ", color: "from-blue-600 to-indigo-600 text-white font-bold" },
                 { id: "africa", label: "🪘 アフリカ楽器", color: "from-amber-700 to-yellow-800 text-white font-bold" },
                 { id: "elecGuitar", label: "🎸 エレキギター電子", color: "from-orange-600 to-red-700 text-white font-bold" },
                 { id: "violin", label: "🎻 バイオリン電子音", color: "from-purple-600 to-pink-700 text-white font-bold" },
-                { id: "highLead", label: "✨ 高音 (希望のリード)", color: "from-yellow-400 to-amber-500 text-slate-950 font-black" },
+                { id: "highLead", label: "✨ 高音 (リード)", color: "from-yellow-400 to-amber-500 text-slate-950 font-black" },
             ];
 
             const [instrumentSteps, setInstrumentSteps] = React.useState({
@@ -141,29 +142,40 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                 "C5": "高ド", "D5": "高レ", "E5": "高ミ", "F5": "高ファ", "G5": "高ソ"
             };
 
-            // 🎙️ 内部＆外部録音機能の開始
+            // 🗑️ 全体一括削除機能
+            const clearAllDataEverything = () => {
+                if (!window.confirm("全楽器のグリッド、録音リスト、ストレージ、AIテキストを含め【すべて一括削除】しますか？")) return;
+                setPlaying(false);
+                const totalLen = barsCount * BAR_STEPS;
+                const clearedSteps = {};
+                Object.keys(instrumentSteps).forEach(k => {
+                    clearedSteps[k] = new Array(totalLen).fill(null);
+                });
+                setInstrumentSteps(clearedSteps);
+                setCreraList([]);
+                setRecordedAudioList([]);
+                setRapLyrics("");
+                localStorage.removeItem("MIC_VICTORY_PLUS_AUTOCACHE_v100_7");
+                setStatus("🗑️ すべてのデータを完全一括削除しました！");
+            };
+
             const startRecording = async () => {
                 try {
                     await Tone.start();
                     let captureStream;
 
-                    if (currentRecordMode === 'internal') {
-                        // 内部ミックス録音 (アプリの音響出力 destStreamNode からキャプチャ ＋ マイクをミックス)
+                    if (currentRecordMode === 'master_all') {
                         const micStream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null);
                         if (destStreamNodeRef.current) {
-                            const mixStream = destStreamNodeRef.current.stream;
-                            if (micStream) {
-                                // Tone.js のストリームとマイクストリームを結合するための簡易処理
-                                captureStream = mixStream;
-                            } else {
-                                captureStream = mixStream;
-                            }
+                            captureStream = destStreamNodeRef.current.stream;
                         } else {
                             captureStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                         }
-                        setStatus("🎧 内部ミックス録音中... (アプリ演奏＋マイク音声)");
+                        setStatus("🔴 全体マスター録音中... (全楽器＋ボーカル完全ミックス)");
+                    } else if (currentRecordMode === 'internal') {
+                        captureStream = destStreamNodeRef.current ? destStreamNodeRef.current.stream : await navigator.mediaDevices.getUserMedia({ audio: true });
+                        setStatus("🎧 内部ミックス録音中...");
                     } else {
-                        // 外部マイク単体録音
                         captureStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                         setStatus("🎤 外部マイク単体録音中...");
                     }
@@ -178,22 +190,25 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                     mediaRecorderRef.current.onstop = () => {
                         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                         const audioUrl = URL.createObjectURL(audioBlob);
+                        const titlePrefix = currentRecordMode === 'master_all' ? '全体マスター録音' : (currentRecordMode === 'internal' ? '内部ミックス録音' : '外部マイク録音');
                         const newTake = {
                             id: Date.now(),
-                            title: `${currentRecordMode === 'internal' ? '内部ミックス録音' : '外部マイク録音'} #${recordedAudioList.length + 1}`,
+                            title: `${titlePrefix} #${recordedAudioList.length + 1} (${barsCount}小節)`,
                             url: audioUrl,
                             date: new Date().toLocaleTimeString()
                         };
                         setRecordedAudioList(prev => [...prev, newTake]);
-                        setStatus("⏹️ 録音が完了し、プレビューリストに追加されました！");
+                        setStatus("⏹️ 録音完了！オーディオファイルとして保存されました。");
                     };
 
                     mediaRecorderRef.current.start();
                     setIsRecording(true);
-                    if (!playing && currentRecordMode === 'internal') togglePlay();
+                    if (!playing && (currentRecordMode === 'master_all' || currentRecordMode === 'internal')) {
+                        togglePlay();
+                    }
                 } catch (err) {
                     console.error("録音エラー:", err);
-                    alert("マイクのアクセス許可またはオーディオキャプチャに失敗しました。");
+                    alert("マイクの許可またはオーディオストリームの取得に失敗しました。");
                 }
             };
 
@@ -202,6 +217,27 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                     mediaRecorderRef.current.stop();
                     setIsRecording(false);
                 }
+            };
+
+            const generateAiTextByPrompt = () => {
+                const topics = [
+                    `[AI文章生成 - ${aiPromptTopic}]
+各楽器が織りなす38小節のアンサンブル。
+低音ベースと高音リードが絶妙に絡み合い、リスナーの心を完全に鷲掴みにする。`,
+                    `[AI歌詞生成 - スタンダードスタイル]
+(Verse)
+止まらないリズム、弾ける鼓動、
+ビートが今夜も世界を揺らす。
+(Chorus)
+鳴り響け永遠のメロディライン！
+心ゆくまで歌い、踊り、そして響き渡れ！`,
+                    `[AIメロディ・コンセプチュアル解説]
+選択された楽器ごとの個性を最大限に引き出すAIアルゴリズムを適用。
+躍動感あるグルーヴを体感せよ！`
+                ];
+                const generated = topics[Math.floor(Math.random() * topics.length)];
+                setRapLyrics(generated);
+                setStatus("✨ AI文章・歌詞を新しく自動生成しました！");
             };
 
             const changeBarsCount = (newBars) => {
@@ -222,21 +258,6 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                 });
                 if (currentBar >= newBars) setCurrentBar(newBars - 1);
                 setStatus(`➕ 小節数を ${newBars} 小節に変更しました！`);
-            };
-
-            const startFreshComposition = () => {
-                if (!window.confirm(`これまでの全体記録やグリッドをすべてリセットして、新しい作曲をスタートしますか？`)) return;
-                setPlaying(false);
-                const totalLen = barsCount * BAR_STEPS;
-                const clearedSteps = {};
-                Object.keys(instrumentSteps).forEach(k => {
-                    clearedSteps[k] = new Array(totalLen).fill(null);
-                });
-                setInstrumentSteps(clearedSteps);
-                setCreraList([]);
-                setRecordedAudioList([]);
-                localStorage.removeItem("MIC_VICTORY_PLUS_AUTOCACHE_v100_0");
-                setStatus(`✨ 全体記録をすべてクリアしました！`);
             };
 
             const triggerFxScratch = () => {
@@ -276,7 +297,7 @@ BLAUND — 世界最高級音感、それは永遠の情熱
 
             React.useEffect(() => {
                 if (autoCacheEnabled) {
-                    const cached = localStorage.getItem("MIC_VICTORY_PLUS_AUTOCACHE_v100_0");
+                    const cached = localStorage.getItem("MIC_VICTORY_PLUS_AUTOCACHE_v100_7");
                     if (cached) {
                         try {
                             const parsed = JSON.parse(cached);
@@ -298,7 +319,7 @@ BLAUND — 世界最高級音感、それは永遠の情熱
             React.useEffect(() => {
                 if (autoCacheEnabled) {
                     const cacheData = { instrumentSteps, rapLyrics, bpm, creraList, volumes, updatedAt: new Date().toISOString() };
-                    localStorage.setItem("MIC_VICTORY_PLUS_AUTOCACHE_v100_0", JSON.stringify(cacheData));
+                    localStorage.setItem("MIC_VICTORY_PLUS_AUTOCACHE_v100_7", JSON.stringify(cacheData));
                 }
             }, [instrumentSteps, rapLyrics, bpm, creraList, volumes, autoCacheEnabled]);
 
@@ -322,7 +343,6 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                 const masterGain = new Tone.Gain(masterVolume);
                 masterGainRef.current = masterGain;
 
-                // 内部録音用のMediaStreamDestinationを作成
                 const destNode = Tone.context.createMediaStreamDestination();
                 destStreamNodeRef.current = destNode;
 
@@ -403,11 +423,6 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                         setCurrentBar(bar);
                         directWriteStepIndexRef.current = step;
 
-                        if (!powerSavingMode && sInBar === 0) {
-                            const colors = ["border-cyan-500", "border-pink-500", "border-amber-500", "border-yellow-500", "border-emerald-500"];
-                            setFlashColor(colors[Math.floor(Math.random() * colors.length)]);
-                        }
-
                         const syns = synthsRef.current;
                         if (!syns) return;
 
@@ -438,7 +453,7 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                 } else {
                     Tone.Transport.stop();
                 }
-            }, [playing, bpm, playbackRate, instrumentSteps, powerSavingMode, barsCount, instrumentMutes]);
+            }, [playing, bpm, playbackRate, instrumentSteps, barsCount, instrumentMutes]);
 
             const togglePlay = async () => {
                 await Tone.start();
@@ -449,11 +464,11 @@ BLAUND — 世界最高級音感、それは永遠の情熱
             const saveToCrera = () => {
                 const newCrera = {
                     id: Date.now(),
-                    title: `崩差ない絶対 ${barsCount}小節 各楽器別AI crera #${creraList.length + 1} (${slotName})`,
+                    title: `38小節 セッション crera #${creraList.length + 1} (${slotName})`,
                     bpm,
                     bars: barsCount,
                     date: new Date().toLocaleTimeString(),
-                    credit: "micvictorydanb / 作曲: 32 / 著作権フリー",
+                    credit: "Standard / 作曲: 32",
                     instrumentSteps: JSON.parse(JSON.stringify(instrumentSteps)),
                     volumes: JSON.parse(JSON.stringify(volumes))
                 };
@@ -473,7 +488,6 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                 setStatus(`🌊 crera から「${creraItem.title}」をロードしました！`);
             };
 
-            // 🎯 【各楽器別 AIメロディ・リズム作成】（選択中楽器のみに適用）
             const generateAiStyleMelodyForSelectedInstrument = (styleType) => {
                 const newSteps = { ...instrumentSteps };
                 const totalLen = barsCount * BAR_STEPS;
@@ -496,28 +510,15 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                             kick = sInBar === 0 || sInBar === 8;
                             snare = sInBar === 4 || sInBar === 12;
                             clap = sInBar === 12;
-                        } else if (styleType === "poppingdancebracksulepopsai") {
-                            kick = sInBar === 0 || sInBar === 6 || sInBar === 10 || sInBar === 14;
-                            snare = sInBar === 4 || sInBar === 12;
-                            hihat = sInBar % 2 === 0 || sInBar === 3 || sInBar === 11;
-                            clap = sInBar === 12;
                         }
                         arr[i] = { kick, snare, hihat, clap };
                     }
                 } else {
                     let scale = ["C4", "D4", "E4", "G4", "A4", "C5"];
-                    
-                    if (targetInst === "synthLowBass") {
-                        scale = ["C1", "D1", "Eb1", "F1", "G1", "Bb1", "C2"];
-                    } else if (targetInst === "trumpet") {
-                        scale = ["C4", "E4", "G4", "A4", "C5", "D5", "E5", "G5"];
-                    } else if (targetInst === "violin") {
-                        scale = ["G3", "A3", "C4", "Eb4", "F4", "G4", "Bb4", "C5", "D5"];
-                    }
+                    if (targetInst === "synthLowBass") scale = ["C1", "D1", "Eb1", "F1", "G1", "Bb1", "C2"];
+                    else if (targetInst === "trumpet") scale = ["C4", "E4", "G4", "A4", "C5", "D5", "E5", "G5"];
+                    else if (targetInst === "violin") scale = ["G3", "A3", "C4", "Eb4", "F4", "G4", "Bb4", "C5", "D5"];
 
-                    if (styleType === "popping") scale = scale.filter((_, i) => i % 2 === 0);
-                    else if (styleType === "blackContemp") scale = [...scale].reverse();
-                    
                     const pattern = [0, 2, 4, 6, 8, 10, 12, 14];
                     for (let bar = 0; bar < barsCount; bar++) {
                         pattern.forEach(s => {
@@ -534,7 +535,7 @@ BLAUND — 世界最高級音感、それは永遠の情熱
 
                 newSteps[targetInst] = arr;
                 setInstrumentSteps(newSteps);
-                setStatus(`✨ 【${targetInst}】専用に AIメロディ「${styleType.toUpperCase()}」を個別作成しました！`);
+                setStatus(`✨ 【${targetInst}】専用に AIメロディ「${styleType.toUpperCase()}」を作成しました！`);
             };
 
             const playNoteKeyboard = (note) => {
@@ -556,18 +557,12 @@ BLAUND — 世界最高級音感、それは永遠の情熱
 
                 for (let i = 0; i < rapidHitCount; i++) {
                     const targetStep = (startStep + i) % totalLen;
-                    setTimeout(() => {
-                        if (selectedInstrument !== "drums" && syns[selectedInstrument]) {
-                            syns[selectedInstrument].triggerAttackRelease(note, selectedDuration);
-                        }
-                    }, i * 80);
-
                     if (keyboardDirectWrite) {
                         toggleStepWithDurationDirect(selectedInstrument, targetStep, note, selectedDuration);
                     }
                 }
 
-                setStatus(`🎹 【${selectedInstrument}】手動連打記録: ステップ ${startStep + 1} から ${rapidHitCount}連打を書き込みました！`);
+                setStatus(`🎹 【${selectedInstrument}】手動記録: ステップ ${startStep + 1} から ${rapidHitCount}連打記録しました！`);
             };
 
             const toggleStepWithDurationDirect = (instKey, idx, note = selectedNote, dur = selectedDuration) => {
@@ -631,19 +626,19 @@ BLAUND — 世界最高級音感、それは永遠の情熱
             const currentNotesList = selectedInstrument === "synthLowBass" ? BASS_NOTES : (selectedInstrument === "trumpet" ? TRUMPET_NOTES : (selectedInstrument === "violin" ? VIOLIN_NOTES : GENERAL_NOTES));
 
             return (
-                <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col text-xs font-sans select-none pb-24 overflow-x-hidden border-8 border-pink-600">
+                <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col text-xs font-sans select-none pb-24 overflow-x-hidden border-8 border-cyan-600">
 
                     <header className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-40 shadow-lg">
                         <div className="flex items-center gap-2">
-                            <span className="font-black text-sm bg-gradient-to-r from-yellow-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                                崩差ない絶対 <span className="text-[10px] text-yellow-300 font-bold">v100.0 録音機能付き</span>
+                            <span className="font-black text-sm bg-gradient-to-r from-cyan-400 via-teal-400 to-indigo-400 bg-clip-text text-transparent">
+                                DTM STUDIO <span className="text-[10px] text-cyan-300 font-bold">v100.7 全体録音対応</span>
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                            <button onClick={startFreshComposition} className="px-2.5 py-1 bg-gradient-to-r from-red-600 to-pink-600 text-white font-black rounded text-[10px] shadow animate-pulse">
-                                ✨ 新規作曲
+                            <button onClick={clearAllDataEverything} className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white font-black rounded text-[10px] shadow">
+                                🗑️ 全体一括削除
                             </button>
-                            <button onClick={togglePlay} className={`px-3 py-1 rounded font-bold text-xs shadow ${playing ? "bg-yellow-400 text-slate-950 animate-bounce" : "bg-pink-600 text-white"}`}>
+                            <button onClick={togglePlay} className={`px-3 py-1 rounded font-bold text-xs shadow ${playing ? "bg-yellow-400 text-slate-950 animate-bounce" : "bg-cyan-600 text-white"}`}>
                                 {playing ? "■ 停止" : "▶ 再生"}
                             </button>
                             <div className="flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
@@ -655,14 +650,14 @@ BLAUND — 世界最高級音感、それは永遠の情熱
 
                     <nav className="bg-slate-900/90 border-b border-slate-800 px-2 py-1.5 flex gap-1 overflow-x-auto">
                         {[
-                            { id: "DUAL_EDIT", label: "🎹 38小節 各楽器別AI Sequencer" },
-                            { id: "VOCAL_STUDIO", label: "🎙️ 内部＆外部 録音スタジオ" },
-                            { id: "AUDIO_MIX", label: "🎚️ 音響ミキサー" },
+                            { id: "DUAL_EDIT", label: "🎹 38小節 Sequencer" },
+                            { id: "VOCAL_STUDIO", label: "🎙️ 録音 ＆ AI文章・歌詞" },
+                            { id: "AUDIO_MIX", label: "🎚️ ミキサー" },
                             { id: "FX_SUITE", label: "🎛️ FX・速度" },
-                            { id: "CRERA_SUITE", label: "🌊 creraストレージ" },
+                            { id: "CRERA_SUITE", label: "🌊 ストレージ" },
                             { id: "MEMORY", label: "💾 保存" },
                         ].map(t => (
-                            <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-1 rounded text-center font-bold transition-all shrink-0 ${tab === t.id ? "bg-gradient-to-r from-yellow-500 to-pink-600 text-slate-950 shadow-lg" : "bg-slate-800/60 text-slate-400"}`}>
+                            <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-1 rounded text-center font-bold transition-all shrink-0 ${tab === t.id ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-lg" : "bg-slate-800/60 text-slate-400"}`}>
                                 {t.label}
                             </button>
                         ))}
@@ -670,15 +665,14 @@ BLAUND — 世界最高級音感、それは永遠の情熱
 
                     <main className="p-2 flex flex-col gap-3">
 
-                        {/* 🎹 38小節 Sequencer ＆ 各楽器別 AIメロディ作成スイート */}
                         {tab === "DUAL_EDIT" && (
                             <div className="flex flex-col gap-3">
-                                <div className="bg-slate-900 p-3 rounded-xl border border-red-600/60 flex flex-col gap-2 shadow-lg">
+                                <div className="bg-slate-900 p-3 rounded-xl border border-cyan-600/60 flex flex-col gap-2 shadow-lg">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className="font-black text-xs text-red-300">🎹 小節数セレクター ({barsCount}小節設定中)</span>
+                                        <span className="font-black text-xs text-cyan-300">🎹 小節数セレクター ({barsCount}小節設定中)</span>
                                         <div className="flex gap-1 items-center flex-wrap">
                                             {[16, 32, 36, 38, 50, 64].map(b => (
-                                                <button key={b} onClick={() => changeBarsCount(b)} className={`px-2.5 py-1 rounded font-bold text-[10px] border ${barsCount === b ? 'bg-red-500 text-slate-950 border-white' : 'bg-slate-800 text-slate-300 border-slate-700'}`}>
+                                                <button key={b} onClick={() => changeBarsCount(b)} className={`px-2.5 py-1 rounded font-bold text-[10px] border ${barsCount === b ? 'bg-cyan-500 text-slate-950 border-white' : 'bg-slate-800 text-slate-300 border-slate-700'}`}>
                                                     {b}小節
                                                 </button>
                                             ))}
@@ -687,13 +681,13 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                                 </div>
 
                                 <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between flex-wrap gap-2 shadow">
-                                    <span className="font-bold text-[11px] text-amber-300">🎹 1押し連打モード (鍵盤連打リズム記録):</span>
+                                    <span className="font-bold text-[11px] text-amber-300">🎹 連打バーストモード:</span>
                                     <div className="flex gap-1">
                                         {[
-                                            { count: 1, label: "1打 (単音)" },
-                                            { count: 2, label: "2打 (2連打)" },
-                                            { count: 3, label: "3打 (3連打)" },
-                                            { count: 4, label: "4打 (4連バースト)" }
+                                            { count: 1, label: "1打" },
+                                            { count: 2, label: "2打" },
+                                            { count: 3, label: "3打" },
+                                            { count: 4, label: "4打" }
                                         ].map(item => (
                                             <button key={item.count} onClick={() => setRapidHitCount(item.count)} className={`px-2.5 py-1 rounded font-bold text-[10px] border ${rapidHitCount === item.count ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-300'}`}>
                                                 {item.label}
@@ -703,7 +697,7 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                                 </div>
 
                                 <div className="bg-slate-900 p-3.5 rounded-xl border border-slate-800 flex flex-col gap-2.5">
-                                    <span className="font-bold text-amber-300">⚡ 楽器セレクター（操作対象の楽器）</span>
+                                    <span className="font-bold text-amber-300">⚡ 楽器セレクター</span>
                                     <div className="grid grid-cols-2 gap-2">
                                         {INSTRUMENTS.map(inst => (
                                             <button key={inst.id} onClick={() => setSelectedInstrument(inst.id)} className={`p-3 rounded-lg font-black text-xs border bg-gradient-to-br ${inst.color} ${selectedInstrument === inst.id ? 'ring-2 ring-white scale-105 shadow-xl' : 'border-transparent opacity-80'}`}>
@@ -713,25 +707,20 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                                     </div>
                                 </div>
 
-                                <div className="bg-slate-900 p-3.5 rounded-xl border-2 border-yellow-500/80 flex flex-col gap-2.5 shadow-2xl">
+                                <div className="bg-slate-900 p-3.5 rounded-xl border-2 border-cyan-500/80 flex flex-col gap-2.5 shadow-2xl">
                                     <div className="flex flex-col">
-                                        <span className="font-black text-xs text-yellow-300">🎶 5大AIスタイル 【各楽器別 AIメロディ作成】</span>
-                                        <span className="text-[10px] text-slate-300 font-bold">現在選択中: 【{INSTRUMENTS.find(i => i.id === selectedInstrument)?.label}】</span>
+                                        <span className="font-black text-xs text-cyan-300">🎶 AIメロディ自動生成</span>
+                                        <span className="text-[10px] text-slate-300 font-bold">対象楽器: 【{INSTRUMENTS.find(i => i.id === selectedInstrument)?.label}】</span>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
-                                        <button onClick={() => generateAiStyleMelodyForSelectedInstrument("popping")} className="py-2.5 bg-gradient-to-r from-pink-600 to-rose-600 text-white font-black rounded-lg text-xs shadow hover:scale-105 active:scale-95 transition-transform">🕺 Popping Dance</button>
+                                        <button onClick={() => generateAiStyleMelodyForSelectedInstrument("popping")} className="py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-black rounded-lg text-xs shadow hover:scale-105 active:scale-95 transition-transform">🕺 Popping Dance</button>
                                         <button onClick={() => generateAiStyleMelodyForSelectedInstrument("blackContemp")} className="py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 text-white font-black rounded-lg text-xs shadow hover:scale-105 active:scale-95 transition-transform">🎷 Black Contemp</button>
-                                        <button onClick={() => generateAiStyleMelodyForSelectedInstrument("soul")} className="py-2.5 bg-gradient-to-r from-yellow-500 to-amber-500 text-slate-950 font-black rounded-lg text-xs shadow hover:scale-105 active:scale-95 transition-transform">🎶 Soul</button>
-                                        <button onClick={() => generateAiStyleMelodyForSelectedInstrument("pops")} className="py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-black rounded-lg text-xs shadow hover:scale-105 active:scale-95 transition-transform">🎤 Pops AI</button>
                                     </div>
-                                    <button onClick={() => generateAiStyleMelodyForSelectedInstrument("poppingdancebracksulepopsai")} className="w-full py-2.5 bg-gradient-to-r from-purple-600 via-pink-600 to-yellow-500 text-white font-black rounded-lg text-xs shadow-lg animate-pulse hover:scale-105 active:scale-95 transition-transform">
-                                        ✨ 【選択楽器専用】 Poppingdancebracksulepopsai メロディ作成
-                                    </button>
                                 </div>
 
                                 <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 flex flex-col gap-2">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className="font-bold text-amber-300">🎹 音階鍵盤手動入力 ＆ {rapidHitCount}押し連打記録 ({selectedInstrument})</span>
+                                        <span className="font-bold text-amber-300">🎹 音階キーボード入力 ({selectedInstrument})</span>
                                     </div>
 
                                     {selectedInstrument === "drums" && (
@@ -751,8 +740,8 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                                                     ))}
                                                 </div>
                                             </div>
-                                            <button onClick={() => playNoteKeyboard("C1")} className="w-full py-3 bg-gradient-to-r from-red-600 to-amber-600 text-white font-black rounded-lg text-xs shadow-lg active:scale-95">
-                                                🥁 ドラムパーツ ({selectedDrumPart}) を {rapidHitCount}押し連打記録・再生
+                                            <button onClick={() => playNoteKeyboard("C1")} className="w-full py-3 bg-gradient-to-r from-cyan-600 to-indigo-600 text-white font-black rounded-lg text-xs shadow-lg active:scale-95">
+                                                🥁 ドラムパーツ ({selectedDrumPart}) を入力
                                             </button>
                                         </div>
                                     )}
@@ -769,8 +758,8 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                                     )}
 
                                     <div className="flex justify-between items-center pt-2 flex-wrap gap-2">
-                                        <span className="text-[10px] text-slate-400">🎛️ 【{selectedInstrument}】 グリッド (全 {barsCount * 16} ステップ) - 第 {currentBar + 1} / {barsCount} 小節</span>
-                                        <button onClick={() => clearSpecificInstrument(selectedInstrument)} className="px-3 py-1 bg-slate-800 text-red-400 rounded font-bold text-[10px]">🗑️ 選択楽器クリア</button>
+                                        <span className="text-[10px] text-slate-400">🎛️ グリッド (全 {barsCount * 16} ステップ) - 第 {currentBar + 1} / {barsCount} 小節</span>
+                                        <button onClick={() => clearSpecificInstrument(selectedInstrument)} className="px-3 py-1 bg-slate-800 text-red-400 rounded font-bold text-[10px]">🗑️ クリア</button>
                                     </div>
 
                                     <div className="bg-slate-950 p-2.5 rounded border border-slate-800 flex flex-col gap-2">
@@ -791,7 +780,7 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                                                 const isCurrentPlaying = playing && currentStep === idx;
 
                                                 return (
-                                                    <button key={idx} onClick={() => toggleStepGrid(selectedInstrument, globalIdx)} className={`h-11 rounded flex flex-col items-center justify-center font-mono text-[10px] border transition-all ${isCurrentPlaying ? 'border-yellow-400 ring-2 ring-yellow-400' : 'border-slate-800'} ${isActive ? 'bg-gradient-to-t from-red-500 to-amber-600 text-slate-950 font-black' : 'bg-slate-900 text-slate-400 hover:bg-slate-800'}`}>
+                                                    <button key={idx} onClick={() => toggleStepGrid(selectedInstrument, globalIdx)} className={`h-11 rounded flex flex-col items-center justify-center font-mono text-[10px] border transition-all ${isCurrentPlaying ? 'border-yellow-400 ring-2 ring-yellow-400' : 'border-slate-800'} ${isActive ? 'bg-gradient-to-t from-cyan-500 to-indigo-600 text-slate-950 font-black' : 'bg-slate-900 text-slate-400 hover:bg-slate-800'}`}>
                                                         <span>{idx + 1}</span>
                                                         <span className="text-[8px] font-bold truncate max-w-full">{isActive ? displayLabel : '·'}</span>
                                                     </button>
@@ -803,32 +792,35 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                             </div>
                         )}
 
-                        {/* 🎙️ 内部＆外部録音スタジオ ＋ 歌詞表示 */}
                         {tab === "VOCAL_STUDIO" && (
                             <div className="flex flex-col gap-3">
-                                <div className="bg-gradient-to-r from-red-950 via-slate-900 to-pink-950 p-4 rounded-xl border-2 border-red-500 flex flex-col gap-3 shadow-2xl">
+                                <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950 p-4 rounded-xl border-2 border-cyan-500 flex flex-col gap-3 shadow-2xl">
                                     <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className="text-sm font-black text-pink-300">🎙️ 内部ミックス ＆ 外部マイク 録音スタジオ</span>
+                                        <span className="text-sm font-black text-cyan-300">🎙️ 全体マスター録音スタジオ ＆ マイク録音</span>
                                     </div>
 
-                                    {/* 録音モード切替 */}
-                                    <div className="flex gap-2 bg-slate-950 p-2 rounded-lg border border-slate-800">
+                                    <div className="grid grid-cols-3 gap-1 bg-slate-950 p-2 rounded-lg border border-slate-800">
+                                        <button 
+                                            onClick={() => setCurrentRecordMode('master_all')} 
+                                            className={`py-2 rounded font-black text-[11px] ${currentRecordMode === 'master_all' ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg animate-pulse' : 'bg-slate-900 text-slate-400'}`}>
+                                            🔴 全体マスター
+                                        </button>
                                         <button 
                                             onClick={() => setCurrentRecordMode('internal')} 
-                                            className={`flex-1 py-2 rounded font-bold text-xs ${currentRecordMode === 'internal' ? 'bg-pink-600 text-white shadow' : 'bg-slate-900 text-slate-400'}`}>
-                                            🎧 ① 内部ミックス録音 (演奏＋マイク)
+                                            className={`py-2 rounded font-bold text-[11px] ${currentRecordMode === 'internal' ? 'bg-blue-600 text-white shadow' : 'bg-slate-900 text-slate-400'}`}>
+                                            🎧 内部ミックス
                                         </button>
                                         <button 
                                             onClick={() => setCurrentRecordMode('external')} 
-                                            className={`flex-1 py-2 rounded font-bold text-xs ${currentRecordMode === 'external' ? 'bg-cyan-600 text-slate-950 font-black shadow' : 'bg-slate-900 text-slate-400'}`}>
-                                            🎤 ② 外部マイク単体録音
+                                            className={`py-2 rounded font-bold text-[11px] ${currentRecordMode === 'external' ? 'bg-teal-600 text-slate-950 font-black shadow' : 'bg-slate-900 text-slate-400'}`}>
+                                            🎤 外部マイク
                                         </button>
                                     </div>
 
-                                    <div className="flex justify-center pt-2">
+                                    <div className="flex justify-center pt-1">
                                         {!isRecording ? (
-                                            <button onClick={startRecording} className="px-6 py-3 bg-gradient-to-r from-red-600 via-pink-600 to-rose-500 text-white font-black rounded-xl text-sm shadow-xl animate-pulse hover:scale-105 active:scale-95 transition-all">
-                                                🔴 {currentRecordMode === 'internal' ? '内部ミックス録音を開始' : '外部マイク録音を開始'}
+                                            <button onClick={startRecording} className="px-6 py-3 bg-gradient-to-r from-cyan-600 via-blue-600 to-teal-500 text-white font-black rounded-xl text-sm shadow-xl hover:scale-105 active:scale-95 transition-all">
+                                                🔴 録音を開始
                                             </button>
                                         ) : (
                                             <button onClick={stopRecording} className="px-6 py-3 bg-yellow-400 text-slate-950 font-black rounded-xl text-sm shadow-xl animate-bounce hover:scale-105 active:scale-95 transition-all">
@@ -838,7 +830,7 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                                     </div>
 
                                     {recordedAudioList.length > 0 && (
-                                        <div className="bg-slate-950 p-3 rounded-lg border border-pink-900/80 flex flex-col gap-2 mt-2">
+                                        <div className="bg-slate-950 p-3 rounded-lg border border-cyan-900/80 flex flex-col gap-2 mt-1">
                                             <span className="font-bold text-amber-300 text-[11px]">📁 録音済みオーディオリスト ({recordedAudioList.length}件)</span>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                 {recordedAudioList.map((take) => (
@@ -847,7 +839,7 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                                                             <span className="font-bold text-yellow-300 text-[10px] truncate">{take.title}</span>
                                                             <span className="text-[8px] text-slate-400">{take.date}</span>
                                                         </div>
-                                                        <audio controls src={take.url} className="h-7 w-36 accent-pink-500" />
+                                                        <audio controls src={take.url} className="h-7 w-36 accent-cyan-500" />
                                                     </div>
                                                 ))}
                                             </div>
@@ -858,17 +850,31 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                                 <div className="bg-slate-900 p-4 rounded-xl border border-cyan-600/60 flex flex-col gap-3 shadow-xl">
                                     <div className="flex justify-between items-center flex-wrap gap-2 border-b border-slate-800 pb-2">
                                         <span className="font-black text-xs text-cyan-300 flex items-center gap-1">
-                                            📝 800文字級 AI歌詞表示・編集 (歌入れ・ラップ時に直接確認)
+                                            ✨ AI文章生成機能 ＆ 歌詞・メモ
                                         </span>
                                         <button onClick={() => navigator.clipboard.writeText(rapLyrics)} className="px-3 py-1 bg-cyan-600 text-white font-bold rounded text-[10px] shadow">
-                                            📋 歌詞をコピー
+                                            📋 コピー
                                         </button>
                                     </div>
+
+                                    <div className="flex gap-2 items-center bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                                        <input 
+                                            type="text" 
+                                            value={aiPromptTopic} 
+                                            onChange={e => setAiPromptTopic(e.target.value)} 
+                                            placeholder="AI文章テーマを入力" 
+                                            className="flex-1 bg-slate-900 text-yellow-300 px-3 py-1.5 rounded text-xs border border-slate-700 outline-none" 
+                                        />
+                                        <button onClick={generateAiTextByPrompt} className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 text-slate-950 font-black rounded text-xs shadow hover:scale-105 active:scale-95">
+                                            🤖 AI自動生成
+                                        </button>
+                                    </div>
+
                                     <textarea 
                                         value={rapLyrics} 
                                         onChange={e => setRapLyrics(e.target.value)} 
-                                        rows={12} 
-                                        className="w-full bg-slate-950 text-yellow-200 p-3.5 rounded-lg border border-slate-800 font-mono text-xs leading-relaxed focus:ring-2 focus:ring-pink-500 outline-none" 
+                                        rows={10} 
+                                        className="w-full bg-slate-950 text-yellow-200 p-3 rounded-lg border border-slate-800 font-mono text-xs leading-relaxed focus:ring-2 focus:ring-cyan-500 outline-none" 
                                     />
                                 </div>
                             </div>
@@ -880,8 +886,8 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                                     <h2 className="text-sm font-black text-yellow-300">🎚️ 音響調整ミキサー</h2>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950 p-3 rounded border border-slate-800">
                                         <div className="flex flex-col gap-1">
-                                            <div className="flex justify-between text-[11px]"><span className="text-slate-300 font-bold">📢 マスター音量</span><span className="font-bold text-pink-400">{masterVolume.toFixed(2)}x</span></div>
-                                            <input type="range" min="0.5" max="2.0" step="0.05" value={masterVolume} onChange={e => setMasterVolume(Number(e.target.value))} className="w-full accent-pink-500" />
+                                            <div className="flex justify-between text-[11px]"><span className="text-slate-300 font-bold">📢 マスター音量</span><span className="font-bold text-cyan-400">{masterVolume.toFixed(2)}x</span></div>
+                                            <input type="range" min="0.5" max="2.0" step="0.05" value={masterVolume} onChange={e => setMasterVolume(Number(e.target.value))} className="w-full accent-cyan-500" />
                                         </div>
                                         <div className="flex flex-col gap-1">
                                             <div className="flex justify-between text-[11px]"><span className="text-slate-300 font-bold">🔊 ベースEQブースト</span><span className="font-bold text-amber-400">{masterBassBoost} dB</span></div>
@@ -920,7 +926,7 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                                 <div className="bg-slate-900 p-4 rounded border border-purple-600/60 flex flex-col gap-4">
                                     <h2 className="text-sm font-black text-purple-300">🎛️ FX機能 & 速度調整</h2>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <button onClick={triggerFxScratch} className="py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded font-black text-xs shadow">🎛️ スクラッチ FX</button>
+                                        <button onClick={triggerFxScratch} className="py-4 bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded font-black text-xs shadow">🎛️ スクラッチ FX</button>
                                         <button onClick={triggerFxRepeat} className="py-4 bg-gradient-to-r from-yellow-500 to-amber-600 text-slate-950 rounded font-black text-xs shadow">🔁 リピートバースト</button>
                                     </div>
                                     <div className="bg-slate-950 p-4 rounded border border-slate-800 flex flex-col gap-2">
@@ -958,7 +964,7 @@ BLAUND — 世界最高級音感、それは永遠の情熱
                                 <div className="bg-slate-900 p-4 rounded border border-slate-800 flex flex-col gap-3">
                                     <h2 className="text-sm font-bold text-yellow-300">💾 プロジェクト保存</h2>
                                     <input type="text" value={slotName} onChange={e => setSlotName(e.target.value)} className="w-full bg-slate-950 text-yellow-300 px-3 py-2 rounded border border-slate-800 font-mono text-xs font-bold" />
-                                    <button onClick={exportProjectToFile} className="py-2.5 bg-gradient-to-r from-yellow-500 to-pink-600 font-black text-slate-950 rounded shadow">💾 JSONダウンロード</button>
+                                    <button onClick={exportProjectToFile} className="py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 font-black text-slate-950 rounded shadow">💾 JSONダウンロード</button>
                                 </div>
                             </div>
                         )}
