@@ -53,7 +53,7 @@
             </div>
             <div>
                 <h1 class="text-xs font-black tracking-wider bg-gradient-to-r from-mvCyan via-mvAccent to-mvPink bg-clip-text text-transparent uppercase">MICVICTORY 38 Bars AI</h1>
-                <p class="text-[9px] text-gray-400">エフェクト(FX)・ボリュームミキサー・トランペット</p>
+                <p class="text-[9px] text-gray-400">エフェクト(FX)・ボリュームミキサー・重低音ベース強化</p>
             </div>
         </div>
         <div class="flex items-center space-x-2">
@@ -147,8 +147,8 @@
                     <input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('vocal', this.value)" class="w-full accent-mvPink">
                 </div>
                 <div class="space-y-1">
-                    <div class="flex justify-between text-gray-400"><span>ベース</span><strong id="vol-bass" class="text-white">1.3</strong></div>
-                    <input type="range" min="0" max="2" step="0.1" value="1.3" oninput="changeTrackVolume('bass', this.value)" class="w-full accent-mvCyan">
+                    <div class="flex justify-between text-mvCyan font-bold"><span>ベース(重低音)</span><strong id="vol-bass" class="text-white">1.5</strong></div>
+                    <input type="range" min="0" max="2" step="0.1" value="1.5" oninput="changeTrackVolume('bass', this.value)" class="w-full accent-mvCyan">
                 </div>
                 <div class="space-y-1">
                     <div class="flex justify-between text-gray-400"><span>アコギ</span><strong id="vol-acoustic" class="text-white">1.0</strong></div>
@@ -382,7 +382,7 @@ AIも、人間も、垣根なんて越えていく
             <div class="grid grid-cols-9 gap-1">
                 <button onclick="switchTrack('piano')" id="track-piano" class="track-btn bg-mvAccent/20 border border-mvAccent text-white text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-music text-mvAccent"></i><span>ピアノ</span></button>
                 <button onclick="switchTrack('vocal')" id="track-vocal" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-microphone text-mvPink"></i><span>ボーカル</span></button>
-                <button onclick="switchTrack('bass')" id="track-bass" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-guitar"></i><span>ベース</span></button>
+                <button onclick="switchTrack('bass')" id="track-bass" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-guitar text-mvCyan"></i><span>ベース</span></button>
                 <button onclick="switchTrack('acoustic')" id="track-acoustic" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-seedling"></i><span>アコギ</span></button>
                 <button onclick="switchTrack('electric')" id="track-electric" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-bolt"></i><span>エレキ</span></button>
                 <button onclick="switchTrack('violin')" id="track-violin" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-feather"></i><span>バイオリン</span></button>
@@ -463,7 +463,7 @@ AIも、人間も、垣根なんて越えていく
         let destStreamNode = null;
         let trackGains = {};
         let trackVolumes = {
-            piano: 1.0, vocal: 1.0, bass: 1.3, acoustic: 1.0,
+            piano: 1.0, vocal: 1.0, bass: 1.5, acoustic: 1.0,
             electric: 1.0, violin: 1.0, trumpet: 1.2, drums: 1.5, tambourine: 0.9
         };
 
@@ -826,15 +826,87 @@ AIも、人間も、垣根なんて越えていく
             const notesFreq = { C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88, C5: 523.25 };
             let freq = notesFreq[note] || 261.63;
 
+            // ⚡ ベースサウンド専用：重低音化＆サブオシレーター層のレイヤー処理
+            if (trackType === 'bass') {
+                freq = freq / 2; // 基本ピッチを1オクターブ降下
+
+                // メインオシレーター (Sawtooth)
+                const mainOsc = audioCtx.createOscillator();
+                mainOsc.type = 'sawtooth';
+                mainOsc.frequency.setValueAtTime(freq, now);
+
+                // サブオシレーター (超低域 Sine 波 1オクターブ下)
+                const subOsc = audioCtx.createOscillator();
+                subOsc.type = 'sine';
+                subOsc.frequency.setValueAtTime(freq / 2, now);
+
+                // ローパスフィルターで低音域をブースト・シェイピング
+                const bassFilter = audioCtx.createBiquadFilter();
+                bassFilter.type = 'lowpass';
+                bassFilter.frequency.setValueAtTime(380, now);
+                bassFilter.frequency.exponentialRampToValueAtTime(110, now + duration);
+
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.setValueAtTime(velocity * 1.4, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                mainOsc.connect(bassFilter);
+                subOsc.connect(bassFilter);
+                bassFilter.connect(gainNode);
+
+                let currentNode = gainNode;
+
+                // FXチェーン接続
+                if (fxState.lowpass) {
+                    const lp = audioCtx.createBiquadFilter();
+                    lp.type = 'lowpass';
+                    lp.frequency.setValueAtTime(400, now);
+                    currentNode.connect(lp);
+                    currentNode = lp;
+                }
+                if (fxState.highpass) {
+                    const hp = audioCtx.createBiquadFilter();
+                    hp.type = 'highpass';
+                    hp.frequency.setValueAtTime(100, now);
+                    currentNode.connect(hp);
+                    currentNode = hp;
+                }
+                if (fxState.delay) {
+                    const delay = audioCtx.createDelay();
+                    delay.delayTime.setValueAtTime(0.25, now);
+                    const dGain = audioCtx.createGain();
+                    dGain.gain.setValueAtTime(0.3, now);
+                    currentNode.connect(delay);
+                    delay.connect(dGain);
+                    dGain.connect(targetOutputNode);
+                }
+                if (fxState.reverb) {
+                    const rev = audioCtx.createDelay();
+                    rev.delayTime.setValueAtTime(0.08, now);
+                    const rGain = audioCtx.createGain();
+                    rGain.gain.setValueAtTime(0.4, now);
+                    currentNode.connect(rev);
+                    rev.connect(rGain);
+                    rGain.connect(targetOutputNode);
+                }
+
+                currentNode.connect(targetOutputNode);
+                mainOsc.start(now);
+                subOsc.start(now);
+                mainOsc.stop(now + duration);
+                subOsc.stop(now + duration);
+                return;
+            }
+
+            // その他一般楽器音源の処理
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             
             if (trackType === 'trumpet') {
                 osc.type = 'sawtooth';
                 freq = freq * 1.5;
-            } else if (trackType === 'bass' || trackType === 'electric') {
+            } else if (trackType === 'electric') {
                 osc.type = 'sawtooth';
-                if (trackType === 'bass') freq = freq / 2;
             } else {
                 osc.type = 'triangle';
             }
@@ -872,7 +944,6 @@ AIも、人間も、垣根なんて越えていく
                 dGain.connect(targetOutputNode);
             }
             if (fxState.reverb) {
-                // シンプルシミュレートディレイによるリバーブ効果
                 const rev = audioCtx.createDelay();
                 rev.delayTime.setValueAtTime(0.08, now);
                 const rGain = audioCtx.createGain();
