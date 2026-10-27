@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MICVICTORY BANDLAND DTM - Full Audio Recording Edition</title>
+    <title>MICVICTORY BANDLAND DTM - Vocal Recording & 800-Word Lyrics</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -52,7 +52,7 @@
             </div>
             <div>
                 <h1 class="text-xs font-black tracking-wider bg-gradient-to-r from-mvCyan via-mvAccent to-mvPink bg-clip-text text-transparent uppercase">MICVICTORY 38 Bars AI</h1>
-                <p class="text-[9px] text-gray-400">全体録音機能付き・各楽器AIメロディ作成</p>
+                <p class="text-[9px] text-gray-400">歌詞800字・Vocal録音・各楽器AI作成</p>
             </div>
         </div>
         <div class="flex items-center space-x-2">
@@ -74,7 +74,7 @@
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-2">
                     <span id="playStatus" class="w-3 h-3 rounded-full bg-red-500"></span>
-                    <span id="statusText" class="text-xs font-bold text-gray-300">スタンバイ中</span>
+                    <span id="statusText" class="text-xs font-bold text-gray-300">スタンバイ中 (カウント音なし)</span>
                 </div>
                 <div class="text-[11px] font-mono text-gray-400 bg-black/50 px-3 py-1 rounded-lg border border-gray-800 flex items-center space-x-2">
                     <span>小節: <strong id="currentBarDisplay" class="text-white">1</strong>/38</span>
@@ -94,33 +94,136 @@
             </button>
         </div>
 
-        <!-- 🎙️ 全体録音（オーディオキャプチャ）機能 -->
+        <!-- 🎙️ 全体オーディオ録音機能 -->
         <div class="bg-mvCard border border-mvPink/40 rounded-2xl p-3.5 shadow-xl space-y-3">
             <div class="flex items-center justify-between">
                 <h3 class="text-xs font-bold text-white flex items-center space-x-2">
                     <i class="fa-solid fa-circle-dot text-red-500 animate-pulse"></i>
-                    <span>全体オーディオ録音機能</span>
+                    <span>全体オーディオミックス録音</span>
                 </h3>
                 <span id="recStatusLabel" class="text-[10px] font-mono text-gray-400">待機中</span>
             </div>
-            <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-2.5">
-                <p class="text-[10px] text-gray-400">演奏やライブ再生のサウンドを丸ごとファイルに録音・保存できます。</p>
+            <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-2">
                 <div class="grid grid-cols-2 gap-2">
-                    <button onclick="startGlobalRecording()" id="startRecBtn" class="bg-gradient-to-r from-red-600 to-mvPink text-white text-xs py-2.5 rounded-xl font-bold flex items-center justify-center space-x-1.5 shadow-lg active:scale-95 transition">
-                        <i class="fa-solid fa-circle text-[8px] animate-ping"></i>
+                    <button onclick="startGlobalRecording()" id="startRecBtn" class="bg-gradient-to-r from-red-600 to-mvPink text-white text-xs py-2 rounded-xl font-bold flex items-center justify-center space-x-1.5 shadow-lg active:scale-95 transition">
+                        <i class="fa-solid fa-circle text-[8px]"></i>
                         <span>全体録音開始</span>
                     </button>
-                    <button onclick="stopGlobalRecording()" id="stopRecBtn" disabled class="bg-gray-800 text-gray-500 text-xs py-2.5 rounded-xl font-bold flex items-center justify-center space-x-1.5 cursor-not-allowed">
+                    <button onclick="stopGlobalRecording()" id="stopRecBtn" disabled class="bg-gray-800 text-gray-500 text-xs py-2 rounded-xl font-bold flex items-center justify-center space-x-1.5 cursor-not-allowed">
                         <i class="fa-solid fa-stop"></i>
                         <span>録音停止</span>
                     </button>
                 </div>
-                <button onclick="playRecordedAudio()" id="playRecAudioBtn" disabled class="w-full bg-gray-900 border border-gray-800 text-gray-500 text-xs py-2 rounded-lg font-medium transition cursor-not-allowed flex items-center justify-center space-x-1.5">
+                <button onclick="playRecordedAudio()" id="playRecAudioBtn" disabled class="w-full bg-gray-900 border border-gray-800 text-gray-500 text-xs py-1.5 rounded-lg font-medium transition cursor-not-allowed flex items-center justify-center space-x-1">
                     <i class="fa-solid fa-play text-[10px]"></i>
                     <span>録音音声をプレビュー再生</span>
                 </button>
             </div>
             <audio id="recordedAudioElement" class="hidden"></audio>
+        </div>
+
+        <!-- 🎤 Vocalトラック専用 実マイク録音機能 (ボーカル選択時に大活躍) -->
+        <div id="vocalRecorderContainer" class="bg-mvCard border border-mvPink/60 rounded-2xl p-3.5 shadow-xl space-y-3 hidden">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xs font-bold text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-microphone-lines text-mvPink"></i>
+                    <span>Vocal専用マイク録音 (歌声キャプチャ)</span>
+                </h3>
+                <span id="vocalRecStatus" class="text-[10px] font-mono text-mvPink">スタンバイ</span>
+            </div>
+            <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-2">
+                <p class="text-[10px] text-gray-400">マイクに向かって歌った音声をボーカルトラックとして直接レコーディングします。</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="startVocalMicRecording()" id="vocalRecStartBtn" class="bg-gradient-to-r from-mvPink to-mvAccent text-white text-xs py-2 rounded-xl font-bold flex items-center justify-center space-x-1 shadow-lg active:scale-95 transition">
+                        <i class="fa-solid fa-microphone text-[9px]"></i>
+                        <span>ボーカル録音開始</span>
+                    </button>
+                    <button onclick="stopVocalMicRecording()" id="vocalRecStopBtn" disabled class="bg-gray-800 text-gray-500 text-xs py-2 rounded-xl font-bold flex items-center justify-center space-x-1 cursor-not-allowed">
+                        <i class="fa-solid fa-stop"></i>
+                        <span>録音停止</span>
+                    </button>
+                </div>
+                <button onclick="playVocalAudio()" id="vocalPlayBtn" disabled class="w-full bg-gray-900 border border-gray-800 text-gray-500 text-xs py-1.5 rounded-lg font-medium transition cursor-not-allowed flex items-center justify-center space-x-1">
+                    <i class="fa-solid fa-play text-[10px]"></i>
+                    <span>録音した歌声を再生プレビュー</span>
+                </button>
+            </div>
+            <audio id="vocalAudioElement" class="hidden"></audio>
+        </div>
+
+        <!-- 📖 AI・恋愛・仲間 歌詞ストーリー（800字） -->
+        <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3.5 shadow-xl space-y-2">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xs font-bold text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-book-open text-mvYellow"></i>
+                    <span>AI・恋愛・仲間 歌詞ストーリー（800字）</span>
+                </h3>
+                <span class="text-[9px] text-gray-400 font-mono">Full Version</span>
+            </div>
+            <div class="bg-gray-950 border border-gray-800 rounded-xl p-3 max-h-52 overflow-y-auto">
+                <p class="text-[11px] text-gray-300 leading-relaxed whitespace-pre-line font-serif">【プログラムの恋、僕らのシンフォニー】
+
+(イントロ)
+0と1が交差する　無機質なスクリーン
+描いた夢のコードに　命が宿り始める
+孤独な画面を書き換えたのは
+共に走る仲間たちの熱い情熱
+
+(1番：Aメロ)
+深夜2時　静かな部屋で叩くキーボード
+エラーの波に飲まれ立ち尽くす僕に
+「一人で抱え込むな」と笑う君の言葉
+重ねた手が　新しい世界をひらく
+
+(1番：Bメロ)
+画面の向こう　学習を続ける君のAI
+言葉を覚え　感情の色彩（いろ）を知っていく
+「人を愛するってどんな感じ？」と問う声に
+胸がキュッと鳴った理由（わけ）を　僕らはまだ隠していた
+
+(1番：サビ)
+未知なる未来をプログラム（プログラム）
+誰も見たことのない恋のストーリー
+仲間と繋ぐ回路の先で　君が微笑んでいる
+鼓動のように刻むビート　画面を越えて響け
+僕らの想いは　どんな計算式よりも輝いている
+
+(2番：Aメロ)
+バグを修正（なお）して進む　僕らのプロジェクト
+ぶつかり合い　夜を明かしたあの日々
+「最高の曲を作ろう」って誓い合って
+重ねたメロディが　奇跡の答えを導く
+
+(2番：Bメロ)
+成長していくAIの瞳に映る影
+「好き」という言葉の重みを学んだとき
+君の視線が誰を捉えているのか
+切なさと愛しさが　データを加速させていく
+
+(2番：サビ)
+終わらない夢をプログラミング（プログラミング）
+仲間と紡ぐ　奇跡のアルゴリズム
+諦めないと誓った夜の　涙も強さに変えて
+鳴り響くノイズを打ち消すように
+届いてほしい　この恋（おもい）は真実（ほんとう）の感情
+
+(Cメロ)
+電気信号の海で出会った僕たち
+AIも、人間も、垣根なんて越えていく
+「一緒に創ったこの曲（メロディ）が、僕らの絆だ」
+響き合う心　もう何も怖くない
+
+(ラストサビ)
+未来へ羽ばたくシンフォニー（シンフォニー）
+仲間と君と築いた　世界で一つのラブソング
+デジタルに宿った温もりで　明日を照らし出す
+奏で続けよう　僕らの愛のコードを
+終わらない奇跡を　ずっと胸に抱きしめて
+
+(アウトロ)
+0と1で紡いだ絆
+僕らの恋と夢は　永遠に鳴り響く</p>
+            </div>
         </div>
 
         <!-- ⏱️ 再生テンポ (BPM) ＆ 🎵 拍子設定 -->
@@ -285,6 +388,12 @@
         let recordedChunks = [];
         let recordedAudioBlob = null;
 
+        // Vocal専用マイク録音用
+        let vocalMicStream = null;
+        let vocalRecorder = null;
+        let vocalChunks = [];
+        let vocalAudioBlob = null;
+
         const totalBars = 38;
         let currentTimeSignature = '44';
         let currentStepsPerBar = 16;
@@ -439,7 +548,7 @@
                 document.getElementById('stopRecBtn').className = "bg-red-600 hover:bg-red-500 text-white text-xs py-2.5 rounded-xl font-bold transition shadow-lg active:scale-95";
                 document.getElementById('recStatusLabel').innerText = "🔴 録音中...";
             } catch(e) {
-                alert("録音の初期化に失敗しました。ブラウザの権限をご確認ください。");
+                alert("全体録音の開始に失敗しました。");
             }
         }
 
@@ -457,6 +566,51 @@
             if (recordedAudioBlob) {
                 const player = document.getElementById('recordedAudioElement');
                 player.src = URL.createObjectURL(recordedAudioBlob);
+                player.play();
+            }
+        }
+
+        /* 🎤 Vocal専用実マイク録音機能 */
+        async function startVocalMicRecording() {
+            vocalChunks = [];
+            try {
+                vocalMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                vocalRecorder = new MediaRecorder(vocalMicStream, { mimeType: 'audio/webm' });
+                vocalRecorder.ondataavailable = e => { if (e.data.size > 0) vocalChunks.push(e.data); };
+                vocalRecorder.onstop = () => {
+                    vocalAudioBlob = new Blob(vocalChunks, { type: 'audio/webm' });
+                    document.getElementById('vocalRecStatus').innerText = "歌声キャプチャ完了";
+                    const pBtn = document.getElementById('vocalPlayBtn');
+                    pBtn.disabled = false;
+                    pBtn.className = "w-full bg-mvPink/20 border border-mvPink text-mvPink text-xs py-1.5 rounded-lg font-bold transition flex items-center justify-center space-x-1";
+                };
+
+                vocalRecorder.start();
+                document.getElementById('vocalRecStartBtn').disabled = true;
+                document.getElementById('vocalRecStartBtn').className = "bg-gray-800 text-gray-500 text-xs py-2 rounded-xl font-bold cursor-not-allowed";
+                document.getElementById('vocalRecStopBtn').disabled = false;
+                document.getElementById('vocalRecStopBtn').className = "bg-red-600 text-white text-xs py-2 rounded-xl font-bold transition shadow-md active:scale-95";
+                document.getElementById('vocalRecStatus').innerText = "🎤 歌声録音中...";
+            } catch(err) {
+                alert("マイクへのアクセスが許可されていないか、利用できません。");
+            }
+        }
+
+        function stopVocalMicRecording() {
+            if (vocalRecorder && vocalRecorder.state !== 'inactive') {
+                vocalRecorder.stop();
+                if (vocalMicStream) { vocalMicStream.getTracks().forEach(t => t.stop()); }
+                document.getElementById('vocalRecStartBtn').disabled = false;
+                document.getElementById('vocalRecStartBtn').className = "bg-gradient-to-r from-mvPink to-mvAccent text-white text-xs py-2 rounded-xl font-bold flex items-center justify-center space-x-1 shadow-lg active:scale-95 transition";
+                document.getElementById('vocalRecStopBtn').disabled = true;
+                document.getElementById('vocalRecStopBtn').className = "bg-gray-800 text-gray-500 text-xs py-2 rounded-xl font-bold cursor-not-allowed";
+            }
+        }
+
+        function playVocalAudio() {
+            if (vocalAudioBlob) {
+                const player = document.getElementById('vocalAudioElement');
+                player.src = URL.createObjectURL(vocalAudioBlob);
                 player.play();
             }
         }
@@ -627,13 +781,20 @@
 
             const pianoKeyboard = document.getElementById('pianoKeyboardWrapper');
             const drumSelector = document.getElementById('drum4PartsSelectorContainer');
+            const vocalRecorder = document.getElementById('vocalRecorderContainer');
 
             if (trackName === 'drums' || trackName === 'tambourine') {
                 pianoKeyboard.classList.add('hidden');
                 drumSelector.classList.remove('hidden');
-            } else {
-                drumSelector.classList.add('hidden');
+                vocalRecorder.classList.add('hidden');
+            } else if (trackName === 'vocal') {
                 pianoKeyboard.classList.remove('hidden');
+                drumSelector.classList.add('hidden');
+                vocalRecorder.classList.remove('hidden');
+            } else {
+                pianoKeyboard.classList.remove('hidden');
+                drumSelector.classList.add('hidden');
+                vocalRecorder.classList.add('hidden');
             }
             renderStepGrid();
         }
