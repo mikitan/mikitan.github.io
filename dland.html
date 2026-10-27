@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MICVICTORY BANDLAND DTM - Trumpet Addition & Volume Mixer</title>
+    <title>MICVICTORY BANDLAND DTM - Multi-FX & Trumpet Mixer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -40,6 +40,7 @@
         }
         .glow-accent { box-shadow: 0 0 20px rgba(139, 92, 246, 0.3); }
         .key-btn:active { transform: scale(0.95); background-color: #8b5cf6 !important; }
+        .fx-active { background-color: #8b5cf6 !important; color: white !important; border-color: #c084fc !important; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between overflow-x-hidden pb-24">
@@ -52,7 +53,7 @@
             </div>
             <div>
                 <h1 class="text-xs font-black tracking-wider bg-gradient-to-r from-mvCyan via-mvAccent to-mvPink bg-clip-text text-transparent uppercase">MICVICTORY 38 Bars AI</h1>
-                <p class="text-[9px] text-gray-400">トランペット追加・各楽器別ボリューム調整・歌詞800字</p>
+                <p class="text-[9px] text-gray-400">エフェクト(FX)・ボリュームミキサー・トランペット</p>
             </div>
         </div>
         <div class="flex items-center space-x-2">
@@ -92,6 +93,39 @@
                 <i class="fa-solid fa-trash-can"></i>
                 <span>全音楽データ一括クリア</span>
             </button>
+        </div>
+
+        <!-- ⚡ エフェクト (FX) パネル -->
+        <div class="bg-mvCard border border-mvAccent/40 rounded-2xl p-3.5 shadow-xl space-y-3">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xs font-bold text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-mvAccent"></i>
+                    <span>マスターFX (エフェクト) 設定</span>
+                </h3>
+                <span class="text-[10px] text-mvAccent font-mono">Realtime FX</span>
+            </div>
+            <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-3">
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="toggleFx('reverb')" id="fxBtn-reverb" class="py-2 rounded-xl text-xs font-bold bg-gray-900 border border-gray-800 text-gray-400 transition flex items-center justify-center space-x-1.5">
+                        <i class="fa-solid fa-house-chimney-window"></i>
+                        <span>リバーブ (空間残響)</span>
+                    </button>
+                    <button onclick="toggleFx('delay')" id="fxBtn-delay" class="py-2 rounded-xl text-xs font-bold bg-gray-900 border border-gray-800 text-gray-400 transition flex items-center justify-center space-x-1.5">
+                        <i class="fa-solid fa-wave-square"></i>
+                        <span>ディレイ (やまびこ)</span>
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="toggleFx('lowpass')" id="fxBtn-lowpass" class="py-2 rounded-xl text-xs font-bold bg-gray-900 border border-gray-800 text-gray-400 transition flex items-center justify-center space-x-1.5">
+                        <i class="fa-solid fa-filter"></i>
+                        <span>ローパス (こもり感)</span>
+                    </button>
+                    <button onclick="toggleFx('highpass')" id="fxBtn-highpass" class="py-2 rounded-xl text-xs font-bold bg-gray-900 border border-gray-800 text-gray-400 transition flex items-center justify-center space-x-1.5">
+                        <i class="fa-solid fa-filter-circle-xmark"></i>
+                        <span>ハイパス (シャープ)</span>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- 🎚️ 各楽器別音源ボリューム調整ミキサー -->
@@ -339,7 +373,7 @@ AIも、人間も、垣根なんて越えていく
             </div>
         </div>
 
-        <!-- 楽器タブ (トランペット追加、チョッパー削除) -->
+        <!-- 楽器タブ -->
         <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3 shadow-xl space-y-2">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-semibold text-gray-400">トラック選択 (各38小節)</span>
@@ -433,6 +467,14 @@ AIも、人間も、垣根なんて越えていく
             electric: 1.0, violin: 1.0, trumpet: 1.2, drums: 1.5, tambourine: 0.9
         };
 
+        // FX (エフェクト) ステータス
+        let fxState = {
+            reverb: false,
+            delay: false,
+            lowpass: false,
+            highpass: false
+        };
+
         let globalRecorder = null;
         let recordedChunks = [];
         let recordedAudioBlob = null;
@@ -499,6 +541,16 @@ AIも、人間も、垣根なんて越えていく
             document.getElementById('vol-' + trackKey).innerText = parseFloat(val).toFixed(1);
             if (trackGains[trackKey] && audioCtx) {
                 trackGains[trackKey].gain.setValueAtTime(parseFloat(val), audioCtx.currentTime);
+            }
+        }
+
+        function toggleFx(fxName) {
+            fxState[fxName] = !fxState[fxName];
+            const btn = document.getElementById('fxBtn-' + fxName);
+            if (fxState[fxName]) {
+                btn.className = "py-2 rounded-xl text-xs font-bold fx-active transition flex items-center justify-center space-x-1.5 border border-purple-400 shadow-md";
+            } else {
+                btn.className = "py-2 rounded-xl text-xs font-bold bg-gray-900 border border-gray-800 text-gray-400 transition flex items-center justify-center space-x-1.5";
             }
         }
 
@@ -779,7 +831,7 @@ AIも、人間も、垣根なんて越えていく
             
             if (trackType === 'trumpet') {
                 osc.type = 'sawtooth';
-                freq = freq * 1.5; // 明るく華やかなブラスサウンド
+                freq = freq * 1.5;
             } else if (trackType === 'bass' || trackType === 'electric') {
                 osc.type = 'sawtooth';
                 if (trackType === 'bass') freq = freq / 2;
@@ -791,8 +843,46 @@ AIも、人間も、垣根なんて越えていく
             gainNode.gain.setValueAtTime(velocity * 0.85, now);
             gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
-            osc.connect(gainNode);
-            gainNode.connect(targetOutputNode);
+            let currentNode = osc;
+            currentNode.connect(gainNode);
+            currentNode = gainNode;
+
+            // 🎛️ FXエフェクトチェーン適用
+            if (fxState.lowpass) {
+                const lp = audioCtx.createBiquadFilter();
+                lp.type = 'lowpass';
+                lp.frequency.setValueAtTime(800, now);
+                currentNode.connect(lp);
+                currentNode = lp;
+            }
+            if (fxState.highpass) {
+                const hp = audioCtx.createBiquadFilter();
+                hp.type = 'highpass';
+                hp.frequency.setValueAtTime(600, now);
+                currentNode.connect(hp);
+                currentNode = hp;
+            }
+            if (fxState.delay) {
+                const delay = audioCtx.createDelay();
+                delay.delayTime.setValueAtTime(0.25, now);
+                const dGain = audioCtx.createGain();
+                dGain.gain.setValueAtTime(0.4, now);
+                currentNode.connect(delay);
+                delay.connect(dGain);
+                dGain.connect(targetOutputNode);
+            }
+            if (fxState.reverb) {
+                // シンプルシミュレートディレイによるリバーブ効果
+                const rev = audioCtx.createDelay();
+                rev.delayTime.setValueAtTime(0.08, now);
+                const rGain = audioCtx.createGain();
+                rGain.gain.setValueAtTime(0.5, now);
+                currentNode.connect(rev);
+                rev.connect(rGain);
+                rGain.connect(targetOutputNode);
+            }
+
+            currentNode.connect(targetOutputNode);
             osc.start(now);
             osc.stop(now + duration);
         }
