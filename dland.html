@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MICVICTORY BANDLAND DTM - 800字歌詞＆Vocalマイク録音再生機能搭載</title>
+    <title>MICVICTORY BANDLAND DTM - 速度＆音の長さ調整機能搭載</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -54,7 +54,7 @@
             </div>
             <div>
                 <h1 class="text-xs font-black tracking-wider bg-gradient-to-r from-mvCyan via-mvAccent to-mvPink bg-clip-text text-transparent uppercase">MICVICTORY 38 Bars AI Studio</h1>
-                <p class="text-[9px] text-gray-400">音を聴きながらAmコード＆ドレミでメロディ手動記録</p>
+                <p class="text-[9px] text-gray-400">速度＆音の長さ調整対応 DTMスタジオ</p>
             </div>
         </div>
         <div class="flex items-center space-x-1.5">
@@ -96,6 +96,39 @@
                     <i class="fa-solid fa-circle text-red-500 text-[8px] animate-ping" id="recIcon"></i>
                     <span id="recBtnText">🔴 試聴・記録モードON</span>
                 </button>
+            </div>
+
+            <!-- ⏱️ 再生テンポ (BPM) 速度調整機能 (新追加) -->
+            <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-2">
+                <div class="flex items-center justify-between text-xs">
+                    <span class="font-bold text-mvCyan flex items-center space-x-1.5">
+                        <i class="fa-solid fa-gauge-high"></i>
+                        <span>再生テンポ (速度調整)</span>
+                    </span>
+                    <span id="bpmValLabel" class="text-mvCyan font-mono font-bold">128 BPM</span>
+                </div>
+                <input type="range" id="bpmSlider" min="60" max="200" step="1" value="128" oninput="updateBpm(this.value)" class="w-full accent-mvCyan cursor-pointer">
+                <div class="flex justify-between text-[9px] text-gray-500">
+                    <span>ゆっくり (60)</span>
+                    <span>標準 (128)</span>
+                    <span>高速 (200)</span>
+                </div>
+            </div>
+
+            <!-- 🎸 音の長さ（短/長）調整設定 (新追加) -->
+            <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-2">
+                <div class="flex items-center justify-between text-xs">
+                    <span class="font-bold text-mvGreen flex items-center space-x-1.5">
+                        <i class="fa-solid fa-sliders"></i>
+                        <span>音の長さ (短く / 長く)</span>
+                    </span>
+                    <span id="noteLengthLabel" class="text-mvGreen font-mono font-bold">0.40s (標準)</span>
+                </div>
+                <input type="range" min="0.08" max="1.5" step="0.05" value="0.40" id="noteDurationSlider" oninput="updateNoteDuration(this.value)" class="w-full accent-mvGreen cursor-pointer">
+                <div class="flex justify-between text-[9px] text-gray-500">
+                    <span>短く・歯切れ良く (0.08s)</span>
+                    <span>長く・伸ばす (1.5s)</span>
+                </div>
             </div>
 
             <!-- 全体オーディオミックス録音機能 -->
@@ -236,7 +269,7 @@
             </div>
         </div>
 
-        <!-- 🎙️ Vocalトラック専用 実マイク録音パネル (ボーカル選択時のみ表示) -->
+        <!-- 🎙️ Vocalトラック専用 実マイク録音パネル -->
         <div id="vocalRecorderContainer" class="bg-mvCard border border-mvPink/60 rounded-2xl p-3.5 shadow-xl space-y-3 hidden">
             <div class="flex items-center justify-between">
                 <h3 class="text-xs font-bold text-white flex items-center space-x-2">
@@ -479,7 +512,6 @@ AIも、人間も、垣根なんて越えていく
         let recordedChunks = [];
         let recordedAudioBlob = null;
 
-        // Vocalマイク録音用変数
         let vocalMicStream = null;
         let vocalRecorder = null;
         let vocalChunks = [];
@@ -503,7 +535,7 @@ AIも、人間も、垣根なんて越えていく
         let currentBpm = 128;
         let currentStepPointer = 0;
 
-        let currentNoteDuration = 0.40;
+        let currentNoteDuration = 0.40; // 音の長さ初期値
         let currentChordStyle = 'single';
         let copiedBarData = null;
 
@@ -553,6 +585,24 @@ AIも、人間も、垣根なんて越えていく
             renderBarSelector();
             renderStepGrid();
             updatePointerDisplay();
+        }
+
+        /* ⏱️ 速度（BPM）調整関数 */
+        function updateBpm(val) {
+            currentBpm = parseInt(val);
+            document.getElementById('bpmValLabel').innerText = currentBpm + ' BPM';
+            if (isGlobalPlaying) {
+                clearInterval(globalPlayInterval);
+                startGlobalPlayTimer();
+            }
+        }
+
+        /* 🎸 音の長さ調整関数 */
+        function updateNoteDuration(val) {
+            currentNoteDuration = parseFloat(val);
+            currentParams.duration = currentNoteDuration;
+            let label = currentNoteDuration < 0.2 ? '極短 (スタッカート)' : (currentNoteDuration > 0.8 ? 'ロングトーン' : '標準');
+            document.getElementById('noteLengthLabel').innerText = currentNoteDuration.toFixed(2) + 's (' + label + ')';
         }
 
         function toggleMixerPanel() {
@@ -612,7 +662,6 @@ AIも、人間も、垣根なんて越えていく
             return audioCtx;
         }
 
-        /* 🎙️ Vocalトラック専用 実マイク録音関数 */
         async function startVocalMicRecording() {
             vocalChunks = [];
             try {
@@ -657,7 +706,6 @@ AIも、人間も、垣根なんて越えていく
             }
         }
 
-        /* 全体録音関数 */
         function startGlobalRecording() {
             getAudioContext();
             recordedChunks = [];
@@ -1013,11 +1061,11 @@ AIも、人間も、垣根なんて越えていく
                 const bNote = bassNotes[b % bassNotes.length];
 
                 let pSteps = new Array(currentStepsPerBar).fill(null);
-                pSteps[0] = { note: chord, duration: 0.8, velocity: 0.9 };
+                pSteps[0] = { note: chord, duration: currentNoteDuration, velocity: 0.9 };
                 tracksData['piano'][b] = pSteps;
 
                 let bSteps = new Array(currentStepsPerBar).fill(null);
-                bSteps[0] = { note: bNote, duration: 0.7, velocity: 1.0 };
+                bSteps[0] = { note: bNote, duration: currentNoteDuration, velocity: 1.0 };
                 tracksData['bass'][b] = bSteps;
 
                 let dSteps = new Array(currentStepsPerBar).fill(null);
@@ -1034,7 +1082,7 @@ AIも、人間も、垣根なんて越えていく
             for(let b=0; b<totalBars; b++) {
                 let barSteps = new Array(currentStepsPerBar).fill(null);
                 for(let s=0; s<currentStepsPerBar; s+=2) {
-                    barSteps[s] = { note: popScales[Math.floor(Math.random() * popScales.length)], duration: 0.4, velocity: 0.85 };
+                    barSteps[s] = { note: popScales[Math.floor(Math.random() * popScales.length)], duration: currentNoteDuration, velocity: 0.85 };
                 }
                 tracksData[activeTrack][b] = barSteps;
             }
@@ -1063,7 +1111,10 @@ AIも、人間も、垣根なんて越えていく
             document.getElementById('statusText').innerText = "38小節 ライブ演奏中";
             document.getElementById('playIcon').className = "fa-solid fa-pause";
             document.getElementById('playBtnText').innerText = "一時停止";
+            startGlobalPlayTimer();
+        }
 
+        function startGlobalPlayTimer() {
             const stepDurationMs = (60 / currentBpm) * 1000 / 4;
             let stepCounter = 0;
 
@@ -1098,4 +1149,3 @@ AIも、人間も、垣根なんて越えていく
     </script>
 </body>
 </html>
-
