@@ -309,14 +309,38 @@
             }
         }
 
-        // ======= コピー機能 =======
+        // ======= コピー機能（フォールバック対応） =======
         function copyText(text) {
             if (!text) return;
-            navigator.clipboard.writeText(text).then(() => {
-                showToast('クリップボードにコピーしました！');
-            }).catch(() => {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('クリップボードにコピーしました！');
+                }).catch(() => {
+                    fallbackCopyText(text);
+                });
+            } else {
+                fallbackCopyText(text);
+            }
+        }
+
+        function fallbackCopyText(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";  // 画面外に固定
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast('クリップボードにコピーしました！');
+                } else {
+                    showToast('コピーに失敗しました');
+                }
+            } catch (err) {
                 showToast('コピーに失敗しました');
-            });
+            }
+            document.body.removeChild(textArea);
         }
 
         function copyGoalSummary(id) {
@@ -348,11 +372,7 @@
                 const encoded = btoa(unescape(encodeURIComponent(jsonStr)));
                 const shareUrl = `${window.location.origin}${window.location.pathname}?shared_goals=${encoded}`;
 
-                navigator.clipboard.writeText(shareUrl).then(() => {
-                    showToast('共有URLをクリップボードにコピーしました！');
-                }).catch(() => {
-                    prompt('以下のURLをコピーして共有してください:', shareUrl);
-                });
+                copyText(shareUrl);
             } catch (e) {
                 alert('データサイズが大きすぎるため、共有リンクを作成できません。');
             }
