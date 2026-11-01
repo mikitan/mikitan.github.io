@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY BAND - Genre AI Master v114.00</title>
+    <title>MIC VICTORY BAND - Genre AI Engine v115.00</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -20,19 +20,21 @@
             const [bpm, setBpm] = React.useState(116);
             const [playbackRate, setPlaybackRate] = React.useState(1.0);
             const [barsCount, setBarsCount] = React.useState(38);
-            const [currentBar, setCurrentBar] = React.useState(8); // 画像の第9小節 (0インデックスで8)
+            const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("🔥 ジャンル別＆全体マスタリングAI v114.00 稼働中");
+            const [status, setStatus] = React.useState("🔥 Genre AI Engine v115.00 稼働中");
 
             const BAR_STEPS = 16;
 
-            const [selectedInstrument, setSelectedInstrument] = React.useState("trumpetHigh");
+            // 選択中楽器・設定
+            const [selectedInstrument, setSelectedInstrument] = React.useState("elecGuitar");
             const [selectedDrumPart, setSelectedDrumPart] = React.useState("kick");
             const [selectedGuitarStyle, setSelectedGuitarStyle] = React.useState("cutting");
             const [selectedChord, setSelectedChord] = React.useState("Am");
             const [selectedOctave, setSelectedOctave] = React.useState("mid");
-            const [selectedNote, setSelectedNote] = React.useState("C5");
+            const [selectedNote, setSelectedNote] = React.useState("A3");
 
+            // ドラムパーツ定義 (6種類)
             const DRUM_PARTS = [
                 { id: "kick", label: "💥 キック" },
                 { id: "snare", label: "🎯 スネア" },
@@ -42,6 +44,7 @@
                 { id: "rim", label: "🪵 リム" }
             ];
 
+            // エレキギター用コード構成音 (Am他多数)
             const CHORD_NOTES = {
                 Am: ["A3", "C4", "E4"],
                 C:  ["C4", "E4", "G4"],
@@ -50,7 +53,9 @@
                 F:  ["F4", "A4", "C5"],
                 G:  ["G3", "B3", "D4"],
                 E7: ["E3", "G#3", "B3", "D4"],
-                FM7:["F4", "A4", "C5", "E5"]
+                FM7:["F4", "A4", "C5", "E5"],
+                A7: ["A3", "C#4", "E4", "G4"],
+                Bm7b5: ["B3", "D4", "F4", "A4"]
             };
 
             const CHORD_LIST = Object.keys(CHORD_NOTES);
@@ -61,7 +66,7 @@
                 { id: "stroke", label: "🎸 ストローク" }
             ];
 
-            // エフェクトパラメータ
+            // エフェクト パラメータ
             const [reverbRoomSize, setReverbRoomSize] = React.useState(0.5);
             const [reverbWet, setReverbWet] = React.useState(0.25);
             const [delayTime, setDelayTime] = React.useState("8n");
@@ -69,48 +74,50 @@
             const [delayWet, setDelayWet] = React.useState(0.15);
             const [distortionAmount, setDistortionAmount] = React.useState(0.15);
 
+            // AIプロンプト・歌詞
             const [rapLyrics, setRapLyrics] = React.useState(
-`[Intro - MIC VICTORY AI Master v114]
-Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
-全38小節を最高のサウンドへ一気に昇華。`
+`[Intro - MIC VICTORY AI Engine v115]
+ジャンル別AI専用構築 ＆ エレキギターコード選択・カッティング機能完備！
+全38小節を最高の楽曲へ一気に昇華。`
             );
 
-            // ミキサー・ボリューム
+            // ミキサー パラメータ
             const [masterVolume, setMasterVolume] = React.useState(1.6);
             const [masterBassBoost, setMasterBassBoost] = React.useState(24);
             const [volumes, setVolumes] = React.useState({
                 synthLowBass: 18,
-                trumpetLow: 14,
-                trumpetHigh: 16,
+                trumpet: 14,
                 violin: 14,
                 elecGuitar: 16,
                 synthLeadNormal: 12,
                 drums: 18
             });
             const [mutes, setMutes] = React.useState({
-                synthLowBass: false, trumpetLow: false, trumpetHigh: false, violin: false,
+                synthLowBass: false, trumpet: false, violin: false,
                 elecGuitar: false, synthLeadNormal: false, drums: false
             });
 
-            const [storageList, setStorageList] = React.useState([
-                { id: 1, title: "AI Master Session #1", bars: 38, bpm: 116, date: "12:00" }
-            ]);
-            const [saveSlotName, setSaveSlotName] = React.useState("MIC_VICTORY_AI_MASTER_v114");
+            // ストレージデータ
+            const [storageList, setStorageList] = React.useState(() => {
+                const saved = localStorage.getItem("MIC_VICTORY_TRACKS_V115");
+                return saved ? JSON.parse(saved) : [{ id: 1, title: "Genre AI Session #1", bars: 38, bpm: 116, date: "12:00" }];
+            });
+            const [saveSlotName, setSaveSlotName] = React.useState("MIC_VICTORY_GENRE_AI_v115");
 
-            // 録音
+            // 録音機能
             const [isRecording, setIsRecording] = React.useState(false);
             const [recordedAudioList, setRecordedAudioList] = React.useState([]);
             const mediaRecorderRef = React.useRef(null);
             const audioChunksRef = React.useRef([]);
             const destStreamNodeRef = React.useRef(null);
 
+            // ステップデータ定義
             const [instrumentSteps, setInstrumentSteps] = React.useState(() => {
-                const saved = localStorage.getItem("MIC_VICTORY_STEPS_V114");
+                const saved = localStorage.getItem("MIC_VICTORY_STEPS_V115");
                 if (saved) return JSON.parse(saved);
                 return {
                     synthLowBass: new Array(64 * BAR_STEPS).fill(null),
-                    trumpetLow: new Array(64 * BAR_STEPS).fill(null),
-                    trumpetHigh: new Array(64 * BAR_STEPS).fill(null),
+                    trumpet: new Array(64 * BAR_STEPS).fill(null),
                     violin: new Array(64 * BAR_STEPS).fill(null),
                     elecGuitar: new Array(64 * BAR_STEPS).fill(null),
                     synthLeadNormal: new Array(64 * BAR_STEPS).fill(null),
@@ -119,9 +126,14 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
             });
 
             React.useEffect(() => {
-                localStorage.setItem("MIC_VICTORY_STEPS_V114", JSON.stringify(instrumentSteps));
+                localStorage.setItem("MIC_VICTORY_STEPS_V115", JSON.stringify(instrumentSteps));
             }, [instrumentSteps]);
 
+            React.useEffect(() => {
+                localStorage.setItem("MIC_VICTORY_TRACKS_V115", JSON.stringify(storageList));
+            }, [storageList]);
+
+            // Tone.js 音源＆エフェクト参照
             const synthsRef = React.useRef(null);
             const loopRef = React.useRef(null);
             const masterGainRef = React.useRef(null);
@@ -134,14 +146,14 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
             const instrumentGainsRef = React.useRef({});
             const directStepIdxRef = React.useRef(0);
 
+            // 楽器定義
             const INSTRUMENT_MAP = [
-                { id: "elecGuitar", label: "🎸 エレキギター (Am/カッティング/アルペジオ/リフ)", color: "from-orange-800 to-amber-600" },
-                { id: "synthLowBass", label: "🔥 超重低音ベース (Low Bass)", color: "from-red-900 to-red-600" },
-                { id: "trumpetLow", label: "🎺 トランペット [低音] (Low Brass)", color: "from-amber-600 to-yellow-500" },
-                { id: "trumpetHigh", label: "🎺 トランペット [高音] (High Brass)", color: "from-yellow-600 to-amber-500" },
-                { id: "violin", label: "🎻 バイオリン (Violin Sound)", color: "from-rose-800 to-pink-600" },
-                { id: "synthLeadNormal", label: "🎹 シンセサイザー (Synth Lead)", color: "from-cyan-800 to-blue-600" },
-                { id: "drums", label: "🥁 鬼キレドラム (6パーツ)", color: "from-purple-900 to-rose-700" },
+                { id: "elecGuitar", label: "エレキギター (Am他コード・直接クリック記録)", color: "from-orange-800 to-amber-600" },
+                { id: "drums", label: "鬼キレドラム (6パーツ)", color: "from-purple-900 to-rose-700" },
+                { id: "synthLeadNormal", label: "シンセサイザー (Synth Lead)", color: "from-cyan-800 to-blue-600" },
+                { id: "violin", label: "バイオリン (Violin Sound)", color: "from-rose-800 to-pink-600" },
+                { id: "synthLowBass", label: "超重低音ベース (Low Bass)", color: "from-red-900 to-red-600" },
+                { id: "trumpet", label: "トランペット (Trumpet)", color: "from-amber-600 to-yellow-500" },
             ];
 
             const KEYBOARD_NOTES = [
@@ -155,7 +167,7 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                 { note: "C+", label: "高ド", color: "bg-rose-600 hover:bg-rose-500" },
             ];
 
-            // Tone.js初期化
+            // Tone.js 初期化
             React.useEffect(() => {
                 const masterGain = new Tone.Gain(masterVolume);
                 masterGainRef.current = masterGain;
@@ -200,8 +212,7 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
 
                 synthsRef.current = {
                     synthLowBass: new Tone.MonoSynth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.005, decay: 0.2, sustain: 0.4, release: 0.1 } }).connect(cGains.synthLowBass),
-                    trumpetLow: new Tone.Synth({ oscillator: { type: "sawtooth8" }, envelope: { attack: 0.03, decay: 0.2, sustain: 0.7, release: 0.15 } }).connect(cGains.trumpetLow),
-                    trumpetHigh: new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.02, decay: 0.2, sustain: 0.8, release: 0.1 } }).connect(cGains.trumpetHigh),
+                    trumpet: new Tone.Synth({ oscillator: { type: "sawtooth8" }, envelope: { attack: 0.03, decay: 0.2, sustain: 0.7, release: 0.15 } }).connect(cGains.trumpet),
                     violin: new Tone.Synth({ oscillator: { type: "triangle8" }, envelope: { attack: 0.08, decay: 0.4, sustain: 0.9, release: 0.4 } }).connect(cGains.violin),
                     elecGuitar: new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sawtooth" }, envelope: { attack: 0.005, decay: 0.3, sustain: 0.1, release: 0.2 } }).connect(cGains.elecGuitar),
                     synthLeadNormal: new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.3, release: 0.1 } }).connect(cGains.synthLeadNormal),
@@ -242,7 +253,7 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                 });
             }, [masterVolume, masterBassBoost, volumes, mutes, reverbRoomSize, reverbWet, delayTime, delayFeedback, delayWet, distortionAmount]);
 
-            // トランスポート再生ループ
+            // ループ演奏エンジン
             React.useEffect(() => {
                 Tone.Transport.bpm.value = bpm * playbackRate;
                 Tone.Transport.cancel();
@@ -279,7 +290,7 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                                         syns.elecGuitar.triggerAttackRelease(chordNotes, item.style === "cutting" ? "16n" : "4n", time);
                                     }
                                 } else if (syns[instKey]) {
-                                    syns[instKey].triggerAttackRelease(item.note || "C4", item.dur || "8n", time);
+                                    syns[instKey].triggerAttackRelease(item.note || "C3", item.dur || "8n", time);
                                 }
                             });
                         }
@@ -306,6 +317,7 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                 setStatus("🗑️ 全データを消去しました");
             };
 
+            // コードボタン試聴
             const handleChordSelect = async (chordName) => {
                 await Tone.start();
                 setSelectedChord(chordName);
@@ -314,9 +326,10 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                     const notes = CHORD_NOTES[chordName] || ["A3", "C4", "E4"];
                     syns.elecGuitar.triggerAttackRelease(notes, "4n");
                 }
-                setStatus(`🎸 コード [${chordName}] 試聴中`);
+                setStatus(`🎸 コード [${chordName}] 音源試聴中`);
             };
 
+            // グリッド直接クリック記録・試聴
             const handleGridCellClick = async (globalIdx) => {
                 await Tone.start();
                 const syns = synthsRef.current;
@@ -352,13 +365,14 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                 });
             };
 
+            // 手動鍵盤クリック (試聴＆即時記録)
             const handleKeyboardClick = async (noteRawObj) => {
                 await Tone.start();
                 let noteName = noteRawObj.note;
-                let oct = selectedOctave === "low" ? "3" : selectedOctave === "mid" ? "4" : "5";
+                let oct = selectedOctave === "low" ? "2" : selectedOctave === "mid" ? "3" : "4";
                 if (noteName === "C+") {
                     noteName = "C";
-                    oct = selectedOctave === "low" ? "4" : selectedOctave === "mid" ? "5" : "6";
+                    oct = selectedOctave === "low" ? "3" : selectedOctave === "mid" ? "4" : "5";
                 }
                 const fullNote = noteName + oct;
                 setSelectedNote(fullNote);
@@ -371,7 +385,7 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                 handleGridCellClick(targetStep);
             };
 
-            // ジャンル別 AI 楽曲ジェネレーター
+            // ジャンル別 AI 専用構築 (各ジャンルボタン押下時の処理)
             const applyGenreAi = (genreName) => {
                 const totalLen = barsCount * BAR_STEPS;
                 const newSteps = JSON.parse(JSON.stringify(instrumentSteps));
@@ -380,15 +394,13 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                     const s = i % 16;
                     const bar = Math.floor(i / 16);
 
-                    // 共通リズム（キック・スネア）
                     if (!newSteps.drums[i]) newSteps.drums[i] = { kick: false, snare: false, hihat: false, openHihat: false, clap: false, rim: false };
-                    
+
                     if (genreName === "Popping") {
                         if (s === 0 || s === 4 || s === 8 || s === 12) newSteps.drums[i].kick = true;
                         if (s === 4 || s === 12) newSteps.drums[i].snare = true;
                         if (s % 2 === 0) newSteps.drums[i].hihat = true;
-                        if (s === 0 || s === 10) newSteps.synthLowBass[i] = { note: "C2", dur: "16n" };
-                        if (s === 2 || s === 14) newSteps.trumpetHigh[i] = { note: "C5", dur: "16n" };
+                        if (s === 0 || s === 8) newSteps.synthLowBass[i] = { note: "C2", dur: "8n" };
                     } else if (genreName === "Rock") {
                         if (s === 0 || s === 8) newSteps.drums[i].kick = true;
                         if (s === 4 || s === 12) newSteps.drums[i].snare = true;
@@ -406,8 +418,9 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                         if (s === 0 || s === 10) newSteps.drums[i].kick = true;
                         if (s === 4 || s === 12) newSteps.drums[i].snare = true;
                         if (s % 4 === 2) newSteps.drums[i].rim = true;
-                        if (s === 0 || s === 6 || s === 10) {
-                            newSteps.trumpetLow[i] = { note: "G3", dur: "8n" };
+                        const chords = ["Dm7b5", "G", "C", "Am"];
+                        if (s === 0 || s === 8) {
+                            newSteps.elecGuitar[i] = { chord: chords[bar % chords.length], style: "cutting" };
                         }
                     } else if (genreName === "Pops") {
                         if (s === 0 || s === 8) newSteps.drums[i].kick = true;
@@ -417,32 +430,18 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                         if (s === 0 || s === 8) {
                             newSteps.elecGuitar[i] = { chord: chords[bar % chords.length], style: "arpeggio" };
                         }
-                        if (s === 2 || s === 10) newSteps.violin[i] = { note: "E5", dur: "4n" };
-                    } else if (genreName === "Breaking") {
-                        if (s === 0 || s === 3 || s === 8 || s === 11) newSteps.drums[i].kick = true;
+                    } else if (genreName === "Dance AI") {
+                        if (s === 0 || s === 4 || s === 8 || s === 12) newSteps.drums[i].kick = true;
                         if (s === 4 || s === 12) newSteps.drums[i].snare = true;
                         if (s % 2 === 0) newSteps.drums[i].openHihat = true;
-                        if (s === 0 || s === 6) newSteps.synthLowBass[i] = { note: "F2", dur: "8n" };
-                    } else if (genreName === "Contemporary") {
-                        if (s === 0 || s === 10) newSteps.drums[i].rim = true;
-                        if (s === 6) newSteps.drums[i].openHihat = true;
-                        if (s === 0 || s === 8) newSteps.violin[i] = { note: "A4", dur: "2n" };
-                        if (s === 4) newSteps.synthLeadNormal[i] = { note: "C5", dur: "4n" };
-                    } else if (genreName === "Blue AI") {
-                        if (s === 0 || s === 8) newSteps.drums[i].kick = true;
-                        if (s === 4 || s === 12) newSteps.drums[i].snare = true;
-                        if (s % 2 === 0) newSteps.drums[i].hihat = true;
                         if (s === 0 || s === 6 || s === 12) {
-                            newSteps.trumpetHigh[i] = { note: "D5", dur: "8n" };
-                        }
-                        if (s === 2 || s === 10) {
-                            newSteps.synthLowBass[i] = { note: "D2", dur: "8n" };
+                            newSteps.trumpet[i] = { note: "G5", dur: "8n" };
                         }
                     }
                 }
 
                 setInstrumentSteps(newSteps);
-                setStatus(`✨ 【${genreName} AI】専用フレーズを全38小節に生成しました！`);
+                setStatus(`✨ 【${genreName} AI】専用フレーズを全${barsCount}小節に構築しました！`);
             };
 
             const startRecording = async () => {
@@ -455,7 +454,7 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                     mediaRecorderRef.current.onstop = () => {
                         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                         const audioUrl = URL.createObjectURL(audioBlob);
-                        setRecordedAudioList(prev => [...prev, { id: Date.now(), title: `Master Track #${prev.length + 1}`, url: audioUrl }]);
+                        setRecordedAudioList(prev => [...prev, { id: Date.now(), title: `Genre AI Track #${prev.length + 1}`, url: audioUrl }]);
                         setStatus("⏹️ 録音完了！保存・ダウンロード可能です。");
                     };
                     mediaRecorderRef.current.start();
@@ -490,7 +489,7 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                     <header className="bg-slate-900 px-3 py-2 border-b border-red-900/60 sticky top-0 z-50 flex items-center justify-between gap-2">
                         <div className="shrink-0">
                             <h1 className="font-black text-xs text-red-500 tracking-wider">MIC VICTORY BAND</h1>
-                            <p className="text-[9px] text-yellow-400 font-bold">Guitar AI &amp; Predictor v114.00</p>
+                            <p className="text-[9px] text-yellow-400 font-bold">Genre AI Engine v115.00</p>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                             <button onClick={clearAll} className="px-2 py-1 bg-red-800 hover:bg-red-700 font-bold rounded text-[9px] text-white shadow">
@@ -534,43 +533,39 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                         {activeTab === "SEQUENCER" && (
                             <div className="flex flex-col gap-3">
                                 
-                                {/* AI 全体予測メロディ創り上げ (各ジャンルボタン群) */}
+                                {/* 🤖 ジャンル別 AI 専用構築パネル (スクリーンショット完全一致) */}
                                 <div className="bg-slate-900 p-2.5 rounded-lg border border-yellow-500/80 flex flex-col gap-2">
-                                    <span className="font-black text-yellow-400 text-[11px]">✨ AI 全体予測メロディ創り上げ (各ジャンル一括適用)</span>
+                                    <span className="font-black text-yellow-400 text-[11px]">🤖 ジャンル別 AI 専用構築 (選択中の楽器に生成)</span>
                                     <div className="grid grid-cols-3 gap-1.5">
                                         <button onClick={() => applyGenreAi("Popping")} className="py-2 bg-gradient-to-r from-red-700 to-rose-600 text-white font-black rounded text-[9px] shadow active:scale-95">💥 Popping</button>
                                         <button onClick={() => applyGenreAi("Rock")} className="py-2 bg-gradient-to-r from-amber-700 to-orange-600 text-white font-black rounded text-[9px] shadow active:scale-95">🎸 Rock</button>
                                         <button onClick={() => applyGenreAi("Dance")} className="py-2 bg-gradient-to-r from-blue-700 to-cyan-600 text-white font-black rounded text-[9px] shadow active:scale-95">🎧 Dance</button>
                                         <button onClick={() => applyGenreAi("Soul/Funk")} className="py-2 bg-gradient-to-r from-amber-600 to-yellow-600 text-black font-black rounded text-[9px] shadow active:scale-95">🎷 Soul/Funk</button>
                                         <button onClick={() => applyGenreAi("Pops")} className="py-2 bg-gradient-to-r from-purple-700 to-fuchsia-600 text-white font-black rounded text-[9px] shadow active:scale-95">✨ Pops</button>
-                                        <button onClick={() => applyGenreAi("Blue AI")} className="py-2 bg-gradient-to-r from-emerald-700 to-teal-600 text-white font-black rounded text-[9px] shadow active:scale-95">🍺 Blue AI</button>
-                                        <button onClick={() => applyGenreAi("Breaking")} className="py-2 bg-gradient-to-r from-indigo-700 to-violet-600 text-white font-black rounded text-[9px] shadow active:scale-95">⚡ Breaking</button>
-                                        <button onClick={() => applyGenreAi("Contemporary")} className="py-2 bg-gradient-to-r from-pink-700 to-rose-800 text-white font-black rounded text-[9px] shadow active:scale-95">🩰 Contemporary</button>
+                                        <button onClick={() => applyGenreAi("Dance AI")} className="py-2 bg-gradient-to-r from-emerald-700 to-teal-600 text-white font-black rounded text-[9px] shadow active:scale-95">🍺 Dance AI</button>
                                     </div>
                                 </div>
 
-                                {/* エレキギター コード選択 & 奏法追加 */}
-                                {selectedInstrument === "elecGuitar" && (
-                                    <div className="bg-slate-900 p-2.5 rounded-lg border border-orange-500/80 flex flex-col gap-2">
-                                        <span className="font-black text-orange-400 text-[11px]">🎸 エレキギター コード選択 (タップで試聴＆直接記録)</span>
-                                        <div className="grid grid-cols-4 gap-1">
-                                            {CHORD_LIST.map(chord => (
-                                                <button key={chord} onClick={() => handleChordSelect(chord)} className={`py-1.5 rounded font-bold text-[9px] ${selectedChord === chord ? "bg-orange-600 text-white font-black shadow-lg scale-105" : "bg-slate-950 text-slate-300 border border-slate-800"}`}>
-                                                    {chord}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <div className="grid grid-cols-4 gap-1 mt-1">
-                                            {GUITAR_STYLES.map(st => (
-                                                <button key={st.id} onClick={() => setSelectedGuitarStyle(st.id)} className={`py-1.5 rounded font-bold text-[8px] ${selectedGuitarStyle === st.id ? "bg-amber-500 text-black font-black" : "bg-slate-950 text-slate-400 border border-slate-800"}`}>
-                                                    {st.label}
-                                                </button>
-                                            ))}
-                                        </div>
+                                {/* 🎸 エレキギター コード選択 (Am他多数) ＆ 奏法切替 (カッティング/アルペジオ/重厚リフ/ストローク) */}
+                                <div className="bg-slate-900 p-2.5 rounded-lg border border-orange-500/80 flex flex-col gap-2">
+                                    <span className="font-black text-orange-400 text-[11px]">🎸 エレキギター コード選択 (Am 他多数)</span>
+                                    <div className="grid grid-cols-5 gap-1">
+                                        {CHORD_LIST.map(chord => (
+                                            <button key={chord} onClick={() => handleChordSelect(chord)} className={`py-1.5 rounded font-bold text-[9px] ${selectedChord === chord ? "bg-orange-600 text-white font-black shadow-lg scale-105" : "bg-slate-950 text-slate-300 border border-slate-800"}`}>
+                                                {chord}
+                                            </button>
+                                        ))}
                                     </div>
-                                )}
+                                    <div className="grid grid-cols-4 gap-1 mt-1">
+                                        {GUITAR_STYLES.map(st => (
+                                            <button key={st.id} onClick={() => setSelectedGuitarStyle(st.id)} className={`py-1.5 rounded font-bold text-[8px] ${selectedGuitarStyle === st.id ? "bg-amber-500 text-black font-black" : "bg-slate-950 text-slate-400 border border-slate-800"}`}>
+                                                {st.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
 
-                                {/* ステップ録音・グリッド (第9小節等の表示) */}
+                                {/* ステップ録音・グリッド (聴きながら直接クリック記録) */}
                                 <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 flex flex-col gap-2">
                                     <div className="flex justify-between items-center">
                                         <span className="font-bold text-amber-400 text-[10px]">⚏ ステップ録音・グリッド (第 {currentBar + 1} 小節)</span>
@@ -635,11 +630,11 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                                     </div>
                                 )}
 
-                                {/* ドレミファ手動鍵盤 (タップ即時記録) */}
+                                {/* ドレミファ手動鍵盤 (タップ即時記録・試聴) */}
                                 {selectedInstrument !== "elecGuitar" && selectedInstrument !== "drums" && (
                                     <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 flex flex-col gap-1.5">
                                         <div className="flex justify-between items-center">
-                                            <span className="font-bold text-amber-300 text-[10px]">🎹 ドレミファ手動鍵盤 (タップ即時記録)</span>
+                                            <span className="font-bold text-amber-300 text-[10px]">🎹 ドレミファ手動鍵盤 (タップ即時記録・試聴)</span>
                                             <div className="flex gap-1">
                                                 {["low", "mid", "high"].map(oct => (
                                                     <button key={oct} onClick={() => setSelectedOctave(oct)} className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${selectedOctave === oct ? "bg-amber-500 text-black" : "bg-slate-950 text-slate-400 border border-slate-800"}`}>
@@ -680,7 +675,7 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                                     </div>
                                 </div>
 
-                                {/* 小節数設定 (全38小節対応) */}
+                                {/* 小節数設定 (38小節対応) */}
                                 <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
                                     <span className="font-bold text-slate-300 text-[10px]">小節数設定 (全38小節対応):</span>
                                     <div className="flex gap-1">
@@ -813,7 +808,7 @@ Popping, Rock, Dance, Soul/Funk, Pops, Breaking, Contemporary, Blue AI
                             <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 flex flex-col gap-2">
                                 <div className="flex justify-between items-center">
                                     <span className="font-bold text-amber-400 text-[10px]">🌊 ストレージ保存</span>
-                                    <button onClick={() => setStorageList(prev => [...prev, { id: Date.now(), title: `Master Session #${prev.length + 1}`, bars: barsCount, bpm, date: new Date().toLocaleTimeString() }])} className="px-2 py-0.5 bg-red-600 text-white font-bold rounded text-[9px]">保存</button>
+                                    <button onClick={() => setStorageList(prev => [...prev, { id: Date.now(), title: `Genre Session #${prev.length + 1}`, bars: barsCount, bpm, date: new Date().toLocaleTimeString() }])} className="px-2 py-0.5 bg-red-600 text-white font-bold rounded text-[9px]">保存</button>
                                 </div>
                                 {storageList.map(item => (
                                     <div key={item.id} className="bg-slate-950 p-2 rounded flex justify-between items-center border border-slate-800">
