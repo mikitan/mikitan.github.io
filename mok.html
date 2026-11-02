@@ -1,446 +1,572 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>目標達成ダッシュボード</title>
-    <!-- Tailwind CSS (CDN) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome (Icons) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>目標達成ダッシュボード v2（データが残る版）</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+body { font-family: 'Inter', sans-serif;}
+</style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen pb-12">
 
-    <!-- Header -->
-    <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 sticky top-0 z-50">
-        <div class="max-w-4xl mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold flex items-center gap-2 text-indigo-400">
-                <i class="fa-solid font-bold fa-bullseye text-2xl"></i> Goal Tracker
-            </h1>
-            <div class="flex items-center gap-2">
-                <!-- Local Backup/Restore -->
-                <button id="exportBtn" onclick="exportData()" class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5" title="ローカルバックアップ">
-                    <i class="fa-solid fa-download"></i> バックアップ
-                </button>
-                <label class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5 cursor-pointer" title="ローカル復元">
-                    <i class="fa-solid fa-upload"></i> 復元
-                    <input type="file" id="importFile" onchange="importData(event)" class="hidden" accept=".json">
-                </label>
-            </div>
-        </div>
-    </header>
+<header class="bg-slate-800 border-b border-slate-700 py-4 px-6 sticky top-0 z-50">
+<div class="max-w-4xl mx-auto flex justify-between items-center">
+<h1 class="text-xl font-bold flex items-center gap-2 text-indigo-400">
+<i class="fa-solid fa-bullseye text-2xl"></i> Goal Tracker v2
+</h1>
+<div class="flex items-center gap-2">
+<button onclick="exportData()" class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5" title="バックアップファイルを保存">
+<i class="fa-solid fa-download"></i> バックアップ
+</button>
+<label class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5 cursor-pointer" title="バックアップから復元">
+<i class="fa-solid fa-upload"></i> 復元
+<input type="file" id="importFile" onchange="importData(event)" class="hidden" accept=".json">
+</label>
+</div>
+</div>
+<!-- 保存状態バー：保存できたかどうかが目で見て分かる -->
+<div class="max-w-4xl mx-auto mt-2">
+<p id="saveStatus" class="text-xs text-slate-300 bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2">
+<i class="fa-solid fa-database mr-1"></i> 読み込み中...
+</p>
+<p id="storageWarning" class="hidden text-xs text-rose-200 bg-rose-900/40 border border-rose-700 rounded-lg px-3 py-2 mt-2">
+<i class="fa-solid fa-triangle-exclamation mr-1"></i>
+この開き方ではデータ保存が使えません。ファイルを Chrome などのブラウザで直接開いてください（アプリ内プレビューやシークレットモードでは保存が消えます）。
+</p>
+</div>
+</header>
 
-    <main class="max-w-4xl mx-auto px-4 mt-8">
+<main class="max-w-4xl mx-auto px-4 mt-8">
+<div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 mb-6">
+<button onclick="openModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+<i class="fa-solid fa-plus"></i> 新しい目標を追加
+</button>
+<div class="flex gap-2">
+<button onclick="shareList()" class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-xl shadow transition flex items-center justify-center gap-2">
+<i class="fa-solid fa-share-nodes"></i> リスト共有リンク生成
+</button>
+<button onclick="restoreBackup()" class="flex-1 md:flex-none bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2.5 px-4 rounded-xl shadow transition flex items-center justify-center gap-2" title="1つ前の保存データに戻す">
+<i class="fa-solid fa-rotate-left"></i> 前の保存に戻す
+</button>
+</div>
+</div>
 
-        <!-- Control Bar -->
-        <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 mb-6">
-            <button onclick="openModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
-                <i class="fa-solid fa-plus"></i> 新しい目標を追加
-            </button>
-            <div class="flex gap-2">
-                <button onclick="shareList()" class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-xl shadow transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-share-nodes"></i> リスト共有リンク生成
-                </button>
-            </div>
-        </div>
+<div id="goalsList" class="grid gap-6 md:grid-cols-2"></div>
 
-        <!-- Goals Container -->
-        <div id="goalsList" class="grid gap-6 md:grid-cols-2">
-            <!-- JavaScript dynamically populates goals here -->
-        </div>
+<div id="emptyState" class="hidden text-center py-16 border-2 border-dashed border-slate-700 rounded-2xl">
+<i class="fa-solid fa-flag-checkered text-5xl text-slate-600 mb-3"></i>
+<p class="text-slate-400 text-lg">登録されている目標がありません。</p>
+<p class="text-slate-500 text-sm mt-1">「新しい目標を追加」ボタンから設定してみましょう！</p>
+</div>
+</main>
 
-        <!-- Empty State -->
-        <div id="emptyState" class="hidden text-center py-16 border-2 border-dashed border-slate-700 rounded-2xl">
-            <i class="fa-solid fa-flag-checkered text-5xl text-slate-600 mb-3"></i>
-            <p class="text-slate-400 text-lg">登録されている目標がありません。</p>
-            <p class="text-slate-500 text-sm mt-1">「新しい目標を追加」ボタンから設定してみましょう！</p>
-        </div>
+<div id="modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+<div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+<button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">
+<i class="fa-solid fa-xmark"></i>
+</button>
+<h2 id="modalTitle" class="text-xl font-bold mb-4 text-indigo-300">新しい目標の設定</h2>
+<form id="goalForm" onsubmit="saveGoal(event)" class="space-y-4">
+<input type="hidden" id="goalId">
+<div>
+<label class="block text-xs font-semibold text-slate-400 uppercase mb-1">目標名</label>
+<input type="text" id="goalTitle" required placeholder="例: 資格試験に合格する" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+</div>
+<div>
+<label class="block text-xs font-semibold text-slate-400 uppercase mb-1">目標達成期日</label>
+<input type="datetime-local" id="goalDeadline" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+</div>
+<div>
+<label class="block text-xs font-semibold text-slate-400 uppercase mb-1">メモ / 詳細</label>
+<textarea id="goalNotes" rows="3" placeholder="達成に向けたメモや詳細を入力..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"></textarea>
+</div>
+<div class="flex justify-end gap-3 pt-2">
+<button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm">キャンセル</button>
+<button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 font-semibold rounded-lg text-sm transition">保存する</button>
+</div>
+</form>
+</div>
+</div>
 
-    </main>
+<div id="toast" class="fixed bottom-5 right-5 bg-emerald-600 text-white px-4 py-2.5 rounded-lg shadow-xl translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-2 z-50">
+<i class="fa-solid fa-circle-check"></i> <span id="toastMsg">通知メッセージ</span>
+</div>
 
-    <!-- Modal Form (Add / Edit) -->
-    <div id="modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
-        <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
-            <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-            <h2 id="modalTitle" class="text-xl font-bold mb-4 text-indigo-300">新しい目標の設定</h2>
-            
-            <form id="goalForm" onsubmit="saveGoal(event)" class="space-y-4">
-                <input type="hidden" id="goalId">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">目標名</label>
-                    <input type="text" id="goalTitle" required placeholder="例: 資格試験に合格する" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">目標達成期日</label>
-                    <input type="datetime-local" id="goalDeadline" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">メモ / 詳細</label>
-                    <textarea id="goalNotes" rows="3" placeholder="達成に向けたメモや詳細を入力..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"></textarea>
-                </div>
-                <div class="flex justify-end gap-3 pt-2">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm">キャンセル</button>
-                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 font-semibold rounded-lg text-sm transition">保存する</button>
-                </div>
-            </form>
-        </div>
-    </div>
+<script>
+/* =========================================================
+v2 保存の仕組み（ここが改良点）
+1) IndexedDB と localStorage の両方に二重保存する
+2) 保存のたびに「1つ前のデータ」を予備として残す（誤削除の復旧用）
+3) 読み込み時は両方を見て、新しい方を採用する。旧形式（配列そのまま）も読み込む
+4) 保存できたかどうかを画面上部に必ず表示する
+5) ブラウザに「データを消さないで」と要求する（navigator.storage.persist）
+========================================================= */
+const LS_KEY = 'user_goals_data';
+const LS_BACKUP_KEY = 'user_goals_data_backup';
+const DB_NAME = 'goalTrackerDB_v2';
+const DB_STORE = 'kv';
+const DB_KEY = 'goals_main';
+const DB_BACKUP_KEY = 'goals_backup';
 
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-5 right-5 bg-emerald-600 text-white px-4 py-2.5 rounded-lg shadow-xl translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-2 z-50">
-        <i class="fa-solid fa-circle-check"></i> <span id="toastMsg">通知メッセージ</span>
-    </div>
+let goals = [];
+let lastSavedAt = 0;
+let lsAvailable = false;
+let idbAvailable = false;
 
-    <script>
-        // ======= アプリケーション本体のロジック =======
-        let goals = [];
+// ---------- IndexedDB ----------
+function idbOpen() {
+return new Promise((resolve, reject) => {
+if (!('indexedDB' in window)) { reject(new Error('no idb')); return;}
+const req = indexedDB.open(DB_NAME, 1);
+req.onupgradeneeded = () => { req.result.createObjectStore(DB_STORE);};
+req.onsuccess = () => resolve(req.result);
+req.onerror = () => reject(req.error);
+});
+}
+async function idbGet(key) {
+const db = await idbOpen();
+return new Promise((resolve, reject) => {
+const tx = db.transaction(DB_STORE, 'readonly');
+const req = tx.objectStore(DB_STORE).get(key);
+req.onsuccess = () => resolve(req.result || null);
+req.onerror = () => reject(req.error);
+});
+}
+async function idbSet(key, value) {
+const db = await idbOpen();
+return new Promise((resolve, reject) => {
+const tx = db.transaction(DB_STORE, 'readwrite');
+tx.objectStore(DB_STORE).put(value, key);
+tx.oncomplete = () => resolve(true);
+tx.onerror = () => reject(tx.error);
+});
+}
 
-        window.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const sharedData = urlParams.get('shared_goals');
+// ---------- localStorage ----------
+function testLocalStorage() {
+try {
+const k = '__gt_test__';
+localStorage.setItem(k, '1');
+localStorage.removeItem(k);
+return true;
+} catch (e) { return false;}
+}
+function lsRead(key) {
+try {
+const raw = localStorage.getItem(key);
+return raw? JSON.parse(raw): null;
+} catch (e) { return null;}
+}
+function lsWrite(key, value) {
+try { localStorage.setItem(key, JSON.stringify(value)); return true;}
+catch (e) { return false;}
+}
 
-            if (sharedData) {
-                try {
-                    const decoded = JSON.parse(decodeURIComponent(escape(atob(sharedData))));
-                    if (confirm('共有された目標リストを読み込みますか？\n（現在のリストに追加保存されます）')) {
-                        goals = [...goals, ...decoded];
-                        saveToLocalStorage();
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                    }
-                } catch (e) {
-                    showToast('共有データの読み込みに失敗しました');
-                }
-            }
+// 旧形式（配列）と新形式（{savedAt, goals}）の両方を受ける
+function normalize(parsed) {
+if (!parsed) return null;
+if (Array.isArray(parsed)) return { savedAt: 0, goals: parsed};
+if (Array.isArray(parsed.goals)) return { savedAt: parsed.savedAt || 0, goals: parsed.goals};
+return null;
+}
 
-            loadFromLocalStorage();
-            renderGoals();
-            setInterval(updateCountdown, 1000);
-        });
+async function loadAllData() {
+let candidates = [];
+// localStorage
+if (lsAvailable) {
+const main = normalize(lsRead(LS_KEY));
+if (main) candidates.push(main);
+}
+// IndexedDB
+try {
+const idbMain = normalize(await idbGet(DB_KEY));
+if (idbMain) { idbAvailable = true; candidates.push(idbMain);}
+else { idbAvailable = true;}
+} catch (e) { idbAvailable = false;}
 
-        function saveToLocalStorage() {
-            localStorage.setItem('user_goals_data', JSON.stringify(goals));
-        }
+if (candidates.length === 0) return { savedAt: 0, goals: []};
+candidates.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+return candidates[0];
+}
 
-        function loadFromLocalStorage() {
-            const data = localStorage.getItem('user_goals_data');
-            if (data) {
-                try { goals = JSON.parse(data); } catch(e) { goals = []; }
-            }
-        }
+async function persistGoals(showMsg) {
+const payload = { version: 2, savedAt: Date.now(), goals: goals};
+let okLS = false, okIDB = false;
 
-        function renderGoals() {
-            const container = document.getElementById('goalsList');
-            const emptyState = document.getElementById('emptyState');
+// 予備（1つ前の保存）を残してから上書きする
+if (lsAvailable) {
+const prev = lsRead(LS_KEY);
+if (prev) lsWrite(LS_BACKUP_KEY, prev);
+okLS = lsWrite(LS_KEY, payload);
+}
+try {
+const prevIdb = await idbGet(DB_KEY);
+if (prevIdb) await idbSet(DB_BACKUP_KEY, prevIdb);
+await idbSet(DB_KEY, payload);
+okIDB = true;
+} catch (e) { okIDB = false;}
 
-            container.innerHTML = '';
+lastSavedAt = payload.savedAt;
+updateSaveStatus(okLS || okIDB, okLS, okIDB);
+if (showMsg) {
+if (okLS || okIDB) showToast('保存しました');
+else showToast('保存できませんでした。バックアップを書き出してください');
+}
+return okLS || okIDB;
+}
 
-            if (goals.length === 0) {
-                emptyState.classList.remove('hidden');
-                return;
-            } else {
-                emptyState.classList.add('hidden');
-            }
+function updateSaveStatus(ok, okLS, okIDB) {
+const el = document.getElementById('saveStatus');
+const warn = document.getElementById('storageWarning');
+const time = lastSavedAt? new Date(lastSavedAt).toLocaleTimeString(): '-';
+if (ok) {
+el.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i> 保存済み：目標 ' +
+goals.length + ' 件 ／ 最終保存 ' + escapeHtml(time) +
+'（保存先：' + (okIDB? 'IndexedDB ': '') + (okLS? 'localStorage': '') + '）';
+warn.classList.add('hidden');
+} else {
+el.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-rose-400 mr-1"></i> 保存できていません';
+warn.classList.remove('hidden');
+}
+}
 
-            goals.forEach((goal) => {
-                const card = document.createElement('div');
-                card.className = "bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg relative flex flex-col justify-between";
-                card.id = `goal-card-${goal.id}`;
+async function restoreBackup() {
+let backups = [];
+if (lsAvailable) {
+const b = normalize(lsRead(LS_BACKUP_KEY));
+if (b) backups.push(b);
+}
+try {
+const b = normalize(await idbGet(DB_BACKUP_KEY));
+if (b) backups.push(b);
+} catch (e) {}
+if (backups.length === 0) { showToast('予備データがありません'); return;}
+backups.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+const backup = backups[0];
+if (confirm('1つ前の保存データ（目標 ' + backup.goals.length + ' 件）に戻しますか？\n今の表示は置き換わります。')) {
+goals = backup.goals;
+await persistGoals(false);
+renderGoals();
+showToast('前の保存データに戻しました');
+}
+}
 
-                card.innerHTML = `
-                    <div>
-                        <div class="flex justify-between items-start mb-2">
-                            <h3 class="text-lg font-bold text-white leading-tight pr-2">${escapeHtml(goal.title)}</h3>
-                            <div class="flex items-center gap-1 text-slate-400 shrink-0">
-                                <button onclick="copyGoalSummary('${goal.id}')" class="p-1 hover:text-emerald-400 transition" title="カード内容をコピー"><i class="fa-regular fa-copy"></i></button>
-                                <button onclick="editGoal('${goal.id}')" class="p-1 hover:text-indigo-400 transition" title="編集"><i class="fa-solid fa-pen-to-square"></i></button>
-                                <button onclick="deleteGoal('${goal.id}')" class="p-1 hover:text-rose-400 transition" title="削除"><i class="fa-solid fa-trash-can"></i></button>
-                            </div>
-                        </div>
-                        <p class="text-xs text-slate-400 mb-4"><i class="fa-regular fa-calendar-check mr-1"></i> 期限: ${new Date(goal.deadline).toLocaleString()}</p>
-                        
-                        <div class="bg-slate-900 border border-slate-700 rounded-xl p-3 mb-4 text-center">
-                            <div id="timer-${goal.id}" class="text-xl font-bold font-mono text-indigo-400">計算中...</div>
-                        </div>
+// ---------- 起動 ----------
+window.addEventListener('DOMContentLoaded', async () => {
+lsAvailable = testLocalStorage();
 
-                        ${goal.notes ? `<p class="text-sm text-slate-300 bg-slate-900/50 p-2.5 rounded-lg border border-slate-700/50 whitespace-pre-wrap mb-4">${escapeHtml(goal.notes)}</p>` : ''}
-                    </div>
+// ブラウザにデータ保持を要求（対応ブラウザのみ）
+try {
+if (navigator.storage && navigator.storage.persist) {
+await navigator.storage.persist();
+}
+} catch (e) {}
 
-                    <div class="border-t border-slate-700/80 pt-3 mt-2">
-                        <div class="flex justify-between items-center text-xs text-slate-400 mb-2">
-                            <span class="font-semibold"><i class="fa-solid fa-list-check mr-1"></i> 進捗記録リスト</span>
-                            <button onclick="addLogPrompt('${goal.id}')" class="text-indigo-400 hover:underline"><i class="fa-solid fa-plus"></i> 記録追加</button>
-                        </div>
-                        <ul class="space-y-1.5 max-h-32 overflow-y-auto pr-1 text-xs text-slate-300">
-                            ${(goal.logs || []).length > 0 ? 
-                                goal.logs.map((log, index) => `
-                                    <li class="bg-slate-900/80 p-2 rounded flex justify-between items-center">
-                                        <span>${escapeHtml(log.text)} <span class="text-[10px] text-slate-500">(${log.date})</span></span>
-                                        <div class="flex items-center gap-1 shrink-0 ml-2">
-                                            <button onclick="copyText('${escapeJsString(log.text)}')" class="text-slate-500 hover:text-emerald-400" title="テキストをコピー"><i class="fa-regular fa-copy"></i></button>
-                                            <button onclick="deleteLog('${goal.id}',${index})" class="text-slate-500 hover:text-rose-400" title="削除"><i class="fa-solid fa-xmark"></i></button>
-                                        </div>
-                                    </li>
-                                `).join('') : 
-                                '<li class="text-slate-500 text-center py-1">記録はまだありません</li>'
-                            }
-                        </ul>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
+const loaded = await loadAllData();
+goals = loaded.goals || [];
+lastSavedAt = loaded.savedAt || 0;
 
-            updateCountdown();
-        }
+// 共有リンク：読み込みの「後」に足す（v1の上書きバグを修正）
+const urlParams = new URLSearchParams(window.location.search);
+const sharedData = urlParams.get('shared_goals');
+if (sharedData) {
+try {
+const decoded = JSON.parse(decodeURIComponent(escape(atob(sharedData))));
+if (Array.isArray(decoded) && confirm('共有された目標リストを読み込みますか？\n（現在のリストに追加保存されます）')) {
+const existingIds = new Set(goals.map(g => String(g.id)));
+decoded.forEach(g => { if (!existingIds.has(String(g.id))) goals.push(g);});
+await persistGoals(false);
+}
+} catch (e) {
+showToast('共有データの読み込みに失敗しました');
+}
+window.history.replaceState({}, document.title, window.location.pathname);
+}
 
-        function updateCountdown() {
-            const now = new Date().getTime();
+renderGoals();
+updateSaveStatus(lsAvailable || idbAvailable, lsAvailable, idbAvailable);
+if (!lsAvailable &&!idbAvailable) {
+document.getElementById('storageWarning').classList.remove('hidden');
+}
+setInterval(updateCountdown, 1000);
+});
 
-            goals.forEach((goal) => {
-                const element = document.getElementById(`timer-${goal.id}`);
-                if (!element) return;
+// 画面を閉じる／隠すときにも localStorage へ即保存（保険）
+document.addEventListener('visibilitychange', () => {
+if (document.visibilityState === 'hidden' && lsAvailable) {
+lsWrite(LS_KEY, { version: 2, savedAt: Date.now(), goals: goals});
+}
+});
+window.addEventListener('beforeunload', () => {
+if (lsAvailable) lsWrite(LS_KEY, { version: 2, savedAt: Date.now(), goals: goals});
+});
 
-                const target = new Date(goal.deadline).getTime();
-                const distance = target - now;
+// ---------- 表示 ----------
+function renderGoals() {
+const container = document.getElementById('goalsList');
+const emptyState = document.getElementById('emptyState');
+container.innerHTML = '';
+if (goals.length === 0) {
+emptyState.classList.remove('hidden');
+} else {
+emptyState.classList.add('hidden');
+}
+goals.forEach((goal) => {
+const card = document.createElement('div');
+card.className = "bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg relative flex flex-col justify-between";
+card.id = 'goal-card-' + goal.id;
+card.innerHTML =
+'<div>' +
+'<div class="flex justify-between items-start mb-2">' +
+'<h3 class="text-lg font-bold text-white leading-tight pr-2">' + escapeHtml(goal.title) + '</h3>' +
+'<div class="flex items-center gap-1 text-slate-400 shrink-0">' +
+'<button onclick="copyGoalSummary(\'' + goal.id + '\')" class="p-1 hover:text-emerald-400 transition" title="カード内容をコピー"><i class="fa-regular fa-copy"></i></button>' +
+'<button onclick="editGoal(\'' + goal.id + '\')" class="p-1 hover:text-indigo-400 transition" title="編集"><i class="fa-solid fa-pen-to-square"></i></button>' +
+'<button onclick="deleteGoal(\'' + goal.id + '\')" class="p-1 hover:text-rose-400 transition" title="削除"><i class="fa-solid fa-trash-can"></i></button>' +
+'</div>' +
+'</div>' +
+'<p class="text-xs text-slate-400 mb-4"><i class="fa-regular fa-calendar-check mr-1"></i> 期限: ' + escapeHtml(new Date(goal.deadline).toLocaleString()) + '</p>' +
+'<div class="bg-slate-900 border border-slate-700 rounded-xl p-3 mb-4 text-center">' +
+'<div id="timer-' + goal.id + '" class="text-xl font-bold font-mono text-indigo-400">計算中...</div>' +
+'</div>' +
+(goal.notes? '<p class="text-sm text-slate-300 bg-slate-900/50 p-2.5 rounded-lg border border-slate-700/50 whitespace-pre-wrap mb-4">' + escapeHtml(goal.notes) + '</p>': '') +
+'</div>' +
+'<div class="border-t border-slate-700/80 pt-3 mt-2">' +
+'<div class="flex justify-between items-center text-xs text-slate-400 mb-2">' +
+'<span class="font-semibold"><i class="fa-solid fa-list-check mr-1"></i> 進捗記録リスト</span>' +
+'<button onclick="addLogPrompt(\'' + goal.id + '\')" class="text-indigo-400 hover:underline"><i class="fa-solid fa-plus"></i> 記録追加</button>' +
+'</div>' +
+'<ul class="space-y-1.5 max-h-32 overflow-y-auto pr-1 text-xs text-slate-300">' +
+((goal.logs || []).length > 0?
+goal.logs.map((log, index) =>
+'<li class="bg-slate-900/80 p-2 rounded flex justify-between items-center">' +
+'<span>' + escapeHtml(log.text) + ' <span class="text-[10px] text-slate-500">(' + escapeHtml(log.date) + ')</span></span>' +
+'<div class="flex items-center gap-1 shrink-0 ml-2">' +
+'<button onclick="copyLog(\'' + goal.id + '\',' + index + ')" class="text-slate-500 hover:text-emerald-400" title="テキストをコピー"><i class="fa-regular fa-copy"></i></button>' +
+'<button onclick="deleteLog(\'' + goal.id + '\',' + index + ')" class="text-slate-500 hover:text-rose-400" title="削除"><i class="fa-solid fa-xmark"></i></button>' +
+'</div>' +
+'</li>').join(''):
+'<li class="text-slate-500 text-center py-1">記録はまだありません</li>') +
+'</ul>' +
+'</div>';
+container.appendChild(card);
+});
+updateCountdown();
+}
 
-                if (distance < 0) {
-                    element.innerHTML = `<span class="text-rose-400 font-semibold"><i class="fa-solid fa-flag"></i> 期限切れ / 達成！</span>`;
-                    return;
-                }
+function updateCountdown() {
+const now = new Date().getTime();
+goals.forEach((goal) => {
+const element = document.getElementById('timer-' + goal.id);
+if (!element) return;
+const target = new Date(goal.deadline).getTime();
+const distance = target - now;
+if (distance < 0) {
+element.innerHTML = '<span class="text-rose-400 font-semibold"><i class="fa-solid fa-flag"></i> 期限切れ / 達成！</span>';
+return;
+}
+const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+element.innerHTML =
+'<span class="text-2xl">' + days + '</span><span class="text-xs text-slate-400 mr-2">日</span>' +
+'<span class="text-xl">' + pad(hours) + '</span><span class="text-xs text-slate-400 mr-1">:</span>' +
+'<span class="text-xl">' + pad(minutes) + '</span><span class="text-xs text-slate-400 mr-1">:</span>' +
+'<span class="text-xl text-amber-400">' + pad(seconds) + '</span>';
+});
+}
+function pad(n) { return n < 10? '0' + n: n;}
 
-                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+// ---------- 操作 ----------
+async function saveGoal(e) {
+e.preventDefault();
+const id = document.getElementById('goalId').value;
+const title = document.getElementById('goalTitle').value.trim();
+const deadline = document.getElementById('goalDeadline').value;
+const notes = document.getElementById('goalNotes').value.trim();
+if (id) {
+const index = goals.findIndex(g => String(g.id) === String(id));
+if (index!== -1) {
+goals[index].title = title;
+goals[index].deadline = deadline;
+goals[index].notes = notes;
+}
+showToast('目標を更新しました');
+} else {
+goals.push({ id: Date.now().toString(), title: title, deadline: deadline, notes: notes, logs: []});
+showToast('目標を新しく保存しました');
+}
+await persistGoals(false);
+renderGoals();
+closeModal();
+}
 
-                element.innerHTML = `
-                    <span class="text-2xl">${days}</span><span class="text-xs text-slate-400 mr-2">日</span>
-                    <span class="text-xl">${pad(hours)}</span><span class="text-xs text-slate-400 mr-1">:</span>
-                    <span class="text-xl">${pad(minutes)}</span><span class="text-xs text-slate-400 mr-1">:</span>
-                    <span class="text-xl text-amber-400">${pad(seconds)}</span>
-                `;
-            });
-        }
+function editGoal(id) {
+const goal = goals.find(g => String(g.id) === String(id));
+if (!goal) return;
+document.getElementById('modalTitle').innerText = '目標の編集';
+document.getElementById('goalId').value = goal.id;
+document.getElementById('goalTitle').value = goal.title;
+document.getElementById('goalDeadline').value = goal.deadline;
+document.getElementById('goalNotes').value = goal.notes || '';
+openModal();
+}
 
-        function pad(n) { return n < 10 ? '0' + n : n; }
+async function deleteGoal(id) {
+if (confirm('この目標を削除してもよろしいですか？\n（間違えた場合は「前の保存に戻す」で戻せます）')) {
+goals = goals.filter(g => String(g.id)!== String(id));
+await persistGoals(false);
+renderGoals();
+showToast('目標を削除しました');
+}
+}
 
-        function saveGoal(e) {
-            e.preventDefault();
-            const id = document.getElementById('goalId').value;
-            const title = document.getElementById('goalTitle').value.trim();
-            const deadline = document.getElementById('goalDeadline').value;
-            const notes = document.getElementById('goalNotes').value.trim();
+async function addLogPrompt(goalId) {
+const text = prompt('本日の進捗や一言メモを入力してください:');
+if (text && text.trim()) {
+const goal = goals.find(g => String(g.id) === String(goalId));
+if (goal) {
+if (!goal.logs) goal.logs = [];
+const today = new Date();
+const dateStr = (today.getMonth() + 1) + '/' + today.getDate() + ' ' + pad(today.getHours()) + ':' + pad(today.getMinutes());
+goal.logs.unshift({ text: text.trim(), date: dateStr});
+await persistGoals(false);
+renderGoals();
+showToast('記録を追加しました');
+}
+}
+}
 
-            if (id) {
-                const index = goals.findIndex(g => g.id === id);
-                if (index !== -1) {
-                    goals[index].title = title;
-                    goals[index].deadline = deadline;
-                    goals[index].notes = notes;
-                }
-                showToast('目標を更新しました');
-            } else {
-                const newGoal = {
-                    id: Date.now().toString(),
-                    title,
-                    deadline,
-                    notes,
-                    logs: []
-                };
-                goals.push(newGoal);
-                showToast('目標を新しく保存しました');
-            }
+function copyLog(goalId, logIndex) {
+const goal = goals.find(g => String(g.id) === String(goalId));
+if (goal && goal.logs && goal.logs[logIndex]) copyText(goal.logs[logIndex].text);
+}
 
-            saveToLocalStorage();
-            renderGoals();
-            closeModal();
-        }
+async function deleteLog(goalId, logIndex) {
+const goal = goals.find(g => String(g.id) === String(goalId));
+if (goal && goal.logs) {
+goal.logs.splice(logIndex, 1);
+await persistGoals(false);
+renderGoals();
+showToast('記録を削除しました');
+}
+}
 
-        function editGoal(id) {
-            const goal = goals.find(g => g.id === id);
-            if (!goal) return;
+// ---------- コピー ----------
+function copyText(text) {
+if (!text) return;
+if (navigator.clipboard && navigator.clipboard.writeText) {
+navigator.clipboard.writeText(text).then(() => {
+showToast('クリップボードにコピーしました！');
+}).catch(() => { fallbackCopyText(text);});
+} else {
+fallbackCopyText(text);
+}
+}
+function fallbackCopyText(text) {
+const textArea = document.createElement("textarea");
+textArea.value = text;
+textArea.style.position = "fixed";
+document.body.appendChild(textArea);
+textArea.focus();
+textArea.select();
+try {
+const successful = document.execCommand('copy');
+showToast(successful? 'クリップボードにコピーしました！': 'コピーに失敗しました');
+} catch (err) {
+showToast('コピーに失敗しました');
+}
+document.body.removeChild(textArea);
+}
 
-            document.getElementById('modalTitle').innerText = '目標の編集';
-            document.getElementById('goalId').value = goal.id;
-            document.getElementById('goalTitle').value = goal.title;
-            document.getElementById('goalDeadline').value = goal.deadline;
-            document.getElementById('goalNotes').value = goal.notes || '';
-            
-            openModal();
-        }
+function copyGoalSummary(id) {
+const goal = goals.find(g => String(g.id) === String(id));
+if (!goal) return;
+let summary = '' + goal.title + '\n';
+summary += '' + new Date(goal.deadline).toLocaleString() + '\n';
+if (goal.notes) summary += '\n' + goal.notes + '\n';
+if (goal.logs && goal.logs.length > 0) {
+summary += '\n';
+goal.logs.forEach(log => { summary += '・' + log.text + ' (' + log.date + ')\n';});
+}
+copyText(summary.trim());
+}
 
-        function deleteGoal(id) {
-            if (confirm('この目標を削除してもよろしいですか？')) {
-                goals = goals.filter(g => g.id !== id);
-                saveToLocalStorage();
-                renderGoals();
-                showToast('目標を削除しました');
-            }
-        }
+function shareList() {
+if (goals.length === 0) { alert('共有する目標がありません。'); return;}
+try {
+const jsonStr = JSON.stringify(goals);
+const encoded = btoa(unescape(encodeURIComponent(jsonStr)));
+const shareUrl = window.location.origin + window.location.pathname + '?shared_goals=' + encoded;
+copyText(shareUrl);
+} catch (e) {
+alert('データサイズが大きすぎるため、共有リンクを作成できません。');
+}
+}
 
-        function addLogPrompt(goalId) {
-            const text = prompt('本日の進捗や一言メモを入力してください:');
-            if (text && text.trim()) {
-                const goal = goals.find(g => g.id === goalId);
-                if (goal) {
-                    if (!goal.logs) goal.logs = [];
-                    const today = new Date();
-                    const dateStr = `${today.getMonth()+1}/${today.getDate()} ${pad(today.getHours())}:${pad(today.getMinutes())}`;
-                    goal.logs.unshift({ text: text.trim(), date: dateStr });
-                    saveToLocalStorage();
-                    renderGoals();
-                    showToast('記録を追加しました');
-                }
-            }
-        }
+// ---------- バックアップ / 復元 ----------
+function exportData() {
+const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(goals, null, 2));
+const downloadAnchor = document.createElement('a');
+downloadAnchor.setAttribute("href", dataStr);
+downloadAnchor.setAttribute("download", 'goals_backup_' + new Date().toISOString().slice(0, 10) + '.json');
+document.body.appendChild(downloadAnchor);
+downloadAnchor.click();
+downloadAnchor.remove();
+showToast('バックアップファイルを保存しました');
+}
 
-        function deleteLog(goalId, logIndex) {
-            const goal = goals.find(g => g.id === goalId);
-            if (goal && goal.logs) {
-                goal.logs.splice(logIndex, 1);
-                saveToLocalStorage();
-                renderGoals();
-                showToast('記録を削除しました');
-            }
-        }
+function importData(event) {
+const file = event.target.files[0];
+if (!file) return;
+const reader = new FileReader();
+reader.onload = async function(e) {
+try {
+const imported = JSON.parse(e.target.result);
+const importedGoals = Array.isArray(imported)? imported: (imported.goals || null);
+if (!Array.isArray(importedGoals)) { alert('無効なファイル形式です。'); return;}
+if (confirm('OK：今のリストに「追加」して復元します\nキャンセル：次の選択（上書き）へ')) {
+const existingIds = new Set(goals.map(g => String(g.id)));
+importedGoals.forEach(g => { if (!existingIds.has(String(g.id))) goals.push(g);});
+await persistGoals(false);
+renderGoals();
+showToast('データを追加で復元しました');
+} else if (confirm('OK：今のリストを消して「上書き」復元します\nキャンセル：中止します')) {
+goals = importedGoals;
+await persistGoals(false);
+renderGoals();
+showToast('データを上書き復元しました');
+}
+} catch (err) {
+alert('ファイルの読み込みに失敗しました。');
+}
+event.target.value = '';
+};
+reader.readAsText(file);
+}
 
-        // ======= コピー機能（フォールバック対応） =======
-        function copyText(text) {
-            if (!text) return;
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(() => {
-                    showToast('クリップボードにコピーしました！');
-                }).catch(() => {
-                    fallbackCopyText(text);
-                });
-            } else {
-                fallbackCopyText(text);
-            }
-        }
-
-        function fallbackCopyText(text) {
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            textArea.style.position = "fixed";  // 画面外に固定
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    showToast('クリップボードにコピーしました！');
-                } else {
-                    showToast('コピーに失敗しました');
-                }
-            } catch (err) {
-                showToast('コピーに失敗しました');
-            }
-            document.body.removeChild(textArea);
-        }
-
-        function copyGoalSummary(id) {
-            const goal = goals.find(g => g.id === id);
-            if (!goal) return;
-
-            let summary = `【目標】${goal.title}\n`;
-            summary += `【期日】${new Date(goal.deadline).toLocaleString()}\n`;
-            if (goal.notes) {
-                summary += `【メモ】\n${goal.notes}\n`;
-            }
-            if (goal.logs && goal.logs.length > 0) {
-                summary += `【進捗記録】\n`;
-                goal.logs.forEach(log => {
-                    summary += `・${log.text} (${log.date})\n`;
-                });
-            }
-
-            copyText(summary.trim());
-        }
-
-        function shareList() {
-            if (goals.length === 0) {
-                alert('共有する目標がありません。');
-                return;
-            }
-            try {
-                const jsonStr = JSON.stringify(goals);
-                const encoded = btoa(unescape(encodeURIComponent(jsonStr)));
-                const shareUrl = `${window.location.origin}${window.location.pathname}?shared_goals=${encoded}`;
-
-                copyText(shareUrl);
-            } catch (e) {
-                alert('データサイズが大きすぎるため、共有リンクを作成できません。');
-            }
-        }
-
-        function exportData() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(goals, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `goals_backup_${new Date().toISOString().slice(0,10)}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-            showToast('バックアップファイルを保存しました');
-        }
-
-        function importData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const importedGoals = JSON.parse(e.target.result);
-                    if (Array.isArray(importedGoals)) {
-                        if (confirm('既存のリストを上書きしてバックアップを復元しますか？')) {
-                            goals = importedGoals;
-                            saveToLocalStorage();
-                            renderGoals();
-                            showToast('データを復元しました');
-                        }
-                    } else {
-                        alert('無効なファイル形式です。');
-                    }
-                } catch (err) {
-                    alert('ファイルの読み込みに失敗しました。');
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        function openModal() {
-            document.getElementById('modal').classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('modal').classList.add('hidden');
-            document.getElementById('goalForm').reset();
-            document.getElementById('goalId').value = '';
-            document.getElementById('modalTitle').innerText = '新しい目標の設定';
-        }
-
-        function showToast(message) {
-            const toast = document.getElementById('toast');
-            document.getElementById('toastMsg').innerText = message;
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => {
-                toast.classList.add('translate-y-20', 'opacity-0');
-            }, 3000);
-        }
-
-        function escapeHtml(str) {
-            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-        }
-
-        function escapeJsString(str) {
-            return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
-        }
-    </script>
+// ---------- モーダル / トースト ----------
+function openModal() { document.getElementById('modal').classList.remove('hidden');}
+function closeModal() {
+document.getElementById('modal').classList.add('hidden');
+document.getElementById('goalForm').reset();
+document.getElementById('goalId').value = '';
+document.getElementById('modalTitle').innerText = '新しい目標の設定';
+}
+function showToast(message) {
+const toast = document.getElementById('toast');
+document.getElementById('toastMsg').innerText = message;
+toast.classList.remove('translate-y-20', 'opacity-0');
+setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0');}, 3000);
+}
+function escapeHtml(str) {
+return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+</script>
 </body>
 </html>
