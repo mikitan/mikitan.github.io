@@ -385,63 +385,98 @@
                 handleGridCellClick(targetStep);
             };
 
-            // ジャンル別 AI 専用構築 (各ジャンルボタン押下時の処理)
+            // ジャンル別 AI 専用構築 (全38小節最高級プロレベル自動コンポーズ)
             const applyGenreAi = (genreName) => {
                 const totalLen = barsCount * BAR_STEPS;
                 const newSteps = JSON.parse(JSON.stringify(instrumentSteps));
 
+                const chordProg = {
+                    "Popping":   ["Am", "Dm", "G", "C", "F", "Bm7b5", "E7", "Am"],
+                    "Rock":      ["Am", "F", "C", "G", "Am", "F", "G", "E7"],
+                    "Dance":     ["Am", "F", "Dm", "G", "Am", "FM7", "Dm", "E7"],
+                    "Soul/Funk": ["Am", "Dm", "Bm7b5", "E7", "Am", "A7", "Dm", "G"],
+                    "Pops":      ["C", "G", "Am", "Em", "F", "C", "Dm", "G"],
+                    "Dance AI":  ["Am", "C", "F", "G", "Am", "Dm", "E7", "Am"]
+                }[genreName] || ["Am", "C", "Dm", "G"];
+
+                const bassNotes = {
+                    "Am": "A1", "C": "C2", "Dm": "D2", "Em": "E2",
+                    "F": "F1", "G": "G1", "E7": "E2", "FM7": "F1",
+                    "A7": "A1", "Bm7b5": "B1"
+                };
+
+                const melodies = {
+                    "Am": ["A4", "C5", "E5", "A5"], "C": ["C4", "E4", "G4", "C5"],
+                    "Dm": ["D4", "F4", "A4", "D5"], "Em": ["E4", "G4", "B4", "E5"],
+                    "F": ["F4", "A4", "C5", "F5"], "G": ["G4", "B4", "D5", "G5"],
+                    "E7": ["E4", "G#4", "B4", "E5"], "FM7": ["F4", "A4", "C5", "E5"],
+                    "A7": ["A4", "C#5", "E5", "G5"], "Bm7b5": ["B4", "D5", "F5", "A5"]
+                };
+
                 for (let i = 0; i < totalLen; i++) {
                     const s = i % 16;
                     const bar = Math.floor(i / 16);
+                    const chord = chordProg[bar % chordProg.length];
+                    const currentMelody = melodies[chord] || ["C4", "E4", "G4", "C5"];
 
                     if (!newSteps.drums[i]) newSteps.drums[i] = { kick: false, snare: false, hihat: false, openHihat: false, clap: false, rim: false };
 
+                    // 全ジャンルのリズム・和音・ベース・リード自動構成
                     if (genreName === "Popping") {
-                        if (s === 0 || s === 4 || s === 8 || s === 12) newSteps.drums[i].kick = true;
+                        if (s === 0 || s === 6 || s === 10) newSteps.drums[i].kick = true;
                         if (s === 4 || s === 12) newSteps.drums[i].snare = true;
                         if (s % 2 === 0) newSteps.drums[i].hihat = true;
-                        if (s === 0 || s === 8) newSteps.synthLowBass[i] = { note: "C2", dur: "8n" };
+                        if (s === 14) newSteps.drums[i].openHihat = true;
+                        if (s === 0 || s === 3 || s === 8 || s === 11) {
+                            newSteps.synthLowBass[i] = { note: bassNotes[chord] || "A1", dur: "16n" };
+                        }
+                        if (s === 0 || s === 4 || s === 8 || s === 12) {
+                            newSteps.elecGuitar[i] = { chord: chord, style: "cutting" };
+                        }
                     } else if (genreName === "Rock") {
-                        if (s === 0 || s === 8) newSteps.drums[i].kick = true;
+                        if (s === 0 || s === 8 || s === 10) newSteps.drums[i].kick = true;
                         if (s === 4 || s === 12) newSteps.drums[i].snare = true;
                         if (s % 2 === 0) newSteps.drums[i].openHihat = true;
-                        const chords = ["Am", "F", "C", "G"];
-                        if (s === 0 || s === 4 || s === 8 || s === 12) {
-                            newSteps.elecGuitar[i] = { chord: chords[bar % chords.length], style: "riff" };
+                        if (s % 4 === 0) {
+                            newSteps.elecGuitar[i] = { chord: chord, style: "riff" };
+                            newSteps.synthLowBass[i] = { note: bassNotes[chord] || "A1", dur: "8n" };
                         }
-                    } else if (genreName === "Dance") {
+                    } else if (genreName === "Dance" || genreName === "Dance AI") {
                         if (s === 0 || s === 4 || s === 8 || s === 12) newSteps.drums[i].kick = true;
-                        if (s === 4 || s === 12) newSteps.drums[i].clap = true;
-                        if (s % 2 === 0) newSteps.drums[i].hihat = true;
-                        if (s === 0 || s === 8) newSteps.synthLeadNormal[i] = { note: "E5", dur: "8n" };
+                        if (s === 4 || s === 12) { newSteps.drums[i].snare = true; newSteps.drums[i].clap = true; }
+                        if (s % 2 === 1) newSteps.drums[i].openHihat = true;
+                        if (s % 2 === 0) newSteps.synthLowBass[i] = { note: bassNotes[chord] || "A1", dur: "16n" };
+                        if (s === 2 || s === 6 || s === 10 || s === 14) {
+                            newSteps.trumpet[i] = { note: currentMelody[s % currentMelody.length], dur: "8n" };
+                        }
                     } else if (genreName === "Soul/Funk") {
                         if (s === 0 || s === 10) newSteps.drums[i].kick = true;
                         if (s === 4 || s === 12) newSteps.drums[i].snare = true;
                         if (s % 4 === 2) newSteps.drums[i].rim = true;
-                        const chords = ["Dm7b5", "G", "C", "Am"];
-                        if (s === 0 || s === 8) {
-                            newSteps.elecGuitar[i] = { chord: chords[bar % chords.length], style: "cutting" };
+                        if (s % 2 === 0) newSteps.drums[i].hihat = true;
+                        if (s === 0 || s === 3 || s === 6 || s === 10) {
+                            newSteps.elecGuitar[i] = { chord: chord, style: "cutting" };
                         }
                     } else if (genreName === "Pops") {
-                        if (s === 0 || s === 8) newSteps.drums[i].kick = true;
+                        if (s === 0 || s === 8 || s === 10) newSteps.drums[i].kick = true;
                         if (s === 4 || s === 12) newSteps.drums[i].snare = true;
                         if (s % 2 === 0) newSteps.drums[i].hihat = true;
-                        const chords = ["C", "Am", "F", "G"];
+                        if (s % 2 === 0) {
+                            newSteps.elecGuitar[i] = { chord: chord, style: "arpeggio" };
+                        }
                         if (s === 0 || s === 8) {
-                            newSteps.elecGuitar[i] = { chord: chords[bar % chords.length], style: "arpeggio" };
+                            newSteps.violin[i] = { note: currentMelody[0], dur: "2n" };
                         }
-                    } else if (genreName === "Dance AI") {
-                        if (s === 0 || s === 4 || s === 8 || s === 12) newSteps.drums[i].kick = true;
-                        if (s === 4 || s === 12) newSteps.drums[i].snare = true;
-                        if (s % 2 === 0) newSteps.drums[i].openHihat = true;
-                        if (s === 0 || s === 6 || s === 12) {
-                            newSteps.trumpet[i] = { note: "G5", dur: "8n" };
-                        }
+                    }
+
+                    // ユーザー手動作成リードメロディ（保存維持）の補完
+                    if (!newSteps.synthLeadNormal[i] && (s === 0 || s === 4 || s === 8 || s === 12)) {
+                        newSteps.synthLeadNormal[i] = { note: currentMelody[(s / 4) % currentMelody.length], dur: "8n" };
                     }
                 }
 
                 setInstrumentSteps(newSteps);
-                setStatus(`✨ 【${genreName} AI】専用フレーズを全${barsCount}小節に構築しました！`);
+                setStatus(`✨ 【${genreName} AI】最高級フルアンサンブル楽曲を全${barsCount}小節に一括構築しました！`);
             };
 
             const startRecording = async () => {
@@ -533,9 +568,9 @@
                         {activeTab === "SEQUENCER" && (
                             <div className="flex flex-col gap-3">
                                 
-                                {/* 🤖 ジャンル別 AI 専用構築パネル (スクリーンショット完全一致) */}
+                                {/* 🤖 ジャンル別 AI 専用構築パネル */}
                                 <div className="bg-slate-900 p-2.5 rounded-lg border border-yellow-500/80 flex flex-col gap-2">
-                                    <span className="font-black text-yellow-400 text-[11px]">🤖 ジャンル別 AI 専用構築 (選択中の楽器に生成)</span>
+                                    <span className="font-black text-yellow-400 text-[11px]">🤖 ジャンル別 AI 専用構築 (全パート最高級仕上げ)</span>
                                     <div className="grid grid-cols-3 gap-1.5">
                                         <button onClick={() => applyGenreAi("Popping")} className="py-2 bg-gradient-to-r from-red-700 to-rose-600 text-white font-black rounded text-[9px] shadow active:scale-95">💥 Popping</button>
                                         <button onClick={() => applyGenreAi("Rock")} className="py-2 bg-gradient-to-r from-amber-700 to-orange-600 text-white font-black rounded text-[9px] shadow active:scale-95">🎸 Rock</button>
@@ -546,7 +581,7 @@
                                     </div>
                                 </div>
 
-                                {/* 🎸 エレキギター コード選択 (Am他多数) ＆ 奏法切替 (カッティング/アルペジオ/重厚リフ/ストローク) */}
+                                {/* 🎸 エレキギター コード選択 ＆ 奏法切替 */}
                                 <div className="bg-slate-900 p-2.5 rounded-lg border border-orange-500/80 flex flex-col gap-2">
                                     <span className="font-black text-orange-400 text-[11px]">🎸 エレキギター コード選択 (Am 他多数)</span>
                                     <div className="grid grid-cols-5 gap-1">
@@ -565,7 +600,7 @@
                                     </div>
                                 </div>
 
-                                {/* ステップ録音・グリッド (聴きながら直接クリック記録) */}
+                                {/* ステップ録音・グリッド */}
                                 <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 flex flex-col gap-2">
                                     <div className="flex justify-between items-center">
                                         <span className="font-bold text-amber-400 text-[10px]">⚏ ステップ録音・グリッド (第 {currentBar + 1} 小節)</span>
@@ -616,7 +651,7 @@
                                     </div>
                                 </div>
 
-                                {/* ドラムパーツ切替 (ドラム選択時) */}
+                                {/* ドラムパーツ切替 */}
                                 {selectedInstrument === "drums" && (
                                     <div className="bg-slate-900 p-2.5 rounded-lg border border-purple-900 flex flex-col gap-1.5">
                                         <span className="font-bold text-purple-300 text-[10px]">🥁 ドラムパーツ選択</span>
@@ -630,7 +665,7 @@
                                     </div>
                                 )}
 
-                                {/* ドレミファ手動鍵盤 (タップ即時記録・試聴) */}
+                                {/* ドレミファ手動鍵盤 */}
                                 {selectedInstrument !== "elecGuitar" && selectedInstrument !== "drums" && (
                                     <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 flex flex-col gap-1.5">
                                         <div className="flex justify-between items-center">
@@ -842,4 +877,3 @@
     </script>
 </body>
 </html>
-
