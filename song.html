@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY BAND - Genre AI & Grid Direct Recorder v121.04</title>
+    <title>MIC VICTORY BAND - Extended Drums & Chords v121.06</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -23,11 +23,11 @@
             const [barsCount, setBarsCount] = React.useState(38);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("🔥 ギター26ループ＆ドラムプリセット統合エンジン 稼働中");
+            const [status, setStatus] = React.useState("🔥 8種ドラム＆16種コード拡張エンジン 稼働中");
 
             const BAR_STEPS = 16;
 
-            // 🎵 5大ジャンル＆テンポ(BPM)プリセット
+            // 🎵 5大ジャンル
             const GENRES = [
                 { id: "Pops", label: "✨ Pops (120)", bpm: 120, color: "from-purple-700 to-fuchsia-600" },
                 { id: "Rock", label: "🎸 Rock (132)", bpm: 132, color: "from-amber-700 to-orange-600" },
@@ -36,44 +36,35 @@
                 { id: "Soul", label: "🎷 Soul (98)", bpm: 98, color: "from-amber-600 to-yellow-600" }
             ];
 
-            // 🎸 26種類のエレキギターループプリセット定義 (A〜Z)
-            const GUITAR_LOOP_PRESETS = Array.from({ length: 26 }, (_, i) => {
-                const char = String.fromCharCode(65 + i);
-                const styles = ["arpeggio", "riff", "cutting", "stroke"];
-                const style = styles[i % styles.length];
-                const chordsList = [
-                    ["Am", "Dm", "G", "C"],
-                    ["C", "G", "Am", "F"],
-                    ["Em", "Am", "D", "G"],
-                    ["F", "G", "Em", "Am"]
-                ];
-                return {
-                    id: `loop_${char}`,
-                    code: char,
-                    label: `Loop ${char} (${style.toUpperCase()})`,
-                    style: style,
-                    chords: chordsList[i % chordsList.length],
-                    distortionBoost: (i % 3 === 0) ? 0.4 : 0.15
-                };
-            });
+            // 🎹 各楽器別 20種類ループ
+            const INST_LOOP_PRESETS = Array.from({ length: 20 }, (_, i) => ({
+                id: `inst_loop_${i + 1}`,
+                num: i + 1,
+                label: `ループ #${i + 1}`,
+                type: i < 5 ? "Arp" : i < 10 ? "Riff" : i < 15 ? "Chord" : "Melody"
+            }));
 
-            // 🥁 ドラムプリセットパターン定義 (6種類)
+            // 🥁 ドラムプリセット拡張 (8種類)
             const DRUM_PRESETS = [
-                { id: "standard", label: "🥁 スタンダード8ビート", desc: "王道のロック・ポップス向け" },
-                { id: "fourOnFloor", label: "🕺 4つ打ちダンスビート", desc: "ダンス・EDM向けキック連打" },
-                { id: "heavyRock", label: "🤘 ヘヴィロックリズム", desc: "重厚なキック＆スネア" },
-                { id: "funkSoul", label: "🎷 ファンク＆ソウル", desc: "裏拍ハイハットとリムショット" }
+                { id: "standard", label: "🥁 8ビート", desc: "王道ポップス・ロック" },
+                { id: "fourOnFloor", label: "🕺 4つ打ち", desc: "ダンス・EDM・ディスコ" },
+                { id: "heavyRock", label: "🤘 ヘヴィロック", desc: "重厚キック＆強烈スネア" },
+                { id: "funkSoul", label: "🎷 ファンク＆ソウル", desc: "裏拍HH＆リムショット" },
+                { id: "shuffle", label: "⚡ 16ビートシャッフル", desc: "跳ねるグルーヴ" },
+                { id: "funk16", label: "🔥 16ビートファンク", desc: "細密ハイハット" },
+                { id: "trap808", label: "🎧 トラップ 808", desc: "連打HH＆重低音キック" },
+                { id: "latinBossa", label: "🌴 ラテン・ボサノバ", desc: "パーカッシブなクラーベ" }
             ];
 
             // 選択中楽器・設定
-            const [selectedInstrument, setSelectedInstrument] = React.useState("elecGuitar");
+            const [selectedInstrument, setSelectedInstrument] = React.useState("synthLeadNormal");
             const [selectedDrumPart, setSelectedDrumPart] = React.useState("kick");
             const [selectedGuitarStyle, setSelectedGuitarStyle] = React.useState("arpeggio");
             const [selectedChord, setSelectedChord] = React.useState("Am");
             const [selectedOctave, setSelectedOctave] = React.useState("mid");
             const [selectedNote, setSelectedNote] = React.useState("C4");
             const [inputMode, setInputMode] = React.useState("manual");
-            const [selectedGuitarLoop, setSelectedGuitarLoop] = React.useState(GUITAR_LOOP_PRESETS[0].id);
+            const [selectedInstLoop, setSelectedInstLoop] = React.useState(INST_LOOP_PRESETS[0].id);
 
             // ドラムパーツ定義
             const DRUM_PARTS = [
@@ -85,7 +76,7 @@
                 { id: "rim", label: "🪵 リム" }
             ];
 
-            // エレキギター用コード構成音
+            // 🎸 16種類に拡張したコード構成音
             const CHORD_NOTES = {
                 Am: ["A3", "C4", "E4"],
                 C:  ["C4", "E4", "G4"],
@@ -96,16 +87,16 @@
                 E7: ["E3", "G#3", "B3", "D4"],
                 FM7:["F4", "A4", "C5", "E5"],
                 A7: ["A3", "C#4", "E4", "G4"],
-                Bm7b5: ["B3", "D4", "F4", "A4"]
+                Bm7b5: ["B3", "D4", "F4", "A4"],
+                Fm: ["F4", "G#4", "C5"],
+                G7: ["G3", "B3", "D4", "F4"],
+                C7: ["C4", "E4", "G4", "A#4"],
+                D7: ["D4", "F#4", "A4", "C5"],
+                Em7:["E4", "G4", "B4", "D5"],
+                Dm7:["D4", "F4", "A4", "C5"]
             };
 
             const CHORD_LIST = Object.keys(CHORD_NOTES);
-            const GUITAR_STYLES = [
-                { id: "arpeggio", label: "🎼 アルペジオ" },
-                { id: "riff", label: "⚡ 重厚リフ" },
-                { id: "cutting", label: "✂️ カッティング" },
-                { id: "stroke", label: "🎸 ストローク" }
-            ];
 
             // エフェクト パラメータ
             const [reverbRoomSize, setReverbRoomSize] = React.useState(0.5);
@@ -115,14 +106,14 @@
             const [delayWet, setDelayWet] = React.useState(0.15);
             const [distortionAmount, setDistortionAmount] = React.useState(0.15);
 
-            // 800文字対応 AIラップ歌詞
+            // AI歌詞
             const [rapLyrics, setRapLyrics] = React.useState(
-`[Intro - MIC VICTORY Direct Grid & Genre AI v121.04]
-1. 26種類のエレキギターループプリセット(Loop A〜Z)＆個別音色カスタム。
-2. 多彩なドラムリズムプリセットと手動・AI切替機能を完全統合。`
+`[Intro - MIC VICTORY Direct Grid & Genre AI v121.06]
+1. 8大ドラムパターン＆16種類コード進行バリエーション拡張。
+2. 楽器別20ループと手動・AI完全切り替え対応。`
             );
 
-            // ミキサー パラメータ
+            // ミキサー
             const [masterVolume, setMasterVolume] = React.useState(1.6);
             const [masterBassBoost, setMasterBassBoost] = React.useState(24);
             const [volumes, setVolumes] = React.useState({
@@ -134,14 +125,14 @@
                 elecGuitar: false, synthLeadNormal: false, drums: false
             });
 
-            // ストレージデータ
+            // ストレージ
             const [storageList, setStorageList] = React.useState(() => {
-                const saved = localStorage.getItem("MIC_VICTORY_TRACKS_V121_04");
-                return saved ? JSON.parse(saved) : [{ id: 1, title: "Master Session #1", bars: 38, bpm: 120, date: "12:00" }];
+                const saved = localStorage.getItem("MIC_VICTORY_TRACKS_V121_06");
+                return saved ? JSON.parse(saved) : [{ id: 1, title: "Extended Session #1", bars: 38, bpm: 120, date: "12:00" }];
             });
-            const [saveSlotName, setSaveSlotName] = React.useState("MIC_VICTORY_MASTER_v121");
+            const [saveSlotName, setSaveSlotName] = React.useState("MIC_VICTORY_EXTENDED_v121");
 
-            // 録音機能
+            // 録音
             const [isRecording, setIsRecording] = React.useState(false);
             const [isVocalRecording, setIsVocalRecording] = React.useState(false);
             const [recordedAudioList, setRecordedAudioList] = React.useState([]);
@@ -153,9 +144,9 @@
             const vocalChunksRef = React.useRef([]);
             const destStreamNodeRef = React.useRef(null);
 
-            // ステップデータ定義
+            // ステップデータ
             const [instrumentSteps, setInstrumentSteps] = React.useState(() => {
-                const saved = localStorage.getItem("MIC_VICTORY_STEPS_V121_04");
+                const saved = localStorage.getItem("MIC_VICTORY_STEPS_V121_06");
                 if (saved) return JSON.parse(saved);
                 return {
                     synthLowBass: new Array(64 * BAR_STEPS).fill(null),
@@ -168,14 +159,14 @@
             });
 
             React.useEffect(() => {
-                localStorage.setItem("MIC_VICTORY_STEPS_V121_04", JSON.stringify(instrumentSteps));
+                localStorage.setItem("MIC_VICTORY_STEPS_V121_06", JSON.stringify(instrumentSteps));
             }, [instrumentSteps]);
 
             React.useEffect(() => {
-                localStorage.setItem("MIC_VICTORY_TRACKS_V121_04", JSON.stringify(storageList));
+                localStorage.setItem("MIC_VICTORY_TRACKS_V121_06", JSON.stringify(storageList));
             }, [storageList]);
 
-            // Tone.js 音源＆エフェクト参照
+            // Tone.js 参照
             const synthsRef = React.useRef(null);
             const loopRef = React.useRef(null);
             const masterGainRef = React.useRef(null);
@@ -189,12 +180,12 @@
             const directStepIdxRef = React.useRef(0);
 
             const INSTRUMENT_MAP = [
-                { id: "elecGuitar", label: "🎸 エレキギター (26ループ/音色個別カスタム)", color: "from-orange-800 to-amber-600" },
-                { id: "drums", label: "🥁 ドラムセット (4種リズムプリセット/手動)", color: "from-purple-900 to-rose-700" },
-                { id: "synthLeadNormal", label: "🎹 シンセサイザー (メロディ手動/AI)", color: "from-cyan-800 to-blue-600" },
-                { id: "synthLowBass", label: "🎸 超重低音ベース (Low Bass手動/AI)", color: "from-red-900 to-red-600" },
-                { id: "violin", label: "🎻 バイオリン (Violin手動/AI)", color: "from-rose-800 to-pink-600" },
-                { id: "trumpet", label: "🎺 トランペット (Trumpet手動/AI)", color: "from-amber-600 to-yellow-500" },
+                { id: "synthLeadNormal", label: "🎹 シンセサイザー電子 (20ループ対応)", color: "from-cyan-800 to-blue-600" },
+                { id: "synthLowBass", label: "🎸 ベース (超重低音20ループ)", color: "from-red-900 to-red-600" },
+                { id: "elecGuitar", label: "🎸 ピアノ/ギター伴奏 (16コード/20ループ)", color: "from-orange-800 to-amber-600" },
+                { id: "violin", label: "🎻 バイオリン (旋律20ループ)", color: "from-rose-800 to-pink-600" },
+                { id: "trumpet", label: "🎺 トランペット", color: "from-amber-600 to-yellow-500" },
+                { id: "drums", label: "🥁 ドラムセット (8種リズムプリセット)", color: "from-purple-900 to-rose-700" },
             ];
 
             const KEYBOARD_NOTES = [
@@ -327,14 +318,7 @@
                                         syns.elecGuitar.triggerAttackRelease(item.note, item.dur || "8n", time);
                                     } else {
                                         const chordNotes = CHORD_NOTES[item.chord] || ["A3", "C4", "E4"];
-                                        if (item.style === "arpeggio") {
-                                            const noteToPlay = chordNotes[step % chordNotes.length];
-                                            syns.elecGuitar.triggerAttackRelease(noteToPlay, "8n", time);
-                                        } else if (item.style === "riff") {
-                                            syns.elecGuitar.triggerAttackRelease([chordNotes[0], chordNotes[1]], "16n", time);
-                                        } else {
-                                            syns.elecGuitar.triggerAttackRelease(chordNotes, item.style === "cutting" ? "16n" : "4n", time);
-                                        }
+                                        syns.elecGuitar.triggerAttackRelease(chordNotes, "4n", time);
                                     }
                                 } else if (syns[instKey]) {
                                     syns[instKey].triggerAttackRelease(item.note || "C3", item.dur || "8n", time);
@@ -370,33 +354,7 @@
                 setStatus(`🎵 ジャンル設定: 【${genreObj.label}】 に変更しました`);
             };
 
-            // 🎸 26個のエレキギターループ適用 ＆ 個別歪みカスタム
-            const applyGuitarLoopPreset = (presetObj) => {
-                setSelectedGuitarLoop(presetObj.id);
-                setSelectedGuitarStyle(presetObj.style);
-                setDistortionAmount(presetObj.distortionBoost);
-
-                const totalLen = barsCount * BAR_STEPS;
-                const newSteps = JSON.parse(JSON.stringify(instrumentSteps));
-                const guitarArr = newSteps.elecGuitar;
-
-                for (let i = 0; i < totalLen; i++) {
-                    const s = i % 16;
-                    const bar = Math.floor(i / 16);
-                    const chord = presetObj.chords[bar % presetObj.chords.length];
-
-                    if (s === 0 || s === 4 || s === 8 || s === 12) {
-                        guitarArr[i] = { chord: chord, style: presetObj.style };
-                    } else {
-                        guitarArr[i] = null;
-                    }
-                }
-
-                setInstrumentSteps(newSteps);
-                setStatus(`🎸 【${presetObj.label}】展開完了 (個別歪み: ${Math.round(presetObj.distortionBoost * 100)}%)`);
-            };
-
-            // 🥁 ドラムリズムプリセット適用
+            // 🥁 ドラムプリセット拡張 8パターン一括適用
             const applyDrumPreset = (presetId) => {
                 const totalLen = barsCount * BAR_STEPS;
                 const newSteps = JSON.parse(JSON.stringify(instrumentSteps));
@@ -424,12 +382,69 @@
                         if (s === 0 || s === 9) obj.kick = true;
                         if (s === 4 || s === 12) obj.rim = true;
                         if (s % 2 === 0) obj.hihat = true;
+                    } else if (presetId === "shuffle") {
+                        if (s === 0 || s === 8) obj.kick = true;
+                        if (s === 4 || s === 12) obj.snare = true;
+                        if (s === 0 || s === 3 || s === 6 || s === 8 || s === 11 || s === 14) obj.hihat = true;
+                    } else if (presetId === "funk16") {
+                        if (s === 0 || s === 7 || s === 10) obj.kick = true;
+                        if (s === 4 || s === 12) obj.snare = true;
+                        obj.hihat = true;
+                    } else if (presetId === "trap808") {
+                        if (s === 0 || s === 6 || s === 8) obj.kick = true;
+                        if (s === 4 || s === 12) obj.clap = true;
+                        if (s % 1 === 0) obj.hihat = true; 
+                    } else if (presetId === "latinBossa") {
+                        if (s === 0 || s === 6 || s === 10) obj.kick = true;
+                        if (s === 3 || s === 8 || s === 12) obj.rim = true;
+                        if (s % 2 === 0) obj.hihat = true;
                     }
                     drumArr[i] = obj;
                 }
 
                 setInstrumentSteps(newSteps);
-                setStatus(`🥁 ドラムプリセットを適用しました！`);
+                const pObj = DRUM_PRESETS.find(x => x.id === presetId);
+                setStatus(`🥁 ドラムパターン 【${pObj?.label}】 を適用しました！`);
+            };
+
+            // 🎹 20種類ループ適用
+            const applyInstrumentLoopPreset = (presetObj) => {
+                setSelectedInstLoop(presetObj.id);
+                const totalLen = barsCount * BAR_STEPS;
+                const newSteps = JSON.parse(JSON.stringify(instrumentSteps));
+                const currentArr = newSteps[selectedInstrument];
+
+                const notesPool = ["C4", "E4", "G4", "B4", "A4", "D4", "F4", "C5"];
+                const bassPool = ["C2", "G1", "A1", "F1", "D2", "E2"];
+
+                for (let i = 0; i < totalLen; i++) {
+                    const s = i % 16;
+                    const bar = Math.floor(i / 16);
+
+                    if (selectedInstrument === "drums") continue;
+                    if (selectedInstrument === "synthLowBass") {
+                        if (s === 0 || s === 4 || s === 8 || s === 12) {
+                            currentArr[i] = { note: bassPool[(bar + presetObj.num) % bassPool.length], dur: "8n" };
+                        } else {
+                            currentArr[i] = null;
+                        }
+                    } else {
+                        if (presetObj.type === "Arp") {
+                            if (s % 2 === 0) currentArr[i] = { note: notesPool[(s + presetObj.num) % notesPool.length], dur: "16n" };
+                            else currentArr[i] = null;
+                        } else if (presetObj.type === "Riff") {
+                            if (s === 0 || s === 6 || s === 10) currentArr[i] = { note: notesPool[presetObj.num % notesPool.length], dur: "8n" };
+                            else currentArr[i] = null;
+                        } else {
+                            if (s === 0 || s === 8) currentArr[i] = { note: notesPool[(bar) % notesPool.length], dur: "4n" };
+                            else currentArr[i] = null;
+                        }
+                    }
+                }
+
+                setInstrumentSteps(newSteps);
+                const instObj = INSTRUMENT_MAP.find(x => x.id === selectedInstrument);
+                setStatus(`✨ 【${instObj?.label}】のループ #${presetObj.num} を適用しました！`);
             };
 
             const handleChordSelect = async (chordName) => {
@@ -457,13 +472,6 @@
                         if (selectedDrumPart === "clap") syns.drums.clap.triggerAttackRelease("8n");
                         if (selectedDrumPart === "rim") syns.drums.rim.triggerAttackRelease("G3", "16n");
                     }
-                } else if (selectedInstrument === "elecGuitar") {
-                    if (overrideNote) {
-                        if (syns && syns.elecGuitar) syns.elecGuitar.triggerAttackRelease(targetNote, "8n");
-                    } else {
-                        const chordNotes = CHORD_NOTES[selectedChord] || ["A3", "C4", "E4"];
-                        if (syns && syns.elecGuitar) syns.elecGuitar.triggerAttackRelease(chordNotes, "4n");
-                    }
                 } else if (syns && syns[selectedInstrument]) {
                     syns[selectedInstrument].triggerAttackRelease(targetNote, "8n");
                 }
@@ -474,12 +482,6 @@
                         const obj = currentArr[globalIdx] || { kick: false, snare: false, hihat: false, openHihat: false, clap: false, rim: false };
                         obj[selectedDrumPart] = !obj[selectedDrumPart];
                         currentArr[globalIdx] = obj;
-                    } else if (selectedInstrument === "elecGuitar") {
-                        if (overrideNote) {
-                            currentArr[globalIdx] = (currentArr[globalIdx] && currentArr[globalIdx].note === targetNote) ? null : { note: targetNote, dur: "8n" };
-                        } else {
-                            currentArr[globalIdx] = currentArr[globalIdx] ? null : { chord: selectedChord, style: selectedGuitarStyle };
-                        }
                     } else {
                         currentArr[globalIdx] = (currentArr[globalIdx] && currentArr[globalIdx].note === targetNote) ? null : { note: targetNote, dur: "8n" };
                     }
@@ -508,55 +510,27 @@
                 const newSteps = JSON.parse(JSON.stringify(instrumentSteps));
                 const currentArr = newSteps[selectedInstrument];
 
-                let userMotif = [];
-                for (let i = 0; i < totalLen; i++) {
-                    if (currentArr[i] && (currentArr[i].note || currentArr[i].chord)) {
-                        userMotif.push(currentArr[i].note || currentArr[i].chord);
-                    }
-                }
-                if (userMotif.length === 0) userMotif = ["A4", "C5", "E5", "G5"];
-
-                const chordProg = ["Am", "Dm", "G", "C", "F", "Bm7b5", "E7", "Am"];
+                let userMotif = ["A4", "C5", "E5", "G5"];
+                const chordProg = ["Am", "Dm", "G7", "C", "Fm", "Bm7b5", "E7", "Am"];
                 const bassNotes = ["A1", "D2", "G1", "C2", "F1", "B1", "E2", "A1"];
 
                 for (let i = 0; i < totalLen; i++) {
                     const s = i % 16;
                     const bar = Math.floor(i / 16);
-                    const chord = chordProg[bar % chordProg.length];
 
                     if (selectedInstrument === "drums") {
                         const obj = { kick: false, snare: false, hihat: false, openHihat: false, clap: false, rim: false };
-                        if (selectedGenre === "Popping") {
-                            if (s === 0 || s === 6 || s === 10) obj.kick = true;
-                            if (s === 4 || s === 12) obj.snare = true;
-                            if (s % 2 === 0) obj.hihat = true;
-                        } else if (selectedGenre === "Rock") {
-                            if (s === 0 || s === 8) obj.kick = true;
-                            if (s === 4 || s === 12) obj.snare = true;
-                            if (s % 2 === 0) obj.hihat = true;
-                            if (s === 14) obj.openHihat = true;
-                        } else if (selectedGenre === "Dance") {
-                            if (s === 0 || s === 4 || s === 8 || s === 12) obj.kick = true;
-                            if (s === 4 || s === 12) obj.snare = true;
-                            if (s % 2 === 0) obj.hihat = true;
-                        } else {
-                            if (s === 0 || s === 8) obj.kick = true;
-                            if (s === 4 || s === 12) obj.snare = true;
-                            if (s % 2 === 0) obj.hihat = true;
-                        }
+                        if (s === 0 || s === 8) obj.kick = true;
+                        if (s === 4 || s === 12) obj.snare = true;
+                        if (s % 2 === 0) obj.hihat = true;
                         currentArr[i] = obj;
-                    } else if (selectedInstrument === "elecGuitar") {
-                        if (s === 0 || s === 4 || s === 8 || s === 12) {
-                            currentArr[i] = { chord: chord, style: selectedGenre === "Rock" ? "riff" : selectedGenre === "Soul" ? "arpeggio" : selectedGuitarStyle };
-                        }
                     } else if (selectedInstrument === "synthLowBass") {
                         if (s === 0 || s === 3 || s === 8 || s === 11) {
                             currentArr[i] = { note: bassNotes[bar % bassNotes.length], dur: "16n" };
                         }
                     } else {
                         if (s === 0 || s === 4 || s === 8 || s === 12) {
-                            const noteChoice = userMotif[(s / 4 + bar) % userMotif.length];
-                            currentArr[i] = { note: typeof noteChoice === 'string' && !noteChoice.includes("3") && !noteChoice.includes("4") && !noteChoice.includes("5") ? "A4" : noteChoice, dur: "8n" };
+                            currentArr[i] = { note: userMotif[(s / 4 + bar) % userMotif.length], dur: "8n" };
                         }
                     }
                 }
@@ -575,7 +549,7 @@
                     mediaRecorderRef.current.onstop = () => {
                         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                         const audioUrl = URL.createObjectURL(audioBlob);
-                        setRecordedAudioList(prev => [...prev, { id: Date.now(), title: `全体演奏 #${prev.length + 1}`, url: audioUrl }]);
+                        setRecordedAudioList(prev => [...prev, { id: Date.now(), title: `全体演奏トラック #${prev.length + 1}`, url: audioUrl }]);
                         setStatus("⏹️ 全体録音完了！");
                     };
                     mediaRecorderRef.current.start();
@@ -638,7 +612,7 @@
                     <header className="bg-slate-900 px-3 py-2 border-b border-red-900/60 sticky top-0 z-50 flex items-center justify-between gap-2">
                         <div className="shrink-0">
                             <h1 className="font-black text-xs text-red-500 tracking-wider">MIC VICTORY BAND</h1>
-                            <p className="text-[9px] text-yellow-400 font-bold">ギター26ループ＆ドラムプリセット v121.04</p>
+                            <p className="text-[9px] text-yellow-400 font-bold">8種ドラム＆16種コード拡張 v121.06</p>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                             <button onClick={clearAll} className="px-2 py-1 bg-red-800 hover:bg-red-700 font-bold rounded text-[9px] text-white shadow">
@@ -715,41 +689,58 @@
                                     </div>
                                 </div>
 
-                                {/* 🎸 選択楽器がギターの場合：26ループ選択 */}
-                                {selectedInstrument === "elecGuitar" && (
-                                    <div className="bg-slate-900 p-2.5 rounded-lg border border-orange-500/80 flex flex-col gap-2 shadow-xl">
+                                {/* 🥁 ドラム選択時：8種類のリズムプリセット一括適用 */}
+                                {selectedInstrument === "drums" && (
+                                    <div className="bg-slate-900 p-2.5 rounded-lg border border-purple-500/80 flex flex-col gap-2 shadow-xl">
                                         <div className="flex justify-between items-center">
-                                            <span className="font-black text-orange-400 text-[11px]">🎸 26種 エレキギターループ (個別音色カスタム)</span>
-                                            <span className="text-[8px] bg-orange-500 text-black px-1.5 py-0.5 rounded font-black">LOOP A〜Z</span>
+                                            <span className="font-black text-purple-300 text-[11px]">🥁 8大ドラムリズム プリセット</span>
+                                            <span className="text-[8px] bg-purple-500 text-white px-1.5 py-0.5 rounded font-black">8 RHYTHMS</span>
                                         </div>
-                                        <div className="grid grid-cols-6 gap-1 max-h-36 overflow-y-auto p-1 bg-slate-950 rounded border border-slate-800">
-                                            {GUITAR_LOOP_PRESETS.map(preset => (
-                                                <button 
-                                                    key={preset.id} 
-                                                    onClick={() => applyGuitarLoopPreset(preset)} 
-                                                    className={`py-1.5 rounded font-black text-[9px] flex flex-col items-center justify-center border transition-all ${
-                                                        selectedGuitarLoop === preset.id 
-                                                            ? "bg-gradient-to-r from-orange-600 to-amber-600 border-white text-white shadow-lg scale-105" 
-                                                            : "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800"
-                                                    }`}
-                                                >
-                                                    <span className="text-[11px] leading-none">{preset.code}</span>
-                                                    <span className="text-[6px] opacity-70 leading-none mt-0.5 uppercase">{preset.style.slice(0,3)}</span>
+                                        <div className="grid grid-cols-2 gap-1.5">
+                                            {DRUM_PRESETS.map(dp => (
+                                                <button key={dp.id} onClick={() => applyDrumPreset(dp.id)} className="py-2 px-2 bg-slate-950 hover:bg-purple-950 border border-purple-900 rounded text-left flex flex-col gap-0.5 shadow transition-all active:scale-95">
+                                                    <span className="font-bold text-purple-200 text-[9px]">{dp.label}</span>
+                                                    <span className="text-[7px] text-slate-400">{dp.desc}</span>
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
                                 )}
 
-                                {/* 🥁 選択楽器がドラムの場合：4種リズムプリセット */}
-                                {selectedInstrument === "drums" && (
-                                    <div className="bg-slate-900 p-2.5 rounded-lg border border-purple-500/80 flex flex-col gap-2 shadow-xl">
-                                        <span className="font-black text-purple-300 text-[11px]">🥁 ドラム リズムプリセット一括適用</span>
-                                        <div className="grid grid-cols-2 gap-1.5">
-                                            {DRUM_PRESETS.map(dp => (
-                                                <button key={dp.id} onClick={() => applyDrumPreset(dp.id)} className="py-2 px-2 bg-slate-950 hover:bg-purple-950 border border-purple-900 rounded text-left flex flex-col gap-0.5 shadow transition-all active:scale-95">
-                                                    <span className="font-bold text-purple-200 text-[9px]">{dp.label}</span>
-                                                    <span className="text-[7px] text-slate-400">{dp.desc}</span>
+                                {/* 🎸 ギター/ピアノ選択時：16種類コードバリエーション */}
+                                {selectedInstrument === "elecGuitar" && (
+                                    <div className="bg-slate-900 p-2.5 rounded-lg border border-orange-500/80 flex flex-col gap-2 shadow-xl">
+                                        <span className="font-black text-orange-400 text-[11px]">🎸 16種類 コード進行・構成音選択</span>
+                                        <div className="grid grid-cols-4 gap-1">
+                                            {CHORD_LIST.map(chord => (
+                                                <button key={chord} onClick={() => handleChordSelect(chord)} className={`py-1.5 rounded font-bold text-[9px] ${selectedChord === chord ? "bg-amber-600 text-white font-black scale-105 shadow" : "bg-slate-950 text-slate-300 border border-slate-800 hover:bg-slate-800"}`}>
+                                                    {chord}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* 🎹 楽器別 20種類ループ */}
+                                {selectedInstrument !== "drums" && (
+                                    <div className="bg-slate-900 p-2.5 rounded-lg border border-cyan-500/80 flex flex-col gap-2 shadow-xl">
+                                        <div className="flex justify-between items-center">
+                                            <span className="font-black text-cyan-300 text-[11px]">🎼 [{selectedInstObj?.label}] 20種類別ループ</span>
+                                            <span className="text-[8px] bg-cyan-400 text-black px-1.5 py-0.5 rounded font-black">20 LOOPS</span>
+                                        </div>
+                                        <div className="grid grid-cols-5 gap-1 max-h-28 overflow-y-auto p-1 bg-slate-950 rounded border border-slate-800">
+                                            {INST_LOOP_PRESETS.map(preset => (
+                                                <button 
+                                                    key={preset.id} 
+                                                    onClick={() => applyInstrumentLoopPreset(preset)} 
+                                                    className={`py-1.5 rounded font-black text-[9px] flex flex-col items-center justify-center border transition-all ${
+                                                        selectedInstLoop === preset.id 
+                                                            ? "bg-gradient-to-r from-cyan-600 to-blue-600 border-white text-white shadow-lg scale-105" 
+                                                            : "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800"
+                                                    }`}
+                                                >
+                                                    <span className="text-[10px] leading-none">#{preset.num}</span>
+                                                    <span className="text-[6px] opacity-70 leading-none mt-0.5">{preset.type}</span>
                                                 </button>
                                             ))}
                                         </div>
@@ -822,10 +813,7 @@
                                             let active = false;
                                             let displayLabel = stepInBar + 1;
 
-                                            if (selectedInstrument === "elecGuitar") {
-                                                active = !!item;
-                                                if (active) displayLabel = item.note ? item.note : (item.chord || selectedChord);
-                                            } else if (selectedInstrument === "drums") {
+                                            if (selectedInstrument === "drums") {
                                                 active = item && item[selectedDrumPart];
                                                 if (active) displayLabel = selectedDrumPart[0].toUpperCase();
                                             } else {
@@ -1025,7 +1013,7 @@
                             <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 flex flex-col gap-2">
                                 <div className="flex justify-between items-center">
                                     <span className="font-bold text-amber-400 text-[10px]">🌊 ストレージ保存</span>
-                                    <button onClick={() => setStorageList(prev => [...prev, { id: Date.now(), title: `Master Session #${prev.length + 1}`, bars: barsCount, bpm, date: new Date().toLocaleTimeString() }])} className="px-2 py-0.5 bg-red-600 text-white font-bold rounded text-[9px]">保存</button>
+                                    <button onClick={() => setStorageList(prev => [...prev, { id: Date.now(), title: `Extended Session #${prev.length + 1}`, bars: barsCount, bpm, date: new Date().toLocaleTimeString() }])} className="px-2 py-0.5 bg-red-600 text-white font-bold rounded text-[9px]">保存</button>
                                 </div>
                                 {storageList.map(item => (
                                     <div key={item.id} className="bg-slate-950 p-2 rounded flex justify-between items-center border border-slate-800">
