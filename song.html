@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIC VICTORY BAND - Genre AI & Grid Direct Recorder v121.01</title>
+    <title>MIC VICTORY BAND - Genre AI & Grid Direct Recorder v121.04</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -15,7 +15,7 @@
 
     <script type="text/babel">
         function MasterSynthApp() {
-            const [activeTab, setActiveTab] = React.useState("REC_AI"); 
+            const [activeTab, setActiveTab] = React.useState("SEQUENCER"); 
             const [playing, setPlaying] = React.useState(false);
             const [bpm, setBpm] = React.useState(120);
             const [selectedGenre, setSelectedGenre] = React.useState("Pops");
@@ -23,7 +23,7 @@
             const [barsCount, setBarsCount] = React.useState(38);
             const [currentBar, setCurrentBar] = React.useState(0);
             const [currentStep, setCurrentStep] = React.useState(-1);
-            const [status, setStatus] = React.useState("🔥 800文字AIラップ歌詞・グリッドエンジン稼働中");
+            const [status, setStatus] = React.useState("🔥 ギター26ループ＆ドラムプリセット統合エンジン 稼働中");
 
             const BAR_STEPS = 16;
 
@@ -36,15 +36,46 @@
                 { id: "Soul", label: "🎷 Soul (98)", bpm: 98, color: "from-amber-600 to-yellow-600" }
             ];
 
+            // 🎸 26種類のエレキギターループプリセット定義 (A〜Z)
+            const GUITAR_LOOP_PRESETS = Array.from({ length: 26 }, (_, i) => {
+                const char = String.fromCharCode(65 + i);
+                const styles = ["arpeggio", "riff", "cutting", "stroke"];
+                const style = styles[i % styles.length];
+                const chordsList = [
+                    ["Am", "Dm", "G", "C"],
+                    ["C", "G", "Am", "F"],
+                    ["Em", "Am", "D", "G"],
+                    ["F", "G", "Em", "Am"]
+                ];
+                return {
+                    id: `loop_${char}`,
+                    code: char,
+                    label: `Loop ${char} (${style.toUpperCase()})`,
+                    style: style,
+                    chords: chordsList[i % chordsList.length],
+                    distortionBoost: (i % 3 === 0) ? 0.4 : 0.15
+                };
+            });
+
+            // 🥁 ドラムプリセットパターン定義 (6種類)
+            const DRUM_PRESETS = [
+                { id: "standard", label: "🥁 スタンダード8ビート", desc: "王道のロック・ポップス向け" },
+                { id: "fourOnFloor", label: "🕺 4つ打ちダンスビート", desc: "ダンス・EDM向けキック連打" },
+                { id: "heavyRock", label: "🤘 ヘヴィロックリズム", desc: "重厚なキック＆スネア" },
+                { id: "funkSoul", label: "🎷 ファンク＆ソウル", desc: "裏拍ハイハットとリムショット" }
+            ];
+
             // 選択中楽器・設定
-            const [selectedInstrument, setSelectedInstrument] = React.useState("synthLeadNormal");
+            const [selectedInstrument, setSelectedInstrument] = React.useState("elecGuitar");
             const [selectedDrumPart, setSelectedDrumPart] = React.useState("kick");
-            const [selectedGuitarStyle, setSelectedGuitarStyle] = React.useState("cutting");
+            const [selectedGuitarStyle, setSelectedGuitarStyle] = React.useState("arpeggio");
             const [selectedChord, setSelectedChord] = React.useState("Am");
             const [selectedOctave, setSelectedOctave] = React.useState("mid");
             const [selectedNote, setSelectedNote] = React.useState("C4");
+            const [inputMode, setInputMode] = React.useState("manual");
+            const [selectedGuitarLoop, setSelectedGuitarLoop] = React.useState(GUITAR_LOOP_PRESETS[0].id);
 
-            // ドラムパーツ定義 (6種類)
+            // ドラムパーツ定義
             const DRUM_PARTS = [
                 { id: "kick", label: "💥 キック" },
                 { id: "snare", label: "🎯 スネア" },
@@ -70,9 +101,9 @@
 
             const CHORD_LIST = Object.keys(CHORD_NOTES);
             const GUITAR_STYLES = [
-                { id: "cutting", label: "✂️ カッティング" },
                 { id: "arpeggio", label: "🎼 アルペジオ" },
                 { id: "riff", label: "⚡ 重厚リフ" },
+                { id: "cutting", label: "✂️ カッティング" },
                 { id: "stroke", label: "🎸 ストローク" }
             ];
 
@@ -84,37 +115,11 @@
             const [delayWet, setDelayWet] = React.useState(0.15);
             const [distortionAmount, setDistortionAmount] = React.useState(0.15);
 
-            // 800文字対応 AIラップ歌詞・文章データ
+            // 800文字対応 AIラップ歌詞
             const [rapLyrics, setRapLyrics] = React.useState(
-`[Intro - MIC VICTORY Direct Grid & Genre AI v121.01]
-1. ドレミファソ鍵盤・グリッドを直接タップして手動記録・即時再生。
-2. 選択中のジャンル（Pops / Rock / Popping / Dance / Soul）に特化した各楽器専用AIメロディを作成。
-
-[Verse 1 - 800文字AIラップリリックグリッド]
-Yo! Mic Victory Band が鳴らす重低音のビート
-街のノイズを掻き消すエキサイティングなシード
-Pops のきらめき Rock の歪み Soul の深み
-Dance のステップ Popping のキレが織りなすハーモニー
-指先ひとつで刻むグリッド、38小節のロングジャーニー
-キーボードを叩いてリアルタイムに刻むメロディ
-コード進行 Am から C、そして G へと広がるファンタジー
-
-[Chorus - 限界突破のグルーヴ]
-鳴り止まないリズム、加速するBPM
-AIが導くアンセム、お前のハートに直撃のゲーム
-マイクに向かって叫べ、ボーカル独立レコーディング
-世界へ放つマイ・ストリート・サウンド・バウンス！
-
-[Verse 2 - エレキギター＆ドラムコンビネーション]
-カッティング刻むギター、重厚なリフが唸る
-キックとスネアのレイヤー、ハイハットが鋭く光る
-バイオリンの旋律が優しく包み込み、トランペットが高らかに鳴り響く
-音割れ防止のコンプレッサー、マスターゲインで完璧なミックス
-保存もエクスポートも自由自在、JSONで未来へ持ち運べ！
-
-[Outro - Fade Out & Victory]
-MIC VICTORY DTM, 永遠に続く音楽の旅路...
-手動とAIの融合が、新しい伝説を今、刻み込む。`
+`[Intro - MIC VICTORY Direct Grid & Genre AI v121.04]
+1. 26種類のエレキギターループプリセット(Loop A〜Z)＆個別音色カスタム。
+2. 多彩なドラムリズムプリセットと手動・AI切替機能を完全統合。`
             );
 
             // ミキサー パラメータ
@@ -131,10 +136,10 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
 
             // ストレージデータ
             const [storageList, setStorageList] = React.useState(() => {
-                const saved = localStorage.getItem("MIC_VICTORY_TRACKS_V121");
-                return saved ? JSON.parse(saved) : [{ id: 1, title: "Grid Direct Session #1", bars: 38, bpm: 120, date: "12:00" }];
+                const saved = localStorage.getItem("MIC_VICTORY_TRACKS_V121_04");
+                return saved ? JSON.parse(saved) : [{ id: 1, title: "Master Session #1", bars: 38, bpm: 120, date: "12:00" }];
             });
-            const [saveSlotName, setSaveSlotName] = React.useState("MIC_VICTORY_GRID_v121");
+            const [saveSlotName, setSaveSlotName] = React.useState("MIC_VICTORY_MASTER_v121");
 
             // 録音機能
             const [isRecording, setIsRecording] = React.useState(false);
@@ -150,7 +155,7 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
 
             // ステップデータ定義
             const [instrumentSteps, setInstrumentSteps] = React.useState(() => {
-                const saved = localStorage.getItem("MIC_VICTORY_STEPS_V121");
+                const saved = localStorage.getItem("MIC_VICTORY_STEPS_V121_04");
                 if (saved) return JSON.parse(saved);
                 return {
                     synthLowBass: new Array(64 * BAR_STEPS).fill(null),
@@ -163,11 +168,11 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
             });
 
             React.useEffect(() => {
-                localStorage.setItem("MIC_VICTORY_STEPS_V121", JSON.stringify(instrumentSteps));
+                localStorage.setItem("MIC_VICTORY_STEPS_V121_04", JSON.stringify(instrumentSteps));
             }, [instrumentSteps]);
 
             React.useEffect(() => {
-                localStorage.setItem("MIC_VICTORY_TRACKS_V121", JSON.stringify(storageList));
+                localStorage.setItem("MIC_VICTORY_TRACKS_V121_04", JSON.stringify(storageList));
             }, [storageList]);
 
             // Tone.js 音源＆エフェクト参照
@@ -183,11 +188,10 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
             const instrumentGainsRef = React.useRef({});
             const directStepIdxRef = React.useRef(0);
 
-            // 楽器定義
             const INSTRUMENT_MAP = [
+                { id: "elecGuitar", label: "🎸 エレキギター (26ループ/音色個別カスタム)", color: "from-orange-800 to-amber-600" },
+                { id: "drums", label: "🥁 ドラムセット (4種リズムプリセット/手動)", color: "from-purple-900 to-rose-700" },
                 { id: "synthLeadNormal", label: "🎹 シンセサイザー (メロディ手動/AI)", color: "from-cyan-800 to-blue-600" },
-                { id: "elecGuitar", label: "🎸 エレキギター (コード＆単音手動/AI)", color: "from-orange-800 to-amber-600" },
-                { id: "drums", label: "🥁 ドラムセット (6パーツグリッド手動/AI)", color: "from-purple-900 to-rose-700" },
                 { id: "synthLowBass", label: "🎸 超重低音ベース (Low Bass手動/AI)", color: "from-red-900 to-red-600" },
                 { id: "violin", label: "🎻 バイオリン (Violin手動/AI)", color: "from-rose-800 to-pink-600" },
                 { id: "trumpet", label: "🎺 トランペット (Trumpet手動/AI)", color: "from-amber-600 to-yellow-500" },
@@ -326,6 +330,8 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
                                         if (item.style === "arpeggio") {
                                             const noteToPlay = chordNotes[step % chordNotes.length];
                                             syns.elecGuitar.triggerAttackRelease(noteToPlay, "8n", time);
+                                        } else if (item.style === "riff") {
+                                            syns.elecGuitar.triggerAttackRelease([chordNotes[0], chordNotes[1]], "16n", time);
                                         } else {
                                             syns.elecGuitar.triggerAttackRelease(chordNotes, item.style === "cutting" ? "16n" : "4n", time);
                                         }
@@ -364,6 +370,68 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
                 setStatus(`🎵 ジャンル設定: 【${genreObj.label}】 に変更しました`);
             };
 
+            // 🎸 26個のエレキギターループ適用 ＆ 個別歪みカスタム
+            const applyGuitarLoopPreset = (presetObj) => {
+                setSelectedGuitarLoop(presetObj.id);
+                setSelectedGuitarStyle(presetObj.style);
+                setDistortionAmount(presetObj.distortionBoost);
+
+                const totalLen = barsCount * BAR_STEPS;
+                const newSteps = JSON.parse(JSON.stringify(instrumentSteps));
+                const guitarArr = newSteps.elecGuitar;
+
+                for (let i = 0; i < totalLen; i++) {
+                    const s = i % 16;
+                    const bar = Math.floor(i / 16);
+                    const chord = presetObj.chords[bar % presetObj.chords.length];
+
+                    if (s === 0 || s === 4 || s === 8 || s === 12) {
+                        guitarArr[i] = { chord: chord, style: presetObj.style };
+                    } else {
+                        guitarArr[i] = null;
+                    }
+                }
+
+                setInstrumentSteps(newSteps);
+                setStatus(`🎸 【${presetObj.label}】展開完了 (個別歪み: ${Math.round(presetObj.distortionBoost * 100)}%)`);
+            };
+
+            // 🥁 ドラムリズムプリセット適用
+            const applyDrumPreset = (presetId) => {
+                const totalLen = barsCount * BAR_STEPS;
+                const newSteps = JSON.parse(JSON.stringify(instrumentSteps));
+                const drumArr = newSteps.drums;
+
+                for (let i = 0; i < totalLen; i++) {
+                    const s = i % 16;
+                    const obj = { kick: false, snare: false, hihat: false, openHihat: false, clap: false, rim: false };
+
+                    if (presetId === "standard") {
+                        if (s === 0 || s === 8) obj.kick = true;
+                        if (s === 4 || s === 12) obj.snare = true;
+                        if (s % 2 === 0) obj.hihat = true;
+                        if (s === 14) obj.openHihat = true;
+                    } else if (presetId === "fourOnFloor") {
+                        if (s === 0 || s === 4 || s === 8 || s === 12) obj.kick = true;
+                        if (s === 4 || s === 12) obj.snare = true;
+                        if (s % 2 === 0) obj.hihat = true;
+                    } else if (presetId === "heavyRock") {
+                        if (s === 0 || s === 6 || s === 10) obj.kick = true;
+                        if (s === 4 || s === 12) obj.snare = true;
+                        if (s % 2 === 0) obj.hihat = true;
+                        if (s === 15) obj.openHihat = true;
+                    } else if (presetId === "funkSoul") {
+                        if (s === 0 || s === 9) obj.kick = true;
+                        if (s === 4 || s === 12) obj.rim = true;
+                        if (s % 2 === 0) obj.hihat = true;
+                    }
+                    drumArr[i] = obj;
+                }
+
+                setInstrumentSteps(newSteps);
+                setStatus(`🥁 ドラムプリセットを適用しました！`);
+            };
+
             const handleChordSelect = async (chordName) => {
                 await Tone.start();
                 setSelectedChord(chordName);
@@ -372,10 +440,9 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
                     const notes = CHORD_NOTES[chordName] || ["A3", "C4", "E4"];
                     syns.elecGuitar.triggerAttackRelease(notes, "4n");
                 }
-                setStatus(`🎸 コード [${chordName}] 音源試聴中`);
+                setStatus(`🎸 コード [${chordName}] 試聴中`);
             };
 
-            // ⚏ グリッド直接タップによる入力＆リアルタイム再生記録
             const handleGridCellClick = async (globalIdx, overrideNote = null) => {
                 await Tone.start();
                 const syns = synthsRef.current;
@@ -420,7 +487,6 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
                 });
             };
 
-            // 🎹 ドレミファソ鍵盤をタップして現在ステップに直接記録＆即試聴
             const handleKeyboardClick = async (noteRawObj) => {
                 await Tone.start();
                 let noteName = noteRawObj.note;
@@ -434,10 +500,9 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
 
                 const targetStep = playing ? directStepIdxRef.current : (currentBar * BAR_STEPS);
                 handleGridCellClick(targetStep, fullNote);
-                setStatus(`🎹 鍵盤 [${noteRawObj.label}(${fullNote})] を第 ${Math.floor(targetStep / 16) + 1} 小節 ステップ ${(targetStep % 16) + 1} に直接記録！`);
+                setStatus(`🎹 鍵盤 [${noteRawObj.label}(${fullNote})] 記録！`);
             };
 
-            // 👑 【ジャンル別・各楽器AIメロディ作成機能】
             const applyInstrumentAiByGenre = () => {
                 const totalLen = barsCount * BAR_STEPS;
                 const newSteps = JSON.parse(JSON.stringify(instrumentSteps));
@@ -482,7 +547,7 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
                         currentArr[i] = obj;
                     } else if (selectedInstrument === "elecGuitar") {
                         if (s === 0 || s === 4 || s === 8 || s === 12) {
-                            currentArr[i] = { chord: chord, style: selectedGenre === "Rock" ? "riff" : selectedGenre === "Soul" ? "arpeggio" : "cutting" };
+                            currentArr[i] = { chord: chord, style: selectedGenre === "Rock" ? "riff" : selectedGenre === "Soul" ? "arpeggio" : selectedGuitarStyle };
                         }
                     } else if (selectedInstrument === "synthLowBass") {
                         if (s === 0 || s === 3 || s === 8 || s === 11) {
@@ -497,11 +562,9 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
                 }
 
                 setInstrumentSteps(newSteps);
-                const instName = INSTRUMENT_MAP.find(x => x.id === selectedInstrument)?.label || selectedInstrument;
-                setStatus(`✨ 【${selectedGenre}】スタイルで [${instName}] のAIメロディ作成が完了しました！`);
+                setStatus(`✨ 【${selectedGenre}】AI自動生成完了！`);
             };
 
-            // 全体録音
             const startRecording = async () => {
                 try {
                     await Tone.start();
@@ -512,14 +575,14 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
                     mediaRecorderRef.current.onstop = () => {
                         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                         const audioUrl = URL.createObjectURL(audioBlob);
-                        setRecordedAudioList(prev => [...prev, { id: Date.now(), title: `全体演奏トラック #${prev.length + 1}`, url: audioUrl }]);
-                        setStatus("⏹️ 全体録音完了！再生・ダウンロード可能です。");
+                        setRecordedAudioList(prev => [...prev, { id: Date.now(), title: `全体演奏 #${prev.length + 1}`, url: audioUrl }]);
+                        setStatus("⏹️ 全体録音完了！");
                     };
                     mediaRecorderRef.current.start();
                     setIsRecording(true);
                     if (!playing) togglePlay();
                 } catch (err) {
-                    alert("音声キャプチャエラー: " + err.message);
+                    alert("エラー: " + err.message);
                 }
             };
 
@@ -539,13 +602,13 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
                     vocalRecorderRef.current.onstop = () => {
                         const audioBlob = new Blob(vocalChunksRef.current, { type: 'audio/webm' });
                         const audioUrl = URL.createObjectURL(audioBlob);
-                        setVocalAudioList(prev => [...prev, { id: Date.now(), title: `ボーカル録音 #${prev.length + 1}`, url: audioUrl }]);
-                        setStatus("🎤 ボーカル録音完了！下部プレイヤーで再生できます。");
+                        setVocalAudioList(prev => [...prev, { id: Date.now(), title: `ボーカル #${prev.length + 1}`, url: audioUrl }]);
+                        setStatus("🎤 ボーカル録音完了！");
                     };
                     vocalRecorderRef.current.start();
                     setIsVocalRecording(true);
                 } catch (err) {
-                    alert("マイクアクセスエラー: マイクの使用を許可してください。");
+                    alert("マイクアクセスエラー");
                 }
             };
 
@@ -575,7 +638,7 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
                     <header className="bg-slate-900 px-3 py-2 border-b border-red-900/60 sticky top-0 z-50 flex items-center justify-between gap-2">
                         <div className="shrink-0">
                             <h1 className="font-black text-xs text-red-500 tracking-wider">MIC VICTORY BAND</h1>
-                            <p className="text-[9px] text-yellow-400 font-bold">800文字AIラップ歌詞・グリッド v121.01</p>
+                            <p className="text-[9px] text-yellow-400 font-bold">ギター26ループ＆ドラムプリセット v121.04</p>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                             <button onClick={clearAll} className="px-2 py-1 bg-red-800 hover:bg-red-700 font-bold rounded text-[9px] text-white shadow">
@@ -619,7 +682,7 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
                         {activeTab === "SEQUENCER" && (
                             <div className="flex flex-col gap-3">
                                 
-                                {/* 🎵 ジャンル選択 (Pops, Rock, Popping, Dance, Soul) */}
+                                {/* 🎵 ジャンル選択 */}
                                 <div className="bg-slate-900 p-2.5 rounded-lg border border-amber-500/80 flex flex-col gap-1.5 shadow-lg">
                                     <span className="font-bold text-amber-400 text-[10px]">🎵 ジャンル選択 (AIスタイル＆最適BPM)</span>
                                     <div className="grid grid-cols-5 gap-1">
@@ -652,24 +715,73 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
                                     </div>
                                 </div>
 
-                                {/* ✨ 【ジャンル別・各楽器AIメロディ作成ボタン】 */}
-                                <div className="bg-gradient-to-r from-cyan-950 via-blue-950 to-slate-900 p-3 rounded-lg border-2 border-cyan-400/90 shadow-xl flex flex-col gap-2">
-                                    <div className="flex justify-between items-center">
-                                        <span className="font-black text-cyan-300 text-[11px] flex items-center gap-1">
-                                            ✨ 選択パートの【ジャンル別AIメロディ作成】
-                                        </span>
-                                        <span className="text-[8px] bg-cyan-400 text-black px-1.5 py-0.5 rounded font-black">{selectedGenre} AI</span>
+                                {/* 🎸 選択楽器がギターの場合：26ループ選択 */}
+                                {selectedInstrument === "elecGuitar" && (
+                                    <div className="bg-slate-900 p-2.5 rounded-lg border border-orange-500/80 flex flex-col gap-2 shadow-xl">
+                                        <div className="flex justify-between items-center">
+                                            <span className="font-black text-orange-400 text-[11px]">🎸 26種 エレキギターループ (個別音色カスタム)</span>
+                                            <span className="text-[8px] bg-orange-500 text-black px-1.5 py-0.5 rounded font-black">LOOP A〜Z</span>
+                                        </div>
+                                        <div className="grid grid-cols-6 gap-1 max-h-36 overflow-y-auto p-1 bg-slate-950 rounded border border-slate-800">
+                                            {GUITAR_LOOP_PRESETS.map(preset => (
+                                                <button 
+                                                    key={preset.id} 
+                                                    onClick={() => applyGuitarLoopPreset(preset)} 
+                                                    className={`py-1.5 rounded font-black text-[9px] flex flex-col items-center justify-center border transition-all ${
+                                                        selectedGuitarLoop === preset.id 
+                                                            ? "bg-gradient-to-r from-orange-600 to-amber-600 border-white text-white shadow-lg scale-105" 
+                                                            : "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800"
+                                                    }`}
+                                                >
+                                                    <span className="text-[11px] leading-none">{preset.code}</span>
+                                                    <span className="text-[6px] opacity-70 leading-none mt-0.5 uppercase">{preset.style.slice(0,3)}</span>
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <p className="text-[8px] text-cyan-200 font-semibold leading-tight">
-                                        対象: <span className="text-white font-bold">{selectedInstObj?.label}</span>（グリッドや鍵盤で打ち込んだ音を基に、選択ジャンルに最適化されたメロディを生成）
-                                    </p>
-                                    <button onClick={applyInstrumentAiByGenre} className="w-full py-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-black rounded-md text-[10px] shadow hover:brightness-110 active:scale-95 border border-cyan-300">
-                                        ✨ [{selectedInstObj?.label}] のAIメロディ作成を実行
-                                    </button>
+                                )}
+
+                                {/* 🥁 選択楽器がドラムの場合：4種リズムプリセット */}
+                                {selectedInstrument === "drums" && (
+                                    <div className="bg-slate-900 p-2.5 rounded-lg border border-purple-500/80 flex flex-col gap-2 shadow-xl">
+                                        <span className="font-black text-purple-300 text-[11px]">🥁 ドラム リズムプリセット一括適用</span>
+                                        <div className="grid grid-cols-2 gap-1.5">
+                                            {DRUM_PRESETS.map(dp => (
+                                                <button key={dp.id} onClick={() => applyDrumPreset(dp.id)} className="py-2 px-2 bg-slate-950 hover:bg-purple-950 border border-purple-900 rounded text-left flex flex-col gap-0.5 shadow transition-all active:scale-95">
+                                                    <span className="font-bold text-purple-200 text-[9px]">{dp.label}</span>
+                                                    <span className="text-[7px] text-slate-400">{dp.desc}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* 🎛️ 手動 ⇄ AI切り替え */}
+                                <div className="bg-slate-900 p-2.5 rounded-lg border border-purple-500/80 flex flex-col gap-2 shadow-md">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-bold text-purple-300 text-[10px]">🎛️ 制作モード切替 (手動 ⇄ AI)</span>
+                                        <div className="flex gap-1">
+                                            <button onClick={() => setInputMode("manual")} className={`px-2.5 py-1 rounded text-[9px] font-bold ${inputMode === "manual" ? "bg-purple-600 text-white font-black" : "bg-slate-950 text-slate-400 border border-slate-800"}`}>
+                                                ✍️ 手動
+                                            </button>
+                                            <button onClick={() => setInputMode("ai")} className={`px-2.5 py-1 rounded text-[9px] font-bold ${inputMode === "ai" ? "bg-cyan-600 text-white font-black" : "bg-slate-950 text-slate-400 border border-slate-800"}`}>
+                                                ✨ AI自動
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {inputMode === "ai" && (
+                                        <div className="bg-gradient-to-r from-cyan-950 to-blue-950 p-2.5 rounded border border-cyan-400 flex flex-col gap-1.5">
+                                            <span className="text-[9px] text-cyan-200 font-bold">✨ 【{selectedGenre}】× [{selectedInstObj?.label}] AI自動生成</span>
+                                            <button onClick={applyInstrumentAiByGenre} className="w-full py-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-black rounded text-[10px] shadow active:scale-95">
+                                                🚀 AIメロディ・伴奏を一括自動生成する
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
 
-                                {/* 🎹 ドレミファソ手動鍵盤 (タップして直接記録・再生) */}
-                                {selectedInstrument !== "drums" && (
+                                {/* 🎹 ドレミファソ手動鍵盤 */}
+                                {selectedInstrument !== "drums" && inputMode === "manual" && (
                                     <div className="bg-slate-900 p-2.5 rounded-lg border border-cyan-500/80 flex flex-col gap-1.5 shadow-lg">
                                         <div className="flex justify-between items-center">
                                             <span className="font-bold text-cyan-300 text-[10px]">🎹 ドレミファソ手動鍵盤 (タップ即時記録・再生)</span>
@@ -686,27 +798,6 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
                                                 <button key={k.note} onClick={() => handleKeyboardClick(k)} className={`${k.color} h-10 rounded font-black text-white flex flex-col items-center justify-center shadow active:scale-95 transition-transform`}>
                                                     <span className="text-[11px] leading-none">{k.label}</span>
                                                     <span className="text-[7px] opacity-80 leading-none mt-0.5">{k.note}</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* 🎸 エレキギター用 コード選択 ＆ 奏法切替 */}
-                                {selectedInstrument === "elecGuitar" && (
-                                    <div className="bg-slate-900 p-2.5 rounded-lg border border-orange-500/80 flex flex-col gap-2">
-                                        <span className="font-black text-orange-400 text-[11px]">🎸 エレキギター コードバッキング設定</span>
-                                        <div className="grid grid-cols-5 gap-1">
-                                            {CHORD_LIST.map(chord => (
-                                                <button key={chord} onClick={() => handleChordSelect(chord)} className={`py-1.5 rounded font-bold text-[9px] ${selectedChord === chord ? "bg-orange-600 text-white font-black shadow-lg scale-105" : "bg-slate-950 text-slate-300 border border-slate-800"}`}>
-                                                    {chord}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <div className="grid grid-cols-4 gap-1 mt-1">
-                                            {GUITAR_STYLES.map(st => (
-                                                <button key={st.id} onClick={() => setSelectedGuitarStyle(st.id)} className={`py-1.5 rounded font-bold text-[8px] ${selectedGuitarStyle === st.id ? "bg-amber-500 text-black font-black" : "bg-slate-950 text-slate-400 border border-slate-800"}`}>
-                                                    {st.label}
                                                 </button>
                                             ))}
                                         </div>
@@ -793,7 +884,7 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
                             </div>
                         )}
 
-                        {/* --- TAB 2: REC & AI (800文字対応 AIラップ歌詞・文章表示) --- */}
+                        {/* --- TAB 2: REC & AI --- */}
                         {activeTab === "REC_AI" && (
                             <div className="flex flex-col gap-3">
                                 <div className="bg-slate-900 p-2.5 rounded-lg border border-blue-600 flex flex-col gap-2">
@@ -826,23 +917,17 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
                                     ))}
                                 </div>
 
-                                {/* ✨ 800文字以上対応の大容量AI歌詞＆プロンプトメモエリア */}
                                 <div className="bg-slate-900 p-3 rounded-lg border-2 border-amber-500/80 flex flex-col gap-2 shadow-xl">
                                     <div className="flex justify-between items-center">
-                                        <span className="font-black text-amber-400 text-[11px] flex items-center gap-1">
-                                            ✨ AI 歌詞 & プロンプトメモ (800文字対応)
-                                        </span>
+                                        <span className="font-black text-amber-400 text-[11px]">✨ AI 歌詞 & プロンプトメモ (800文字対応)</span>
                                         <span className="text-[9px] bg-amber-500 text-black px-2 py-0.5 rounded font-black">{rapLyrics.length} 文字</span>
                                     </div>
-                                    <p className="text-[8px] text-slate-300">
-                                        ※スクロール対応の広めなテキストエリアです。AIのラップ歌詞や大量のプロンプト文章を自由に記入・確認できます。
-                                    </p>
                                     <textarea 
                                         value={rapLyrics} 
                                         onChange={e => setRapLyrics(e.target.value)} 
-                                        rows={18} 
+                                        rows={16} 
                                         className="bg-slate-950 border border-amber-500/50 rounded-md p-3 text-[11px] font-mono text-slate-100 leading-relaxed focus:outline-none focus:border-amber-400 shadow-inner resize-y" 
-                                        placeholder="ここに800文字以上のAIラップ歌詞や文章を入力してください..." 
+                                        placeholder="AIラップ歌詞や文章を入力..." 
                                     />
                                 </div>
                             </div>
@@ -940,7 +1025,7 @@ MIC VICTORY DTM, 永遠に続く音楽の旅路...
                             <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 flex flex-col gap-2">
                                 <div className="flex justify-between items-center">
                                     <span className="font-bold text-amber-400 text-[10px]">🌊 ストレージ保存</span>
-                                    <button onClick={() => setStorageList(prev => [...prev, { id: Date.now(), title: `Grid Direct Session #${prev.length + 1}`, bars: barsCount, bpm, date: new Date().toLocaleTimeString() }])} className="px-2 py-0.5 bg-red-600 text-white font-bold rounded text-[9px]">保存</button>
+                                    <button onClick={() => setStorageList(prev => [...prev, { id: Date.now(), title: `Master Session #${prev.length + 1}`, bars: barsCount, bpm, date: new Date().toLocaleTimeString() }])} className="px-2 py-0.5 bg-red-600 text-white font-bold rounded text-[9px]">保存</button>
                                 </div>
                                 {storageList.map(item => (
                                     <div key={item.id} className="bg-slate-950 p-2 rounded flex justify-between items-center border border-slate-800">
