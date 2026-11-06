@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>目標達成ダッシュボード v2（データが残る版）</title>
+<title>目標達成ダッシュボード v3（履歴が残る強化版）</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -16,7 +16,7 @@ body { font-family: 'Inter', sans-serif;}
 <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 sticky top-0 z-50">
 <div class="max-w-4xl mx-auto flex justify-between items-center">
 <h1 class="text-xl font-bold flex items-center gap-2 text-indigo-400">
-<i class="fa-solid fa-bullseye text-2xl"></i> Goal Tracker v2
+<i class="fa-solid fa-bullseye text-2xl"></i> Goal Tracker v3
 </h1>
 <div class="flex items-center gap-2">
 <button onclick="exportData()" class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5" title="バックアップファイルを保存">
@@ -35,7 +35,7 @@ body { font-family: 'Inter', sans-serif;}
 </p>
 <p id="storageWarning" class="hidden text-xs text-rose-200 bg-rose-900/40 border border-rose-700 rounded-lg px-3 py-2 mt-2">
 <i class="fa-solid fa-triangle-exclamation mr-1"></i>
-この開き方ではデータ保存が使えません。ファイルを Chrome などのブラウザで直接開いてください（アプリ内プレビューやシークレットモードでは保存が消えます）。
+この開き方ではデータ保存が使えません。ファイルを Chrome などのブラウザで直接開いてください（アプリ内プレビューやシークレットモードでは保存が消えます）。<br>※ 消えやすい場合は、Chromeのメニュー「ホーム画面に追加」して、そこから開くと残りやすくなります。
 </p>
 </div>
 </header>
@@ -98,7 +98,7 @@ body { font-family: 'Inter', sans-serif;}
 
 <script>
 /* =========================================================
-v2 保存の仕組み（ここが改良点）
+v3 保存の仕組み（v2からさらに強化）
 1) IndexedDB と localStorage の両方に二重保存する
 2) 保存のたびに「1つ前のデータ」を予備として残す（誤削除の復旧用）
 3) 読み込み時は両方を見て、新しい方を採用する。旧形式（配列そのまま）も読み込む
@@ -106,6 +106,8 @@ v2 保存の仕組み（ここが改良点）
 5) ブラウザに「データを消さないで」と要求する（navigator.storage.persist）
 ========================================================= */
 const LS_KEY = 'user_goals_data';
+const LS_MIRROR_KEY = 'user_goals_data_mirror';
+const COOKIE_NAME = 'gt_goals_v3';
 const LS_BACKUP_KEY = 'user_goals_data_backup';
 const DB_NAME = 'goalTrackerDB_v2';
 const DB_STORE = 'kv';
@@ -113,6 +115,8 @@ const DB_KEY = 'goals_main';
 const DB_BACKUP_KEY = 'goals_backup';
 
 let goals = [];
+let dataLoaded = false;   // 読み込みが終わるまでは絶対に保存しない（空データで上書きする事故防止）
+let allowEmptySave = false; // 本人が明示的に全部消した場合だけ true
 let lastSavedAt = 0;
 let lsAvailable = false;
 let idbAvailable = false;
@@ -166,6 +170,24 @@ try { localStorage.setItem(key, JSON.stringify(value)); return true;}
 catch (e) { return false;}
 }
 
+// ---------- Cookie ミラー（localStorageとは別の保存場所にも残す） ----------
+function cookieWrite(payload) {
+try {
+const enc = encodeURIComponent(JSON.stringify(payload));
+if (enc.length > 3500) return false; // Cookieの上限を超える場合は書かない
+const exp = new Date(Date.now() + 3650 * 24 * 60 * 60 * 1000).toUTCString();
+document.cookie = COOKIE_NAME + '=' + enc + '; expires=' + exp + '; path=/; SameSite=Lax';
+return true;
+} catch (e) { return false;}
+}
+function cookieRead() {
+try {
+const m = document.cookie.match(new RegExp('(?:^|; )' + COOKIE_NAME + '=([^;]*)'));
+if (!m) return null;
+return JSON.parse(decodeURIComponent(m[1]));
+} catch (e) { return null;}
+}
+
 // 旧形式（配列）と新形式（{savedAt, goals}）の両方を受ける
 function normalize(parsed) {
 if (!parsed) return null;
@@ -176,33 +198,47 @@ return null;
 
 async function loadAllData() {
 let candidates = [];
-// localStorage
 if (lsAvailable) {
 const main = normalize(lsRead(LS_KEY));
 if (main) candidates.push(main);
+const mirror = normalize(lsRead(LS_MIRROR_KEY));
+if (mirror) candidates.push(mirror);
 }
-// IndexedDB
+const ck = normalize(cookieRead());
+if (ck) candidates.push(ck);
 try {
 const idbMain = normalize(await idbGet(DB_KEY));
-if (idbMain) { idbAvailable = true; candidates.push(idbMain);}
-else { idbAvailable = true;}
+idbAvailable = true;
+if (idbMain) candidates.push(idbMain);
 } catch (e) { idbAvailable = false;}
 
 if (candidates.length === 0) return { savedAt: 0, goals: []};
-candidates.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+// 「新しい方」ではなく「目標が多い方」を優先する（空で上書きされたコピーに負けないため）
+candidates.sort((a, b) => (b.goals.length - a.goals.length) || ((b.savedAt || 0) - (a.savedAt || 0)));
 return candidates[0];
 }
 
-async function persistGoals(showMsg) {
-const payload = { version: 2, savedAt: Date.now(), goals: goals};
+async function persistGoals(showMsg, forceEmpty) {
+if (!dataLoaded) return false; // 読み込み前は保存しない
+// 空データでの上書き防止：保存済みに目標があるのに goals が空なら書かない（本人の明示操作は除く）
+if (goals.length === 0 && !forceEmpty && !allowEmptySave) {
+let storedHas = false;
+if (lsAvailable) {
+const a = normalize(lsRead(LS_KEY)); if (a && a.goals.length > 0) storedHas = true;
+const b = normalize(lsRead(LS_MIRROR_KEY)); if (b && b.goals.length > 0) storedHas = true;
+}
+if (storedHas) { updateSaveStatus(true, lsAvailable, idbAvailable); return true;}
+}
+const payload = { version: 3, savedAt: Date.now(), goals: goals};
 let okLS = false, okIDB = false;
 
-// 予備（1つ前の保存）を残してから上書きする
 if (lsAvailable) {
 const prev = lsRead(LS_KEY);
 if (prev) lsWrite(LS_BACKUP_KEY, prev);
 okLS = lsWrite(LS_KEY, payload);
+lsWrite(LS_MIRROR_KEY, payload);
 }
+cookieWrite(payload);
 try {
 const prevIdb = await idbGet(DB_KEY);
 if (prevIdb) await idbSet(DB_BACKUP_KEY, prevIdb);
@@ -288,7 +324,15 @@ window.history.replaceState({}, document.title, window.location.pathname);
 }
 
 renderGoals();
+dataLoaded = true; // ここから保存を許可
 updateSaveStatus(lsAvailable || idbAvailable, lsAvailable, idbAvailable);
+try {
+if (navigator.storage && navigator.storage.persisted) {
+const p = await navigator.storage.persisted();
+const el = document.getElementById('saveStatus');
+el.innerHTML += p? ' ／ ブラウザ保持: 強' : ' ／ ブラウザ保持: 弱（「ホーム画面に追加」すると強くなります）';
+}
+} catch (e) {}
 if (!lsAvailable &&!idbAvailable) {
 document.getElementById('storageWarning').classList.remove('hidden');
 }
@@ -297,12 +341,19 @@ setInterval(updateCountdown, 1000);
 
 // 画面を閉じる／隠すときにも localStorage へ即保存（保険）
 document.addEventListener('visibilitychange', () => {
-if (document.visibilityState === 'hidden' && lsAvailable) {
-lsWrite(LS_KEY, { version: 2, savedAt: Date.now(), goals: goals});
+if (document.visibilityState === 'hidden' && lsAvailable && dataLoaded && (goals.length > 0 || allowEmptySave)) {
+const pl = { version: 3, savedAt: Date.now(), goals: goals};
+lsWrite(LS_KEY, pl);
+lsWrite(LS_MIRROR_KEY, pl);
+cookieWrite(pl);
 }
 });
 window.addEventListener('beforeunload', () => {
-if (lsAvailable) lsWrite(LS_KEY, { version: 2, savedAt: Date.now(), goals: goals});
+if (lsAvailable && dataLoaded && (goals.length > 0 || allowEmptySave)) {
+const pl = { version: 3, savedAt: Date.now(), goals: goals};
+lsWrite(LS_KEY, pl);
+lsWrite(LS_MIRROR_KEY, pl);
+}
 });
 
 // ---------- 表示 ----------
@@ -420,7 +471,8 @@ openModal();
 async function deleteGoal(id) {
 if (confirm('この目標を削除してもよろしいですか？\n（間違えた場合は「前の保存に戻す」で戻せます）')) {
 goals = goals.filter(g => String(g.id)!== String(id));
-await persistGoals(false);
+if (goals.length === 0) allowEmptySave = true;
+await persistGoals(false, goals.length === 0);
 renderGoals();
 showToast('目標を削除しました');
 }
