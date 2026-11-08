@@ -193,6 +193,22 @@
 <audio id="masterAudioElement" class="hidden"></audio>
 </div>
 
+<!-- 🎵 ジャンル選択（AI作曲スタイル） -->
+<div class="bg-gray-950 p-3 rounded-xl border border-mvPink/40 space-y-2">
+<div class="flex items-center justify-between text-xs">
+<span class="font-bold text-mvPink flex items-center space-x-1.5">
+<i class="fa-solid fa-music"></i>
+<span>ジャンル（AI作曲スタイル）</span>
+</span>
+<span id="genreLabel" class="text-mvPink font-mono font-bold text-[10px]">Popping Dance</span>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<button onclick="setGenre('pops')" id="genreBtn-pops" class="py-2.5 rounded-xl text-xs font-bold bg-gray-900 border border-gray-700 text-gray-300 transition active:scale-95">Pops</button>
+<button onclick="setGenre('popping')" id="genreBtn-popping" class="py-2.5 rounded-xl text-xs font-bold bg-mvPink text-white border border-mvPink shadow-lg transition active:scale-95">Popping Dance</button>
+</div>
+<p class="text-[9px] text-gray-500">「AI全自動プロデュース」と「楽器別AI作曲」が、このジャンルのコード進行とリズムで作ります。</p>
+</div>
+
 <!-- AI全自動プロデュース -->
 <div class="bg-gradient-to-r from-purple-900/40 via-pink-900/40 to-cyan-900/40 border border-mvPink/50 p-3 rounded-xl space-y-2">
 <div class="flex items-center justify-between">
@@ -316,6 +332,7 @@
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>ピアノ</span><strong id="vol-piano" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('piano', this.value)" class="w-full accent-mvAccent"></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>ボーカル</span><strong id="vol-vocal" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('vocal', this.value)" class="w-full accent-mvPink"></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>ベース</span><strong id="vol-bass" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('bass', this.value)" class="w-full accent-mvCyan"></div>
+<div class="space-y-1 col-span-2"><button onclick="toggleBassSub()" id="bassSubBtn" class="w-full bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">ベース超重低音：OFF</button></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>アコギ</span><strong id="vol-acoustic" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('acoustic', this.value)" class="w-full accent-mvGreen"></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>エレキ</span><strong id="vol-electric" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('electric', this.value)" class="w-full accent-mvYellow"></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>バイオリン</span><strong id="vol-violin" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('violin', this.value)" class="w-full accent-mvAccent"></div>
@@ -602,6 +619,8 @@ electric: 1.0, violin: 1.0, trumpet: 1.2, drums: 1.5, tambourine: 0.9
 };
 
 let fxState = { reverb: false, delay: false, lowpass: false, highpass: false};
+let currentGenre = 'popping';
+let bassSubOn = false;
 
 let totalBars = 38;
 let currentStepsPerBar = 18;
@@ -771,6 +790,26 @@ alert("✨ 800字歌詞モーダルへこの歌詞を反映しました！");
 openModal('lyricsModal');
 }
 
+/* 🎵 ジャンル切り替え */
+function setGenre(g) {
+    currentGenre = g;
+    const onCls = "py-2.5 rounded-xl text-xs font-bold bg-mvPink text-white border border-mvPink shadow-lg transition active:scale-95";
+    const offCls = "py-2.5 rounded-xl text-xs font-bold bg-gray-900 border border-gray-700 text-gray-300 transition active:scale-95";
+    document.getElementById('genreBtn-pops').className = (g === 'pops') ? onCls : offCls;
+    document.getElementById('genreBtn-popping').className = (g === 'popping') ? onCls : offCls;
+    document.getElementById('genreLabel').innerText = (g === 'pops') ? 'Pops' : 'Popping Dance';
+}
+
+/* 🔊 ベース超重低音 ON/OFF 切り替え */
+function toggleBassSub() {
+    bassSubOn = !bassSubOn;
+    const btn = document.getElementById('bassSubBtn');
+    btn.innerText = bassSubOn ? 'ベース超重低音：ON' : 'ベース超重低音：OFF';
+    btn.className = bassSubOn
+        ? "w-full bg-mvCyan/25 border border-mvCyan text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95"
+        : "w-full bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95";
+}
+
 /* ⏱️ 速度（BPM）調整関数：スライダー・ボタン・プリセット共通、再生中も即反映 */
 function setBpm(val) {
 let v = parseInt(val);
@@ -919,16 +958,41 @@ return audioCtx;
         }
 
         function playUltimateRealDrumSound(partId, vel, now, out) {
+            // テンポが速いほど音の余韻を短くして、音が重なってガラガラにならないようにする
+            const stepSec = (60 / currentBpm) / 4;
+            const kickDur = Math.min(0.7, Math.max(0.12, stepSec * 8));
+            const crashDur = Math.min(1.5, Math.max(0.1, stepSec * 12));
             if (partId === 'KICK') {
+                // どんと沈むキック。スマホのスピーカーでも聞こえるよう、沈み込みは48Hzまでにして、アタックの芯を足す
                 const sub = audioCtx.createOscillator();
                 const subGain = audioCtx.createGain();
                 sub.type = 'sine';
-                sub.frequency.setValueAtTime(130, now);
-                sub.frequency.exponentialRampToValueAtTime(28, now + 0.18);
-                subGain.gain.setValueAtTime(vel * 3.0, now);
-                subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                sub.frequency.setValueAtTime(165, now);
+                sub.frequency.exponentialRampToValueAtTime(48, now + kickDur * 0.6);
+                subGain.gain.setValueAtTime(vel * 3.4, now);
+                subGain.gain.exponentialRampToValueAtTime(0.001, now + kickDur);
                 sub.connect(subGain); subGain.connect(out);
-                sub.start(now); sub.stop(now + 0.35);
+                sub.start(now); sub.stop(now + kickDur);
+
+                const punch = audioCtx.createOscillator();
+                const punchGain = audioCtx.createGain();
+                punch.type = 'triangle';
+                punch.frequency.setValueAtTime(240, now);
+                punch.frequency.exponentialRampToValueAtTime(120, now + 0.04);
+                punchGain.gain.setValueAtTime(vel * 1.6, now);
+                punchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                punch.connect(punchGain); punchGain.connect(out);
+                punch.start(now); punch.stop(now + 0.06);
+
+                const bodyOsc = audioCtx.createOscillator();
+                const bodyGain = audioCtx.createGain();
+                bodyOsc.type = 'sine';
+                bodyOsc.frequency.setValueAtTime(95, now);
+                bodyOsc.frequency.exponentialRampToValueAtTime(55, now + kickDur * 0.45);
+                bodyGain.gain.setValueAtTime(vel * 1.8, now);
+                bodyGain.gain.exponentialRampToValueAtTime(0.001, now + kickDur * 0.65);
+                bodyOsc.connect(bodyGain); bodyGain.connect(out);
+                bodyOsc.start(now); bodyOsc.stop(now + kickDur * 0.65);
             } else if (partId === 'SNARE') {
                 const shell = audioCtx.createOscillator();
                 const shellGain = audioCtx.createGain();
@@ -941,7 +1005,7 @@ return audioCtx;
                 shell.start(now); shell.stop(now + 0.18);
             } else {
                 const isCrash = (partId === 'CRASH');
-                const dur = isCrash ? 1.5 : 0.09;
+                const dur = isCrash ? crashDur : Math.min(0.09, Math.max(0.03, stepSec * 1.2));
                 const bufferSize = audioCtx.sampleRate * dur;
                 const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
                 const data = buffer.getChannelData(0);
@@ -952,7 +1016,8 @@ return audioCtx;
                 filter.type = 'highpass';
                 filter.frequency.setValueAtTime(isCrash ? 2500 : 5500, now);
                 const noiseGain = audioCtx.createGain();
-                noiseGain.gain.setValueAtTime(vel * (isCrash ? 1.8 : 0.9), now);
+                const crashVolScale = (isCrash && currentBpm > 200) ? Math.max(0.3, 200 / currentBpm) : 1;
+                noiseGain.gain.setValueAtTime(vel * (isCrash ? 1.8 : 0.9) * crashVolScale, now);
                 noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
                 noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(out);
                 noise.start(now); noise.stop(now + dur);
@@ -974,15 +1039,28 @@ return audioCtx;
                 mainOsc.frequency.setValueAtTime(freq / 2, now);
                 const bassFilter = audioCtx.createBiquadFilter();
                 bassFilter.type = 'lowpass';
-                bassFilter.frequency.setValueAtTime(500, now);
                 const gainNode = audioCtx.createGain();
-                gainNode.gain.setValueAtTime(velocity * 1.1, now);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
-                mainOsc.connect(bassFilter);
-                bassFilter.connect(gainNode); gainNode.connect(targetOutputNode);
-                mainOsc.start(now);
-                mainOsc.stop(now + duration);
+                if (bassSubOn) {
+                    const subOsc = audioCtx.createOscillator();
+                    subOsc.type = 'sine';
+                    subOsc.frequency.setValueAtTime(freq / 4, now);
+                    bassFilter.frequency.setValueAtTime(220, now);
+                    gainNode.gain.setValueAtTime(velocity * 2.2, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    mainOsc.connect(bassFilter); subOsc.connect(bassFilter);
+                    bassFilter.connect(gainNode); gainNode.connect(targetOutputNode);
+                    mainOsc.start(now); subOsc.start(now);
+                    mainOsc.stop(now + duration); subOsc.stop(now + duration);
+                } else {
+                    bassFilter.frequency.setValueAtTime(500, now);
+                    gainNode.gain.setValueAtTime(velocity * 1.1, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    mainOsc.connect(bassFilter);
+                    bassFilter.connect(gainNode); gainNode.connect(targetOutputNode);
+                    mainOsc.start(now);
+                    mainOsc.stop(now + duration);
+                }
                 return;
             }
 
@@ -1230,36 +1308,67 @@ function insertEmptyIntroBars(barsCount) {
         }
 
         function generateFullAIPolishSong() {
-            const chordProgression = ['Am', 'F', 'G', 'C', 'Am', 'Dm', 'E7', 'Am'];
-            const bassNotes = ['A3', 'F3', 'G3', 'C4', 'A3', 'D3', 'E3', 'A3'];
+            const isPops = currentGenre === 'pops';
+            const chordProgression = isPops ? ['C', 'G', 'Am', 'F'] : ['Am', 'Am', 'F', 'G', 'Am', 'Am', 'Dm', 'Em'];
+            const bassNotes = isPops ? ['C3', 'G3', 'A3', 'F3'] : ['A3', 'A3', 'F3', 'G3', 'A3', 'A3', 'D3', 'E3'];
+            const steps = currentStepsPerBar;
+            const mid = Math.floor(steps / 2);
 
             for(let b=0; b<totalBars; b++) {
                 const chord = chordProgression[b % chordProgression.length];
                 const bNote = bassNotes[b % bassNotes.length];
 
-                let pSteps = new Array(currentStepsPerBar).fill(null);
+                let pSteps = new Array(steps).fill(null);
                 pSteps[0] = { note: chord, duration: currentNoteDuration, velocity: 0.9 };
+                pSteps[mid] = { note: chord, duration: currentNoteDuration, velocity: 0.8 };
                 tracksData['piano'][b] = pSteps;
 
-                let bSteps = new Array(currentStepsPerBar).fill(null);
+                let bSteps = new Array(steps).fill(null);
                 bSteps[0] = { note: bNote, duration: currentNoteDuration, velocity: 1.0 };
+                if (isPops) {
+                    bSteps[mid] = { note: bNote, duration: currentNoteDuration, velocity: 0.9 };
+                } else {
+                    bSteps[3] = { note: bNote, duration: currentNoteDuration, velocity: 0.9 };
+                    bSteps[mid] = { note: bNote, duration: currentNoteDuration, velocity: 1.0 };
+                    bSteps[steps - 2] = { note: bNote, duration: currentNoteDuration, velocity: 0.85 };
+                }
                 tracksData['bass'][b] = bSteps;
 
-                let dSteps = new Array(currentStepsPerBar).fill(null);
-                dSteps[0] = { note: 'KICK', duration: 0.2, velocity: 1.0 };
-                dSteps[9] = { note: 'SNARE', duration: 0.2, velocity: 1.0 };
+                let dSteps = new Array(steps).fill(null);
+                const kick = { note: 'KICK', duration: 0.2, velocity: 1.0 };
+                const snare = { note: 'SNARE', duration: 0.2, velocity: 1.0 };
+                const hat = { note: 'HH', duration: 0.12, velocity: 0.7 };
+                if (isPops) {
+                    dSteps[0] = kick; dSteps[2] = hat; dSteps[4] = hat;
+                    dSteps[mid - 3] = kick; dSteps[mid] = snare;
+                    dSteps[mid + 2] = hat; dSteps[mid + 4] = hat; dSteps[steps - 2] = kick;
+                } else {
+                    dSteps[0] = kick; dSteps[2] = hat; dSteps[4] = hat; dSteps[6] = hat;
+                    dSteps[mid - 2] = kick; dSteps[mid] = snare;
+                    dSteps[mid + 1] = hat; dSteps[mid + 3] = hat; dSteps[steps - 4] = kick; dSteps[steps - 1] = snare;
+                }
                 tracksData['drums'][b] = dSteps;
             }
             renderStepGrid();
-            alert("✨ AI全自動プロデュース完了！");
+            alert(isPops ? "✨ AI全自動プロデュース完了！（Pops）" : "✨ AI全自動プロデュース完了！（Popping Dance）");
         }
 
         function generateCurrentTrackAIMelody() {
-            const popScales = ['Am', 'C', 'G', 'F', 'Em', 'C4', 'E4', 'G4', 'A4', 'C5'];
+            const isPops = currentGenre === 'pops';
+            const pool = isPops
+                ? ['C', 'G', 'Am', 'F', 'Em', 'C4', 'E4', 'G4', 'A4', 'C5']
+                : ['Am', 'Am7', 'Dm', 'E7', 'A4', 'C5', 'E4', 'G4', 'B4', 'D4'];
+            const drumPattern = isPops
+                ? ['KICK', 'HH', 'HH', 'KICK', 'HH', 'HH', 'SNARE', 'HH']
+                : ['KICK', 'HH', 'KICK', 'HH', 'HH', 'SNARE', 'HH', 'SNARE'];
+            const isDrumTrack = (activeTrack === 'drums' || activeTrack === 'tambourine');
             for(let b=0; b<totalBars; b++) {
                 let barSteps = new Array(currentStepsPerBar).fill(null);
                 for(let s=0; s<currentStepsPerBar; s+=2) {
-                    barSteps[s] = { note: popScales[Math.floor(Math.random() * popScales.length)], duration: currentNoteDuration, velocity: 0.85 };
+                    const note = isDrumTrack
+                        ? drumPattern[(s / 2) % drumPattern.length]
+                        : pool[Math.floor(Math.random() * pool.length)];
+                    barSteps[s] = { note: note, duration: currentNoteDuration, velocity: 0.85 };
                 }
                 tracksData[activeTrack][b] = barSteps;
             }
