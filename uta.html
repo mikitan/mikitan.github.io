@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIC VICTORY 簡単版 - 8小節・ボタン3つ</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: sans-serif; background:#111827; color:#f9fafb; padding:16px; }
+  .wrap { max-width:560px; margin:0 auto; }
+  h1 { font-size:22px; margin:4px 0 2px; }
+  .sub { color:#9ca3af; font-size:13px; margin-bottom:14px; }
+  label { display:block; font-size:14px; margin:10px 0 6px; color:#d1d5db; }
+  select, textarea { width:100%; font-size:17px; padding:12px; border-radius:10px; border:1px solid #374151; background:#1f2937; color:#f9fafb; }
+  textarea { min-height:64px; resize:vertical; }
+  .bigbtn { display:block; width:100%; padding:20px; margin:12px 0; font-size:20px; font-weight:bold; border:none; border-radius:14px; cursor:pointer; color:#111827; }
+  #btnMake { background:#fbbf24; }
+  #btnPlay { background:#34d399; }
+  #btnRec  { background:#f87171; }
+  .bigbtn:disabled { opacity:.45; }
+  .bigbtn.on { outline:4px solid #f9fafb; }
+  #status { background:#1f2937; border:1px solid #374151; border-radius:10px; padding:10px 12px; font-size:14px; min-height:20px; margin:12px 0; white-space:pre-wrap; }
+  #chords { font-size:15px; color:#fbbf24; margin:8px 0; min-height:20px; }
+  .bars { display:flex; gap:6px; margin:10px 0; }
+  .bar { flex:1; text-align:center; padding:8px 0; border-radius:8px; background:#1f2937; color:#9ca3af; font-size:13px; border:1px solid #374151; }
+  .bar.now { background:#fbbf24; color:#111827; font-weight:bold; }
+  .hook { background:#312e81; border-radius:10px; padding:10px 12px; font-size:15px; margin:12px 0; }
+  .small { font-size:12px; color:#9ca3af; }
+  .small a { color:#93c5fd; }
+  audio { width:100%; margin-top:8px; }
+  #recArea { display:none; margin:10px 0; }
+  #dlLink { display:inline-block; margin-top:6px; color:#93c5fd; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎤 MIC VICTORY 簡単版</h1>
+  <div class="sub">8小節だけ。土台はジャンルAIが作ります。やることはボタン3つだけ。</div>
+
+  <label for="genre">ジャンルを選ぶ（おすすめは Popping Dance × Pops の味）</label>
+  <select id="genre">
+    <option value="popping">Popping Dance（おすすめ）</option>
+    <option value="pops">Pops</option>
+    <option value="dance">Dance</option>
+    <option value="soul">Soul / Black</option>
+    <option value="rock">Rock</option>
+    <option value="blues">Blues</option>
+    <option value="contemporary">Contemporary</option>
+  </select>
+
+  <button class="bigbtn" id="btnMake">🎼 ① AIで土台を作る</button>
+  <button class="bigbtn" id="btnPlay" disabled>▶ ② 再生する</button>
+  <button class="bigbtn" id="btnRec" disabled>🎤 ③ 歌を録音する</button>
+
+  <div class="bars" id="bars">
+    <div class="bar">1</div><div class="bar">2</div><div class="bar">3</div><div class="bar">4</div>
+    <div class="bar">5</div><div class="bar">6</div><div class="bar">7</div><div class="bar">8</div>
+  </div>
+  <div id="chords">まだ土台がありません。「① AIで土台を作る」を押してください。</div>
+  <div id="status">準備OK。</div>
+
+  <div class="hook">歌うフックの例：<b>「逆境を富に変える、それがVictory」</b><br>土台に合わせて、まずこの1行を歌えばOKです。</div>
+
+  <div id="recArea">
+    <div>録音できました 👇</div>
+    <audio id="recPlayer" controls></audio>
+    <a id="dlLink" href="#" download="mic-victory-8bars.webm">録音を保存する</a>
+  </div>
+
+  <label for="lyrics">歌詞メモ（自動で保存されます）</label>
+  <textarea id="lyrics" placeholder="ここに歌詞のアイデアを書いてください"></textarea>
+
+  <div class="small">
+    <span id="saveStatus">保存：まだ</span> ｜ <a href="#" id="restoreLink">前の保存に戻す</a><br>
+    ※ 同じファイルを同じブラウザで開いてください。プレビューやプライベートブラウズでは保存が残らないことがあります。
+  </div>
+</div>
+
+<script>
+"use strict";
+// ===== 基本 =====
+var BARS = 8, STEPS = 16;
+var $ = function(id){ return document.getElementById(id); };
+var genreSel = $("genre"), statusEl = $("status"), chordsEl = $("chords");
+function setStatus(t){ statusEl.textContent = t; }
+function mf(m){ return 440 * Math.pow(2, (m - 69) / 12); } // midi -> Hz
+
+// コード: root はベース音(midi), notes は伴奏用
+function ch(name, root, notes){ return { name:name, root:root, notes:notes }; }
+var C = {
+  Am:  ch("Am",  45, [57,60,64]), Am7: ch("Am7", 45, [57,60,64,67]),
+  Dm:  ch("Dm",  50, [62,65,69]), Dm7: ch("Dm7", 50, [62,65,69,72]),
+  Em:  ch("Em",  52, [64,67,71]), Em7: ch("Em7", 52, [64,67,71,74]),
+  F:   ch("F",   41, [53,57,60]), FM7: ch("FM7", 41, [53,57,60,64]),
+  G:   ch("G",   43, [55,59,62]),
+  Cc:  ch("C",   48, [60,64,67]), CM7: ch("CM7", 48, [60,64,67,71]),
+  A:   ch("A",   45, [57,61,64]), A7:  ch("A7",  45, [57,61,64,67]),
+  D:   ch("D",   50, [62,66,69]), D7:  ch("D7",  50, [62,66,69,72]),
+  E:   ch("E",   52, [64,68,71]), E7:  ch("E7",  52, [64,68,71,74])
+};
+
+// ===== ジャンル定義 =====
+// kick/snare/hat: 1小節16ステップのパターン文字列 (x=鳴らす)
+// bassSteps: ベースを鳴らすステップ, chordStyle: stab(短い) / pad(長い) / arp / power / eighth
+var GENRES = {
+  popping: { label:"Popping Dance", bpm:116,
+    prog:[C.Am7, C.Dm7, C.Am7, C.Em7, C.Am7, C.Dm7, C.F, C.G],
+    kick:"x.....x..x......", snare:"....x.......x...", hat:"x.x.x.x.x.x.x.x.", openHatStep:14,
+    bassSteps:[0,3,6,8,11,14], bassAlt:true, chordStyle:"stab", chordSteps:[4,7,12,15], leadDensity:0.30 },
+  pops: { label:"Pops", bpm:112,
+    prog:[C.Cc, C.G, C.Am, C.F, C.Cc, C.G, C.Am, C.F],
+    kick:"x.......x.......", snare:"....x.......x...", hat:"x.x.x.x.x.x.x.x.", openHatStep:-1,
+    bassSteps:[0,4,8,12], bassAlt:false, chordStyle:"arp", chordSteps:[], leadDensity:0.36 },
+  dance: { label:"Dance", bpm:124,
+    prog:[C.Am, C.F, C.Cc, C.G, C.Am, C.F, C.Cc, C.G],
+    kick:"x...x...x...x...", snare:"....x.......x...", hat:"..x...x...x...x.", openHatStep:6,
+    bassSteps:[0,2,4,6,8,10,12,14], bassAlt:false, chordStyle:"stab", chordSteps:[2,6,10,14], leadDensity:0.26 },
+  soul: { label:"Soul / Black", bpm:96,
+    prog:[C.Am7, C.Dm7, C.Am7, C.Em7, C.FM7, C.Em7, C.Dm7, C.Em7],
+    kick:"x......x........", snare:"....x.......x...", hat:"x.x.x.xxx.x.x.x.", openHatStep:-1,
+    bassSteps:[0,6,8,14], bassAlt:true, chordStyle:"padstab", chordSteps:[7,15], leadDensity:0.24 },
+  rock: { label:"Rock", bpm:132,
+    prog:[C.A, C.E, C.D, C.E, C.A, C.E, C.D, C.E],
+    kick:"x.......x.......", snare:"....x.......x...", hat:"x.x.x.x.x.x.x.x.", openHatStep:-1,
+    bassSteps:[0,2,4,6,8,10,12,14], bassAlt:false, chordStyle:"eighth", chordSteps:[], leadDensity:0.22 },
+  blues: { label:"Blues", bpm:100,
+    prog:[C.A7, C.A7, C.D7, C.A7, C.E7, C.D7, C.A7, C.E7],
+    kick:"x.......x.......", snare:"....x.......x...", hat:"x..x..x.x..x..x.", openHatStep:-1,
+    bassSteps:[0,4,8,12], bassAlt:true, chordStyle:"stab", chordSteps:[0,8], leadDensity:0.28 },
+  contemporary: { label:"Contemporary", bpm:90,
+    prog:[C.CM7, C.Am7, C.FM7, C.G, C.CM7, C.Am7, C.Dm7, C.G],
+    kick:"x...............", snare:"........x.......", hat:"x.......x.......", openHatStep:-1,
+    bassSteps:[0,8], bassAlt:false, chordStyle:"pad", chordSteps:[], leadDensity:0.20 }
+};
+
+// ===== 状態 =====
+var song = null; // { genreKey, lead: [ [note|null x16] x8 ] }
+var actx = null, master = null, recDest = null, noiseBuf = null;
+var playing = false, curStep = 0, nextTime = 0, timerID = null;
+
+function ensureCtx(){
+  if (actx) { if (actx.state === "suspended") actx.resume(); return; }
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  master = actx.createGain(); master.gain.value = 0.85;
+  master.connect(actx.destination);
+  recDest = actx.createMediaStreamDestination();
+  master.connect(recDest);
+  var len = actx.sampleRate * 0.5;
+  noiseBuf = actx.createBuffer(1, len, actx.sampleRate);
+  var d = noiseBuf.getChannelData(0);
+  for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+}
+
+// ===== 楽器 =====
+function kick(t){
+  var o = actx.createOscillator(), g = actx.createGain();
+  o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.11);
+  g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.25);
+}
+function snare(t){
+  var s = actx.createBufferSource(); s.buffer = noiseBuf;
+  var f = actx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1800;
+  var g = actx.createGain();
+  g.gain.setValueAtTime(0.55, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+  s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + 0.16);
+  var o = actx.createOscillator(), g2 = actx.createGain();
+  o.frequency.value = 190; g2.gain.setValueAtTime(0.3, t); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+  o.connect(g2); g2.connect(master); o.start(t); o.stop(t + 0.1);
+}
+function hat(t, open){
+  var s = actx.createBufferSource(); s.buffer = noiseBuf;
+  var f = actx.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 7500;
+  var g = actx.createGain(); var dur = open ? 0.28 : 0.05;
+  g.gain.setValueAtTime(open ? 0.28 : 0.22, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur + 0.02);
+}
+function bass(t, midi, dur){
+  var o = actx.createOscillator(), g = actx.createGain(), f = actx.createBiquadFilter();
+  o.type = "triangle"; o.frequency.value = mf(midi);
+  f.type = "lowpass"; f.frequency.value = 700;
+  g.gain.setValueAtTime(0.55, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+}
+function tone(t, midi, dur, type, vol){
+  var o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.value = mf(midi);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
+}
+function chordHit(t, chord, style, stepDur){
+  var i, n;
+  if (style === "pad") { for (i = 0; i < chord.notes.length; i++) tone(t, chord.notes[i], stepDur * 15, "triangle", 0.10); }
+  else if (style === "padstab") { for (i = 0; i < chord.notes.length; i++) tone(t, chord.notes[i], stepDur * 6, "triangle", 0.12); }
+  else if (style === "power") { tone(t, chord.root + 12, stepDur * 1.8, "sawtooth", 0.14); tone(t, chord.root + 19, stepDur * 1.8, "sawtooth", 0.12); }
+  else { for (i = 0; i < chord.notes.length; i++) tone(t, chord.notes[i], stepDur * 1.6, "square", 0.055); } // stab
+}
+
+// ===== 土台を作る =====
+function buildSong(){
+  var g = GENRES[genreSel.value];
+  var lead = [];
+  for (var b = 0; b < BARS; b++){
+    var barNotes = [], chord = g.prog[b];
+    var scale = chord.notes.concat([chord.root + 24, chord.notes[0] + 12, chord.notes[1] + 12]);
+    for (var s = 0; s < STEPS; s++){
+      var strong = (s % 4 === 0);
+      if (Math.random() < g.leadDensity * (strong ? 1.5 : 0.8)){
+        barNotes.push(scale[Math.floor(Math.random() * scale.length)] + 12);
+      } else barNotes.push(null);
+    }
+    lead.push(barNotes);
+  }
+  return { genreKey: genreSel.value, lead: lead };
+}
+
+// ===== 再生スケジューラ =====
+function stepDur(){ return 60 / GENRES[song.genreKey].bpm / 4; }
+function playStep(globalStep, t){
+  var g = GENRES[song.genreKey];
+  var bar = Math.floor(globalStep / STEPS) % BARS;
+  var s = globalStep % STEPS;
+  var chord = g.prog[bar];
+  if (g.kick[s] === "x") kick(t);
+  if (g.snare[s] === "x") snare(t);
+  if (g.hat[s] === "x") hat(t, s === g.openHatStep);
+  if (g.bassSteps.indexOf(s) >= 0){
+    var bn = chord.root + (g.bassAlt && s >= 8 ? 7 : 0);
+    if (g.bassAlt && (s === 6 || s === 14)) bn = chord.root + 12;
+    bass(t, bn, stepDur() * 1.8);
+  }
+  if (g.chordStyle === "pad" || g.chordStyle === "padstab"){ if (s === 0) chordHit(t, chord, g.chordStyle, stepDur()); }
+  if (g.chordStyle === "stab" || g.chordStyle === "padstab"){ if (g.chordSteps.indexOf(s) >= 0) chordHit(t, chord, "stab", stepDur()); }
+  if (g.chordStyle === "arp"){ if (s % 2 === 0) tone(t, chord.notes[(s / 2) % chord.notes.length] + 12, stepDur() * 1.6, "triangle", 0.10); }
+  if (g.chordStyle === "eighth"){ if (s % 2 === 0) chordHit(t, chord, "power", stepDur()); }
+  var ln = song.lead[bar][s];
+  if (ln !== null && ln !== undefined) tone(t, ln, stepDur() * 2.2, "sawtooth", 0.085);
+}
+function scheduler(){
+  while (nextTime < actx.currentTime + 0.12){
+    playStep(curStep, nextTime);
+    nextTime += stepDur();
+    curStep++;
+  }
+}
+function drawLoop(){
+  if (!playing) return;
+  var total = Math.floor((actx.currentTime - (nextTime - stepDur() * ((curStep) % (BARS * STEPS) || 1))) / stepDur());
+  var played = curStep - 1;
+  var bar = Math.floor(played / STEPS) % BARS;
+  if (bar < 0) bar = 0;
+  var els = document.querySelectorAll(".bar");
+  for (var i = 0; i < els.length; i++) els[i].className = "bar" + (i === bar ? " now" : "");
+  requestAnimationFrame(drawLoop);
+}
+function startPlay(){
+  ensureCtx();
+  if (!song) return;
+  playing = true; curStep = 0; nextTime = actx.currentTime + 0.06;
+  timerID = setInterval(scheduler, 25);
+  $("btnPlay").textContent = "⏹ ② 止める";
+  $("btnPlay").classList.add("on");
+  requestAnimationFrame(drawLoop);
+  setStatus("再生中… フックを歌ってみてください。");
+}
+function stopPlay(){
+  playing = false;
+  if (timerID) clearInterval(timerID);
+  timerID = null;
+  $("btnPlay").textContent = "▶ ② 再生する";
+  $("btnPlay").classList.remove("on");
+  var els = document.querySelectorAll(".bar");
+  for (var i = 0; i < els.length; i++) els[i].className = "bar";
+}
+
+// ===== 録音 =====
+var recorder = null, recChunks = [], micStream = null, micSrc = null, recording = false;
+function startRec(){
+  ensureCtx();
+  recChunks = [];
+  var begin = function(){
+    recorder = new MediaRecorder(recDest.stream);
+    recorder.ondataavailable = function(e){ if (e.data.size > 0) recChunks.push(e.data); };
+    recorder.onstop = finishRec;
+    if (!playing) startPlay();
+    recorder.start();
+    recording = true;
+    $("btnRec").textContent = "⏹ ③ 録音を止める";
+    $("btnRec").classList.add("on");
+    setStatus("録音中… 土台に合わせて歌ってください。");
+  };
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+    navigator.mediaDevices.getUserMedia({ audio:true }).then(function(stream){
+      micStream = stream; micSrc = actx.createMediaStreamSource(stream); micSrc.connect(recDest);
+      begin();
+    }).catch(function(){
+      setStatus("マイクが使えなかったので、土台だけ録音します。");
+      begin();
+    });
+  } else begin();
+}
+function finishRec(){
+  recording = false;
+  $("btnRec").textContent = "🎤 ③ 歌を録音する";
+  $("btnRec").classList.remove("on");
+  if (micSrc) { try { micSrc.disconnect(); } catch(e){} micSrc = null; }
+  if (micStream) { micStream.getTracks().forEach(function(t){ t.stop(); }); micStream = null; }
+  var blob = new Blob(recChunks, { type: "audio/webm" });
+  var url = URL.createObjectURL(blob);
+  $("recPlayer").src = url;
+  var dl = $("dlLink"); dl.href = url;
+  $("recArea").style.display = "block";
+  setStatus("録音できました。下で聞けます。「録音を保存する」で残せます。");
+}
+
+// ===== ボタン =====
+$("btnMake").addEventListener("click", function(){
+  ensureCtx();
+  song = buildSong();
+  var g = GENRES[song.genreKey];
+  chordsEl.textContent = "コード: " + g.prog.map(function(c){ return c.name; }).join(" → ") + " ｜ BPM " + g.bpm;
+  $("btnPlay").disabled = false; $("btnRec").disabled = false;
+  setStatus(g.label + " の土台ができました（8小節）。「② 再生する」を押してください。何回か押すと毎回少し変わります。");
+  saveState();
+});
+$("btnPlay").addEventListener("click", function(){ if (!song) return; if (playing) { stopPlay(); setStatus("止めました。"); } else startPlay(); });
+$("btnRec").addEventListener("click", function(){ if (!song) return; if (recording) { recorder.stop(); stopPlay(); } else startRec(); });
+
+// ===== 保存 (IndexedDB + localStorage 二重保存) =====
+var KEY = "MIC_VICTORY_SIMPLE8_V1";
+var state = { genre:"popping", lyrics:"" };
+var prevState = null;
+function idbOpen(){
+  return new Promise(function(res, rej){
+    var r = indexedDB.open("mic_victory_simple8", 1);
+    r.onupgradeneeded = function(){ r.result.createObjectStore("kv"); };
+    r.onsuccess = function(){ res(r.result); };
+    r.onerror = function(){ rej(r.error); };
+  });
+}
+function idbSet(v){
+  return idbOpen().then(function(db){
+    return new Promise(function(res, rej){
+      var tx = db.transaction("kv", "readwrite");
+      tx.objectStore("kv").put(v, KEY);
+      tx.oncomplete = res; tx.onerror = function(){ rej(tx.error); };
+    });
+  });
+}
+function idbGet(){
+  return idbOpen().then(function(db){
+    return new Promise(function(res, rej){
+      var rq = db.transaction("kv", "readonly").objectStore("kv").get(KEY);
+      rq.onsuccess = function(){ res(rq.result); };
+      rq.onerror = function(){ rej(rq.error); };
+    });
+  });
+}
+function stamp(){ var d = new Date(); return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0"); }
+function saveState(){
+  prevState = JSON.stringify(state);
+  state.genre = genreSel.value;
+  state.lyrics = $("lyrics").value;
+  var v = JSON.stringify({ state: state, prev: prevState, at: Date.now() });
+  try { localStorage.setItem(KEY, v); } catch(e){}
+  idbSet(v).catch(function(){});
+  $("saveStatus").textContent = "保存：" + stamp() + " に保存しました";
+}
+function applyState(s){
+  if (!s) return;
+  if (s.genre && GENRES[s.genre]) genreSel.value = s.genre;
+  if (typeof s.lyrics === "string") $("lyrics").value = s.lyrics;
+}
+function loadState(){
+  var local = null;
+  try { local = localStorage.getItem(KEY); } catch(e){}
+  idbGet().then(function(fromIdb){
+    var raw = fromIdb || local;
+    if (!raw) { $("saveStatus").textContent = "保存：新規"; return; }
+    try {
+      var parsed = JSON.parse(raw);
+      applyState(parsed.state);
+      prevState = parsed.prev;
+      $("saveStatus").textContent = "保存：前回の続きを読み込みました";
+    } catch(e){}
+  }).catch(function(){
+    if (local){ try { var p = JSON.parse(local); applyState(p.state); prevState = p.prev; } catch(e){} }
+  });
+}
+$("restoreLink").addEventListener("click", function(e){
+  e.preventDefault();
+  if (!prevState) { setStatus("前の保存がありません。"); return; }
+  try { applyState(JSON.parse(prevState)); setStatus("前の保存に戻しました。"); saveState(); }
+  catch(err){ setStatus("前の保存に戻せませんでした。"); }
+});
+genreSel.addEventListener("change", saveState);
+$("lyrics").addEventListener("input", saveState);
+loadState();
+</script>
+</body>
+</html>
