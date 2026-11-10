@@ -28,6 +28,15 @@
   .small { font-size:12px; color:#9ca3af; }
   .small a { color:#93c5fd; }
   audio { width:100%; margin-top:8px; }
+  .kbd { display:flex; gap:5px; margin:8px 0; }
+  .kbd button { flex:1; padding:16px 0; font-size:17px; font-weight:bold; border:none; border-radius:10px; background:#e5e7eb; color:#111827; cursor:pointer; }
+  .kbd button:active { background:#fbbf24; }
+  .subbtn { display:block; width:100%; padding:14px; margin:8px 0; font-size:17px; font-weight:bold; border:none; border-radius:12px; cursor:pointer; background:#60a5fa; color:#111827; }
+  .minirow { display:flex; gap:8px; }
+  .minirow button { flex:1; padding:10px; font-size:14px; border:none; border-radius:10px; background:#374151; color:#f9fafb; cursor:pointer; }
+  input[type="text"] { width:100%; font-size:17px; padding:12px; border-radius:10px; border:1px solid #374151; background:#1f2937; color:#f9fafb; }
+  #lyricsOut { background:#1f2937; border:1px solid #374151; border-radius:10px; padding:12px; font-size:15px; line-height:1.7; white-space:pre-wrap; margin:8px 0; display:none; }
+  #manualView { background:#1f2937; border:1px solid #374151; border-radius:10px; padding:10px 12px; font-size:16px; min-height:20px; margin:8px 0; color:#93c5fd; }
   #recArea { display:none; margin:10px 0; }
   #dlLink { display:inline-block; margin-top:6px; color:#93c5fd; }
 </style>
@@ -60,6 +69,23 @@
   <div id="status">準備OK。</div>
 
   <div class="hook">歌うフックの例：<b>「逆境を富に変える、それがVictory」</b><br>土台に合わせて、まずこの1行を歌えばOKです。</div>
+
+  <label for="lyricKw">歌詞の検索窓（キーワードを入れてください。例：夢、恋愛、仲間、未来）</label>
+  <input type="text" id="lyricKw" placeholder="キーワード">
+  <button class="subbtn" id="btnLyrics">🎵 AI歌詞を作る（800字・サビ中心）</button>
+  <div id="lyricsOut"></div>
+  <div class="minirow" id="lyricsBtns" style="display:none">
+    <button id="btnLyricsCopy">📋 歌詞メモにコピー</button>
+  </div>
+
+  <label>鍵盤（ドレミファソ）手動で押すと、エレキギターの音で鳴ってメロディに入ります</label>
+  <div class="kbd" id="kbd"></div>
+  <div id="manualView">手動メロディ：まだありません。鍵盤を押してください。</div>
+  <div class="minirow">
+    <button id="btnUndoNote">↩ 1つ消す</button>
+    <button id="btnClearNotes">🗑 全部消す</button>
+  </div>
+  <button class="subbtn" id="btnAiMelody">🤖 AI予測メロディを作る（手動メロディから8小節）</button>
 
   <div id="recArea">
     <div>録音できました 👇</div>
@@ -190,6 +216,39 @@ function tone(t, midi, dur, type, vol){
   g.gain.exponentialRampToValueAtTime(0.001, t + dur);
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
+function guitarTone(t, midi, dur){
+  var o = actx.createOscillator(), g = actx.createGain(), f = actx.createBiquadFilter();
+  o.type = "sawtooth"; o.frequency.value = mf(midi);
+  f.type = "lowpass"; f.Q.value = 2;
+  f.frequency.setValueAtTime(3200, t); f.frequency.exponentialRampToValueAtTime(500, t + dur);
+  g.gain.setValueAtTime(0.22, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
+}
+
+// ===== 手動メロディ（鍵盤） =====
+var KBD = [ {n:"ド",m:72},{n:"レ",m:74},{n:"ミ",m:76},{n:"ファ",m:77},{n:"ソ",m:79},{n:"ラ",m:81},{n:"シ",m:83},{n:"ド",m:84} ];
+var manualNotes = [];
+function noteName(m){ for (var i = 0; i < KBD.length; i++) if (KBD[i].m === m) return KBD[i].n; return m; }
+function renderManual(){
+  $("manualView").textContent = manualNotes.length
+    ? "手動メロディ：" + manualNotes.map(noteName).join(" ") + "（" + manualNotes.length + "音）"
+    : "手動メロディ：まだありません。鍵盤を押してください。";
+}
+function buildKbd(){
+  var box = $("kbd");
+  KBD.forEach(function(k){
+    var b = document.createElement("button");
+    b.textContent = k.n;
+    b.addEventListener("click", function(){
+      ensureCtx();
+      guitarTone(actx.currentTime, k.m, 0.55);
+      manualNotes.push(k.m);
+      renderManual(); saveState();
+    });
+    box.appendChild(b);
+  });
+}
+
 function chordHit(t, chord, style, stepDur){
   var i, n;
   if (style === "pad") { for (i = 0; i < chord.notes.length; i++) tone(t, chord.notes[i], stepDur * 15, "triangle", 0.10); }
@@ -213,7 +272,7 @@ function buildSong(){
     }
     lead.push(barNotes);
   }
-  return { genreKey: genreSel.value, lead: lead };
+  return { genreKey: genreSel.value, lead: lead, leadGuitar: false };
 }
 
 // ===== 再生スケジューラ =====
@@ -236,7 +295,10 @@ function playStep(globalStep, t){
   if (g.chordStyle === "arp"){ if (s % 2 === 0) tone(t, chord.notes[(s / 2) % chord.notes.length] + 12, stepDur() * 1.6, "triangle", 0.10); }
   if (g.chordStyle === "eighth"){ if (s % 2 === 0) chordHit(t, chord, "power", stepDur()); }
   var ln = song.lead[bar][s];
-  if (ln !== null && ln !== undefined) tone(t, ln, stepDur() * 2.2, "sawtooth", 0.085);
+  if (ln !== null && ln !== undefined){
+    if (song.leadGuitar) guitarTone(t, ln, stepDur() * 2.4);
+    else tone(t, ln, stepDur() * 2.2, "sawtooth", 0.085);
+  }
 }
 function scheduler(){
   while (nextTime < actx.currentTime + 0.12){
@@ -328,9 +390,102 @@ $("btnMake").addEventListener("click", function(){
 $("btnPlay").addEventListener("click", function(){ if (!song) return; if (playing) { stopPlay(); setStatus("止めました。"); } else startPlay(); });
 $("btnRec").addEventListener("click", function(){ if (!song) return; if (recording) { recorder.stop(); stopPlay(); } else startRec(); });
 
+// ===== AI歌詞（キーワード検索→800字・サビ中心） =====
+var LYRIC_THEMES = {
+  def: {
+    sabi: ["逆境を富に変える、それがVictory","涙の数だけ強くなれる","暗闇の先に光が見える","何度倒れても立ち上がる","この声が届くまで歌い続ける","夢はまだ終わらない","心の火は消えない","今ここから始まる物語"],
+    a: ["朝の光を浴びて走り出す","汗と涙をリズムに変えて","遠回りでも前に進む","昨日の自分を越えていく","足音がビートになる街で","握った拳に力を込めて","空を見上げて深呼吸","小さな一歩が未来を作る"],
+    b: ["風が背中を押してくれる","止まっていた時計が動き出す","声を上げろ、もっと遠くへ","限界は自分が決めるものじゃない"] },
+  love: {
+    sabi: ["君と出会えた、それがVictory","涙の数だけ優しくなれる","どんな夜も二人で越える","離れていても心はそばに","この歌を君に届けたい","愛はまだ終わらない","君の笑顔が力になる","今ここから始まる二人の物語"],
+    a: ["夕日の駅で君を待った","他愛もない話で笑った","雨の日の傘は一つだけ","君の声が聞きたくて電話した","写真の中の夏の日","少し照れた横顔","約束したあの場所へ","季節が巡っても変わらない"],
+    b: ["言葉にできない想いがある","でも伝えたいことがある","声を上げろ、愛の歌を","距離なんて関係ない"] },
+  nakama: {
+    sabi: ["仲間がいれば、それがVictory","涙の数だけ絆は深まる","一人じゃない、みんながいる","肩を並べて歩いていく","この歌はみんなの歌","夢はまだ終わらない","笑い声が力になる","今ここから始まる僕らの物語"],
+    a: ["あの日の約束を覚えてる","苦しい時こそ手を取る","背中を押してくれた言葉","同じ空の下で頑張る仲間","再会の日を楽しみに","遠く離れても応援してる","笑顔でまた会おう","小さな勇気を分け合って"],
+    b: ["一人で抱え込まないで","声を掛け合えば怖くない","声を上げろ、みんなで歌おう","絆は切れない"] },
+  mirai: {
+    sabi: ["未来を掴む、それがVictory","涙の数だけ前に進める","新しい朝が待ちきれない","扉を開けて飛び出そう","この声が未来まで響く","夢はまだ終わらない","デジタルの海を越えて","今ここから始まる新しい物語"],
+    a: ["画面の向こうに広がる世界","電脳の星空を駆け抜ける","データの波に乗って進む","アップデートされる毎日","光の速さで夢を追う","バーチャルでも心はリアル","コードの海に希望を見る","明日への地図を描いていく"],
+    b: ["時代は変わり続けていく","でも変わらないものがある","声を上げろ、未来へ向けて","挑戦は止まらない"] }
+};
+var LYRIC_FILLER = ["ラララ 風に乗せて","心のリズムは止まらない","一歩ずつ確かに進む","この瞬間を大切に","歌声は空へ届く","信じる力が道を開く","どんな壁も越えていける","光の方へ歩いていく"];
+function pickTheme(kw){
+  if (/恋|愛|君/.test(kw)) return LYRIC_THEMES.love;
+  if (/仲間|友|絆|みんな/.test(kw)) return LYRIC_THEMES.nakama;
+  if (/未来|デジタル|電脳|aura|AURA|明日/.test(kw)) return LYRIC_THEMES.mirai;
+  return LYRIC_THEMES.def;
+}
+function composeLyrics(kw){
+  var th = pickTheme(kw || "");
+  var parts = [];
+  parts.push("【サビ】\n" + th.sabi.join("\n"));
+  parts.push("【Aメロ】\n" + th.a.join("\n"));
+  parts.push("【Bメロ】\n" + th.b.join("\n"));
+  parts.push("【サビ】\n" + th.sabi.join("\n"));
+  var text = parts.join("\n\n");
+  var fi = 0;
+  while (text.length < 780 && fi < 40){ text += "\n" + LYRIC_FILLER[fi % LYRIC_FILLER.length]; fi++; }
+  return text;
+}
+var lastLyrics = "";
+$("btnLyrics").addEventListener("click", function(){
+  var kw = $("lyricKw").value.trim();
+  lastLyrics = composeLyrics(kw);
+  var out = $("lyricsOut");
+  out.style.display = "block";
+  out.textContent = lastLyrics + "\n\n（" + lastLyrics.length + "字）";
+  $("lyricsBtns").style.display = "flex";
+  setStatus("AI歌詞ができました（約" + lastLyrics.length + "字・サビ中心）。気に入ったら歌詞メモにコピーできます。");
+});
+$("btnLyricsCopy").addEventListener("click", function(){
+  if (!lastLyrics) return;
+  $("lyrics").value = lastLyrics;
+  saveState();
+  setStatus("歌詞メモにコピーして保存しました。");
+});
+
+// ===== AI予測メロディ（手動メロディから作る） =====
+function snapToPool(m, pool){
+  var best = pool[0], bd = 1e9;
+  for (var i = 0; i < pool.length; i++){ var d = Math.abs(pool[i] - m); if (d < bd){ bd = d; best = pool[i]; } }
+  return best;
+}
+$("btnAiMelody").addEventListener("click", function(){
+  if (!manualNotes.length){ setStatus("先に鍵盤でメロディを少し押してください。"); return; }
+  ensureCtx();
+  var g = GENRES[genreSel.value];
+  var pool = [];
+  g.prog.forEach(function(c){ c.notes.forEach(function(n){ pool.push(n + 12); pool.push(n + 24); }); pool.push(c.root + 24); });
+  pool = pool.filter(function(v, i){ return pool.indexOf(v) === i; }).sort(function(a, b){ return a - b; });
+  var motif = manualNotes.map(function(m){ return snapToPool(m, pool); });
+  var lead = [], mi = 0;
+  for (var b = 0; b < BARS; b++){
+    var barNotes = [], chord = g.prog[b];
+    var oct = (b >= 4 && b % 2 === 0) ? 12 : 0; // 後半は少し高く変化
+    for (var s = 0; s < STEPS; s++){
+      var place = (s % 2 === 0) || Math.random() < g.leadDensity * 0.7;
+      if (place){
+        var note = motif[mi % motif.length] + oct;
+        barNotes.push(snapToPool(note, pool));
+        mi++;
+      } else barNotes.push(null);
+    }
+    if (b === BARS - 1) barNotes[14] = chord.root + 24; // 最後はコードの音で締める
+    lead.push(barNotes);
+  }
+  song = { genreKey: genreSel.value, lead: lead, leadGuitar: true };
+  chordsEl.textContent = "コード: " + g.prog.map(function(c){ return c.name; }).join(" → ") + " ｜ BPM " + g.bpm + " ｜ メロディ: エレキギター（AI予測）";
+  $("btnPlay").disabled = false; $("btnRec").disabled = false;
+  setStatus("手動メロディからAIが予測して8小節作りました。メロディはエレキギターの音です。「② 再生する」で聞いてください。");
+});
+$("btnUndoNote").addEventListener("click", function(){ manualNotes.pop(); renderManual(); saveState(); });
+$("btnClearNotes").addEventListener("click", function(){ manualNotes = []; renderManual(); saveState(); });
+buildKbd(); renderManual();
+
 // ===== 保存 (IndexedDB + localStorage 二重保存) =====
 var KEY = "MIC_VICTORY_SIMPLE8_V1";
-var state = { genre:"popping", lyrics:"" };
+var state = { genre:"popping", lyrics:"", notes:[] };
 var prevState = null;
 function idbOpen(){
   return new Promise(function(res, rej){
@@ -363,6 +518,7 @@ function saveState(){
   prevState = JSON.stringify(state);
   state.genre = genreSel.value;
   state.lyrics = $("lyrics").value;
+  state.notes = manualNotes.slice();
   var v = JSON.stringify({ state: state, prev: prevState, at: Date.now() });
   try { localStorage.setItem(KEY, v); } catch(e){}
   idbSet(v).catch(function(){});
@@ -372,6 +528,7 @@ function applyState(s){
   if (!s) return;
   if (s.genre && GENRES[s.genre]) genreSel.value = s.genre;
   if (typeof s.lyrics === "string") $("lyrics").value = s.lyrics;
+  if (Array.isArray(s.notes)) { manualNotes = s.notes.slice(); renderManual(); }
 }
 function loadState(){
   var local = null;
