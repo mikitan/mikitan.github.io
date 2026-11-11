@@ -56,6 +56,13 @@
     <option value="contemporary">Contemporary</option>
   </select>
 
+  <label for="bassTone">ベースの音色</label>
+  <select id="bassTone">
+    <option value="standard">標準（今までの音）</option>
+    <option value="fat">太い（ドンと太く）</option>
+    <option value="soft">柔らかい（まろやか）</option>
+  </select>
+
   <button class="bigbtn" id="btnMake">🎼 ① AIで土台を作る</button>
   <button class="bigbtn" id="btnPlay">▶ ② 再生する</button>
   <button class="bigbtn" id="btnRec">🎤 ③ 歌を録音する</button>
@@ -202,6 +209,27 @@ function hat(t, open){
   s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur + 0.02);
 }
 function bass(t, midi, dur){
+  var tone = ($("bassTone") && $("bassTone").value) || "standard";
+  if (tone === "fat"){
+    // 太い：ノコギリ波＋1オクターブ下のサブ
+    var o1 = actx.createOscillator(), o2 = actx.createOscillator(), g = actx.createGain(), f = actx.createBiquadFilter();
+    o1.type = "sawtooth"; o1.frequency.value = mf(midi);
+    o2.type = "sine"; o2.frequency.value = mf(midi - 12);
+    f.type = "lowpass"; f.frequency.value = 500;
+    g.gain.setValueAtTime(0.62, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o1.connect(f); o2.connect(f); f.connect(g); g.connect(master);
+    o1.start(t); o2.start(t); o1.stop(t + dur + 0.02); o2.stop(t + dur + 0.02);
+    return;
+  }
+  if (tone === "soft"){
+    // 柔らかい：サイン波中心、まろやか
+    var o = actx.createOscillator(), g = actx.createGain(), f = actx.createBiquadFilter();
+    o.type = "sine"; o.frequency.value = mf(midi);
+    f.type = "lowpass"; f.frequency.value = 400;
+    g.gain.setValueAtTime(0.6, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+    return;
+  }
   var o = actx.createOscillator(), g = actx.createGain(), f = actx.createBiquadFilter();
   o.type = "triangle"; o.frequency.value = mf(midi);
   f.type = "lowpass"; f.frequency.value = 700;
@@ -547,7 +575,7 @@ buildKbd(); renderManual();
 
 // ===== 保存 (IndexedDB + localStorage 二重保存) =====
 var KEY = "MIC_VICTORY_SIMPLE8_V1";
-var state = { genre:"popping", lyrics:"", notes:[] };
+var state = { genre:"popping", lyrics:"", notes:[], bassTone:"standard" };
 var prevState = null;
 function idbOpen(){
   return new Promise(function(res, rej){
@@ -579,6 +607,7 @@ function stamp(){ var d = new Date(); return d.getHours() + ":" + String(d.getMi
 function saveState(){
   prevState = JSON.stringify(state);
   state.genre = genreSel.value;
+  state.bassTone = $("bassTone") ? $("bassTone").value : "standard";
   state.lyrics = $("lyrics").value;
   state.notes = manualNotes.slice();
   var v = JSON.stringify({ state: state, prev: prevState, at: Date.now() });
@@ -589,6 +618,7 @@ function saveState(){
 function applyState(s){
   if (!s) return;
   if (s.genre && GENRES[s.genre]) genreSel.value = s.genre;
+  if (s.bassTone && $("bassTone")) $("bassTone").value = s.bassTone;
   if (typeof s.lyrics === "string") $("lyrics").value = s.lyrics;
   if (Array.isArray(s.notes)) { manualNotes = s.notes.slice(); renderManual(); }
 }
@@ -615,6 +645,7 @@ $("restoreLink").addEventListener("click", function(e){
   catch(err){ setStatus("前の保存に戻せませんでした。"); }
 });
 genreSel.addEventListener("change", saveState);
+if ($("bassTone")) $("bassTone").addEventListener("change", saveState);
 $("lyrics").addEventListener("input", saveState);
 loadState();
 </script>
