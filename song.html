@@ -333,7 +333,8 @@
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>ボーカル</span><strong id="vol-vocal" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('vocal', this.value)" class="w-full accent-mvPink"></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>ベース</span><strong id="vol-bass" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('bass', this.value)" class="w-full accent-mvCyan"></div>
 <div class="space-y-1 col-span-2"><button onclick="toggleBassSub()" id="bassSubBtn" class="w-full bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">ベース超重低音：OFF</button></div>
-<div class="space-y-1 col-span-2"><div class="flex justify-between text-gray-400"><span>ベース音色</span></div><div class="grid grid-cols-3 gap-1.5"><button onclick="setBassTone('electric')" id="bassToneBtn-electric" class="bg-mvCyan/25 border border-mvCyan text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95">エレキ</button><button onclick="setBassTone('finger')" id="bassToneBtn-finger" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">指弾き</button><button onclick="setBassTone('synth')" id="bassToneBtn-synth" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">シンセ</button></div></div>
+<div class="space-y-1 col-span-2"><div class="flex justify-between text-gray-400"><span>ベース音色</span></div><div class="grid grid-cols-3 gap-1.5"><button onclick="setBassTone('electric')" id="bassToneBtn-electric" class="bg-mvCyan/25 border border-mvCyan text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95">エレキ</button><button onclick="setBassTone('finger')" id="bassToneBtn-finger" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">指弾き</button><button onclick="setBassTone('synth')" id="bassToneBtn-synth" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">シンセ</button><button onclick="setBassTone('deep')" id="bassToneBtn-deep" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">ドードー重低音</button><button onclick="setBassTone('chopper')" id="bassToneBtn-chopper" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">チョッパー</button></div></div>
+<div class="space-y-1 col-span-2"><button onclick="toggleBassCut()" id="bassCutBtn" class="w-full bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">ベースカット（短く切る）：OFF</button></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>アコギ</span><strong id="vol-acoustic" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('acoustic', this.value)" class="w-full accent-mvGreen"></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>エレキ</span><strong id="vol-electric" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('electric', this.value)" class="w-full accent-mvYellow"></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>バイオリン</span><strong id="vol-violin" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('violin', this.value)" class="w-full accent-mvAccent"></div>
@@ -626,7 +627,7 @@ let bassTone = 'electric';
 
 function setBassTone(t) {
     bassTone = t;
-    ['electric','finger','synth'].forEach(function(k){
+    ['electric','finger','synth','deep','chopper'].forEach(function(k){
         const b = document.getElementById('bassToneBtn-' + k);
         if (b) b.className = (k === t)
             ? "bg-mvCyan/25 border border-mvCyan text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95"
@@ -812,6 +813,17 @@ function setGenre(g) {
     document.getElementById('genreLabel').innerText = (g === 'pops') ? 'Pops' : 'Popping Dance';
 }
 
+/* ✂️ ベースカット ON/OFF：音を短く切ってチョッパー感を出す */
+let bassCutOn = false;
+function toggleBassCut() {
+    bassCutOn = !bassCutOn;
+    const btn = document.getElementById('bassCutBtn');
+    btn.innerText = bassCutOn ? 'ベースカット（短く切る）：ON' : 'ベースカット（短く切る）：OFF';
+    btn.className = bassCutOn
+        ? "w-full bg-mvCyan/25 border border-mvCyan text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95"
+        : "w-full bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95";
+}
+
 /* 🔊 ベース超重低音 ON/OFF 切り替え */
 function toggleBassSub() {
     bassSubOn = !bassSubOn;
@@ -896,8 +908,16 @@ masterGain = audioCtx.createGain();
 masterGain.gain.setValueAtTime(0.9, audioCtx.currentTime);
 
 destStreamNode = audioCtx.createMediaStreamDestination();
-masterGain.connect(audioCtx.destination);
-masterGain.connect(destStreamNode);
+// 音割れ防止リミッター：重低音を足しても割れないように自動で抑える
+const limiter = audioCtx.createDynamicsCompressor();
+limiter.threshold.setValueAtTime(-10, audioCtx.currentTime);
+limiter.knee.setValueAtTime(20, audioCtx.currentTime);
+limiter.ratio.setValueAtTime(12, audioCtx.currentTime);
+limiter.attack.setValueAtTime(0.003, audioCtx.currentTime);
+limiter.release.setValueAtTime(0.25, audioCtx.currentTime);
+masterGain.connect(limiter);
+limiter.connect(audioCtx.destination);
+limiter.connect(destStreamNode);
 
 Object.keys(trackVolumes).forEach(trackKey => {
 const gNode = audioCtx.createGain();
@@ -1046,6 +1066,58 @@ return audioCtx;
             const targetOutputNode = trackGains[trackType] || masterGain;
 
             if (trackType === 'bass') {
+                if (bassCutOn) duration = Math.min(duration, 0.12);
+                if (bassTone === 'deep') {
+                    // ドードー重低音：腹に響く太い低音。リミッターが守るので割れない
+                    const dDur = duration * 1.2;
+                    const dFilter = audioCtx.createBiquadFilter();
+                    dFilter.type = 'lowpass';
+                    dFilter.frequency.setValueAtTime(320, now);
+                    const dGain = audioCtx.createGain();
+                    dGain.gain.setValueAtTime(velocity * 1.6, now);
+                    dGain.gain.exponentialRampToValueAtTime(0.001, now + dDur);
+                    dFilter.connect(dGain); dGain.connect(targetOutputNode);
+                    const dMain = audioCtx.createOscillator();
+                    dMain.type = 'sine';
+                    dMain.frequency.setValueAtTime(freq / 2, now);
+                    dMain.connect(dFilter);
+                    dMain.start(now); dMain.stop(now + dDur);
+                    const dSub = audioCtx.createOscillator();
+                    dSub.type = 'sine';
+                    dSub.frequency.setValueAtTime(freq / 4, now);
+                    const dSubGain = audioCtx.createGain();
+                    dSubGain.gain.setValueAtTime(velocity * 0.9, now);
+                    dSubGain.gain.exponentialRampToValueAtTime(0.001, now + dDur);
+                    dSub.connect(dSubGain); dSubGain.connect(dGain);
+                    dSub.start(now); dSub.stop(now + dDur);
+                    return;
+                }
+                if (bassTone === 'chopper') {
+                    // チョッパー（スラップ）： bright なアタック＋短く切れる音
+                    const cDur = Math.min(duration, 0.22);
+                    const cOsc = audioCtx.createOscillator();
+                    cOsc.type = 'sawtooth';
+                    cOsc.frequency.setValueAtTime(freq / 2, now);
+                    const cFilter = audioCtx.createBiquadFilter();
+                    cFilter.type = 'bandpass';
+                    cFilter.Q.setValueAtTime(1.1, now);
+                    cFilter.frequency.setValueAtTime(2600, now);
+                    cFilter.frequency.exponentialRampToValueAtTime(480, now + cDur);
+                    const cGain = audioCtx.createGain();
+                    cGain.gain.setValueAtTime(velocity * 1.5, now);
+                    cGain.gain.exponentialRampToValueAtTime(0.001, now + cDur);
+                    cOsc.connect(cFilter); cFilter.connect(cGain); cGain.connect(targetOutputNode);
+                    cOsc.start(now); cOsc.stop(now + cDur);
+                    const click = audioCtx.createOscillator();
+                    click.type = 'square';
+                    click.frequency.setValueAtTime(freq * 2, now);
+                    const clickGain = audioCtx.createGain();
+                    clickGain.gain.setValueAtTime(velocity * 0.7, now);
+                    clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+                    click.connect(clickGain); clickGain.connect(targetOutputNode);
+                    click.start(now); click.stop(now + 0.03);
+                    return;
+                }
                 if (bassTone === 'finger') {
                     // 指弾きベース：柔らかいサイン波＋短いプラック
                     const fOsc = audioCtx.createOscillator();
@@ -1375,6 +1447,11 @@ function insertEmptyIntroBars(barsCount) {
                     bSteps[3] = { note: bNote, duration: currentNoteDuration, velocity: 0.9 };
                     bSteps[mid] = { note: bNote, duration: currentNoteDuration, velocity: 1.0 };
                     bSteps[steps - 2] = { note: bNote, duration: currentNoteDuration, velocity: 0.85 };
+                }
+                if (bassTone === 'chopper') {
+                    if (!bSteps[6]) bSteps[6] = { note: bNote, duration: 0.08, velocity: 0.7 };
+                    if (!bSteps[mid + 3]) bSteps[mid + 3] = { note: bNote, duration: 0.08, velocity: 0.65 };
+                    if (!bSteps[steps - 4]) bSteps[steps - 4] = { note: bNote, duration: 0.08, velocity: 0.7 };
                 }
                 tracksData['bass'][b] = bSteps;
 
