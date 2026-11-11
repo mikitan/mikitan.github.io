@@ -57,14 +57,14 @@
   </select>
 
   <button class="bigbtn" id="btnMake">🎼 ① AIで土台を作る</button>
-  <button class="bigbtn" id="btnPlay" disabled>▶ ② 再生する</button>
-  <button class="bigbtn" id="btnRec" disabled>🎤 ③ 歌を録音する</button>
+  <button class="bigbtn" id="btnPlay">▶ ② 再生する</button>
+  <button class="bigbtn" id="btnRec">🎤 ③ 歌を録音する</button>
 
   <div class="bars" id="bars">
     <div class="bar">1</div><div class="bar">2</div><div class="bar">3</div><div class="bar">4</div>
     <div class="bar">5</div><div class="bar">6</div><div class="bar">7</div><div class="bar">8</div>
   </div>
-  <div id="chords">まだ土台がありません。「① AIで土台を作る」を押してください。</div>
+  <div id="chords">まだ土台がありません。①か③を押すと土台も作ります。</div>
   <div id="status">準備OK。</div>
 
   <div class="hook">歌うフックの例：<b>「逆境を富に変える、それがVictory」</b><br>土台に合わせて、まずこの1行を歌えばOKです。</div>
@@ -343,11 +343,17 @@ function startRec(){
   ensureCtx();
   recChunks = [];
   var begin = function(){
-    recorder = new MediaRecorder(recDest.stream);
-    recorder.ondataavailable = function(e){ if (e.data.size > 0) recChunks.push(e.data); };
-    recorder.onstop = finishRec;
-    if (!playing) startPlay();
-    recorder.start();
+    try {
+      try { recorder = new MediaRecorder(recDest.stream, { mimeType: "audio/webm" }); }
+      catch (e1) { recorder = new MediaRecorder(recDest.stream); }
+      recorder.ondataavailable = function(e){ if (e.data.size > 0) recChunks.push(e.data); };
+      recorder.onstop = finishRec;
+      if (!playing) startPlay();
+      recorder.start();
+    } catch (e) {
+      setStatus("録音が始められませんでした。ブラウザを閉じて、このファイルをもう一度開いてください。");
+      return;
+    }
     recording = true;
     $("btnRec").textContent = "⏹ ③ 録音を止める";
     $("btnRec").classList.add("on");
@@ -358,7 +364,7 @@ function startRec(){
       micStream = stream; micSrc = actx.createMediaStreamSource(stream); micSrc.connect(recDest);
       begin();
     }).catch(function(){
-      setStatus("マイクが使えなかったので、土台だけ録音します。");
+      setStatus("マイクの許可がありませんでした。土台だけ録音します。歌も入れる時は、Chromeのアドレスバーの鍵マーク→マイクを許可にしてください。");
       begin();
     });
   } else begin();
@@ -387,68 +393,118 @@ $("btnMake").addEventListener("click", function(){
   setStatus(g.label + " の土台ができました（8小節）。「② 再生する」を押してください。何回か押すと毎回少し変わります。");
   saveState();
 });
-$("btnPlay").addEventListener("click", function(){ if (!song) return; if (playing) { stopPlay(); setStatus("止めました。"); } else startPlay(); });
-$("btnRec").addEventListener("click", function(){ if (!song) return; if (recording) { recorder.stop(); stopPlay(); } else startRec(); });
+function makeFoundationIfNeeded(){
+  if (song) return;
+  ensureCtx();
+  song = buildSong();
+  var g = GENRES[song.genreKey];
+  chordsEl.textContent = "コード: " + g.prog.map(function(c){ return c.name; }).join(" → ") + " ｜ BPM " + g.bpm;
+  $("btnPlay").disabled = false; $("btnRec").disabled = false;
+  saveState();
+}
+$("btnPlay").addEventListener("click", function(){ makeFoundationIfNeeded(); if (playing) { stopPlay(); setStatus("止めました。"); } else startPlay(); });
+$("btnRec").addEventListener("click", function(){ if (recording) { if (recorder) recorder.stop(); stopPlay(); } else { makeFoundationIfNeeded(); startRec(); } });
 
-// ===== AI歌詞（キーワード検索→800字・サビ中心） =====
+// ===== AI歌詞（題材ライブラリ＋シャッフルで毎回変わる・800字・サビ中心） =====
 var LYRIC_THEMES = {
-  def: {
-    sabi: ["逆境を富に変える、それがVictory","涙の数だけ強くなれる","暗闇の先に光が見える","何度倒れても立ち上がる","この声が届くまで歌い続ける","夢はまだ終わらない","心の火は消えない","今ここから始まる物語"],
-    a: ["朝の光を浴びて走り出す","汗と涙をリズムに変えて","遠回りでも前に進む","昨日の自分を越えていく","足音がビートになる街で","握った拳に力を込めて","空を見上げて深呼吸","小さな一歩が未来を作る"],
-    b: ["風が背中を押してくれる","止まっていた時計が動き出す","声を上げろ、もっと遠くへ","限界は自分が決めるものじゃない"] },
-  love: {
-    sabi: ["君と出会えた、それがVictory","涙の数だけ優しくなれる","どんな夜も二人で越える","離れていても心はそばに","この歌を君に届けたい","愛はまだ終わらない","君の笑顔が力になる","今ここから始まる二人の物語"],
-    a: ["夕日の駅で君を待った","他愛もない話で笑った","雨の日の傘は一つだけ","君の声が聞きたくて電話した","写真の中の夏の日","少し照れた横顔","約束したあの場所へ","季節が巡っても変わらない"],
-    b: ["言葉にできない想いがある","でも伝えたいことがある","声を上げろ、愛の歌を","距離なんて関係ない"] },
-  nakama: {
-    sabi: ["仲間がいれば、それがVictory","涙の数だけ絆は深まる","一人じゃない、みんながいる","肩を並べて歩いていく","この歌はみんなの歌","夢はまだ終わらない","笑い声が力になる","今ここから始まる僕らの物語"],
-    a: ["あの日の約束を覚えてる","苦しい時こそ手を取る","背中を押してくれた言葉","同じ空の下で頑張る仲間","再会の日を楽しみに","遠く離れても応援してる","笑顔でまた会おう","小さな勇気を分け合って"],
-    b: ["一人で抱え込まないで","声を掛け合えば怖くない","声を上げろ、みんなで歌おう","絆は切れない"] },
-  mirai: {
-    sabi: ["未来を掴む、それがVictory","涙の数だけ前に進める","新しい朝が待ちきれない","扉を開けて飛び出そう","この声が未来まで響く","夢はまだ終わらない","デジタルの海を越えて","今ここから始まる新しい物語"],
-    a: ["画面の向こうに広がる世界","電脳の星空を駆け抜ける","データの波に乗って進む","アップデートされる毎日","光の速さで夢を追う","バーチャルでも心はリアル","コードの海に希望を見る","明日への地図を描いていく"],
-    b: ["時代は変わり続けていく","でも変わらないものがある","声を上げろ、未来へ向けて","挑戦は止まらない"] }
+def: {
+kw: /夢|逆境|ビクトリー|victory|希望|挑戦|人生/,
+title: "逆境と夢",
+sabi: ["逆境を富に変える、それがVictory","涙の数だけ強くなれる","暗闇の先に光が見える","何度倒れても立ち上がる","この声が届くまで歌い続ける","夢はまだ終わらない","心の火は消えない","今ここから始まる物語","負けたままで終わらない","自分の足で歩いていく","誰かの笑顔が力になる","叫べ、この空の向こうまで","運命は自分で変えるもの","小さな勇気が扉を開く","諦めない心が武器になる","今日という日を勝ち取ろう"],
+a: ["朝の光を浴びて走り出す","汗と涙をリズムに変えて","遠回りでも前に進む","昨日の自分を越えていく","足音がビートになる街で","握った拳に力を込めて","空を見上げて深呼吸","小さな一歩が未来を作る","転んだ場所で花が咲く","苦い思い出も糧になる","夜明け前の空が一番暗い","でも必ず朝は来る","鏡の中の自分に誓う","もう逃げないと決めた日","荷物は軽く、夢は重く","進む道は自分で選ぶ"],
+b: ["風が背中を押してくれる","止まっていた時計が動き出す","声を上げろ、もっと遠くへ","限界は自分が決めるものじゃない","心のエンジン全開で","この瞬間を焼き付けよう","ためらう時間はもうない","さあ、走り出す時だ"]},
+love: {
+kw: /恋|愛|君|好き|彼女|デート/,
+title: "恋愛",
+sabi: ["君と出会えた、それがVictory","涙の数だけ優しくなれる","どんな夜も二人で越える","離れていても心はそばに","この歌を君に届けたい","愛はまだ終わらない","君の笑顔が力になる","今ここから始まる二人の物語","君の声が聞こえるだけで","世界が少し優しくなる","手をつないで歩く帰り道","何気ない日々が宝物"],
+a: ["夕日の駅で君を待った","他愛もない話で笑った","雨の日の傘は一つだけ","君の声が聞きたくて電話した","写真の中の夏の日","少し照れた横顔","約束したあの場所へ","季節が巡っても変わらない","コンビニの前で待ち合わせ","温かい缶コーヒーを渡す","自転車の二人乗りは内緒","笑いすぎて涙が出た"],
+b: ["言葉にできない想いがある","でも伝えたいことがある","声を上げろ、愛の歌を","距離なんて関係ない","素直になれるまであと少し","この気持ちは嘘じゃない"]},
+nakama: {
+kw: /仲間|友|友達|絆|みんな/,
+title: "仲間",
+sabi: ["仲間がいれば、それがVictory","涙の数だけ絆は深まる","一人じゃない、みんながいる","肩を並べて歩いていく","この歌はみんなの歌","夢はまだ終わらない","笑い声が力になる","今ここから始まる僕らの物語","背中を押す手の温もり","信じ合える強さがある","同じ夢を見た仲間たち","ありがとうじゃ足りない"],
+a: ["あの日の約束を覚えてる","苦しい時こそ手を取る","背中を押してくれた言葉","同じ空の下で頑張る仲間","再会の日を楽しみに","遠く離れても応援してる","笑顔でまた会おう","小さな勇気を分け合って","深夜の電話で救われた","何も言わずそばにいた","笑いの絶えないあの場所","青春はまだ終わらない"],
+b: ["一人で抱え込まないで","声を掛け合えば怖くない","声を上げろ、みんなで歌おう","絆は切れない","肩を組んで進もう","この絆は一生もの"]},
+matsuri: {
+kw: /祭|ダンス|踊|盆踊|音頭|太鼓|夏祭/,
+title: "祭りとダンス",
+sabi: ["祭りの熱気、それがVictory","太鼓のリズムで心が躍る","踊れ踊れ、夜が明けるまで","汗も涙も笑顔に変えて","この輪の中で一つになる","提灯の明かりが道を照らす","河内の血が騒ぎ出す","今ここから始まる祭りの物語"],
+a: ["櫓の上から声が響く","浴衣の袖を風が揺らす","屋台の匂いに誘われて","子供たちの笑い声","拍子木の音が合図する","輪になって手拍子そろえ","月明かりの下で踊る","懐かしいあの音頭"],
+b: ["足が勝手に動き出す","止まらないこの高鳴り","声を上げろ、祭りの夜に","リズムに身を任せよう","123の合図で飛び出せ","ピタッと止まるその瞬間"]},
+tabi: {
+kw: /旅|旅行|ドライブ|道|空|海|山|駅/,
+title: "旅",
+sabi: ["旅の先に、それがVictory","知らない街に心が躍る","風の向くまま進んでいく","地図にない道を行こう","この歌と一緒に旅をする","水平線が呼んでいる","荷物は少なく夢は大きく","今ここから始まる旅の物語"],
+a: ["朝焼けの高速道路","サービスエリアのコーヒー","窓の外を流れる景色","古い地図を広げてみる","海沿いの道を走る","山の空気は冷たく澄んで","小さな駅で降りてみた","地元の人と交わす挨拶"],
+b: ["エンジンの音がBGM","どこまでも行ける気がする","声を上げろ、風の中で","帰り道までが旅だから"]},
+shigoto: {
+kw: /仕事|トラック|配達|働|汗|会社/,
+title: "仕事と汗",
+sabi: ["汗の先に、それがVictory","今日の荷物は夢も一緒に","ハンドル握る手に力を込めて","走り続ける男の背中","この道が明日をつくる","働くことは生きること","積み込んだ希望を届けよう","今ここから始まる仕事の物語"],
+a: ["早朝の静かな車庫","エンジンかけて深呼吸","今日も安全運転で","信号待ちの空を見上げる","荷台に積んだ一日分","届け先の笑顔が嬉しい","冷たい空気の冷凍室","暑さに負けず走る道"],
+b: ["一服の風が気持ちいい","ラジオから流れる歌","声に出して歌いながら","今日も一日お疲れさま"]},
+mirai: {
+kw: /未来|デジタル|世界|明日|テクノ|AI/,
+title: "未来",
+sabi: ["未来を掴む、それがVictory","涙の数だけ前に進める","新しい朝が待ちきれない","扉を開けて飛び出そう","この声が未来まで響く","夢はまだ終わらない","デジタルの海を越えて","今ここから始まる新しい物語"],
+a: ["画面の向こうに広がる世界","電脳の星空を駆け抜ける","データの波に乗って進む","アップデートされる毎日","光の速さで夢を追う","バーチャルでも心はリアル","コードの海に希望を見る","明日への地図を描いていく"],
+b: ["時代は変わり続けていく","でも変わらないものがある","声を上げろ、未来へ向けて","挑戦は止まらない"]}
 };
-var LYRIC_FILLER = ["ラララ 風に乗せて","心のリズムは止まらない","一歩ずつ確かに進む","この瞬間を大切に","歌声は空へ届く","信じる力が道を開く","どんな壁も越えていける","光の方へ歩いていく"];
 function pickTheme(kw){
-  if (/恋|愛|君/.test(kw)) return LYRIC_THEMES.love;
-  if (/仲間|友|絆|みんな/.test(kw)) return LYRIC_THEMES.nakama;
-  if (/未来|デジタル|電脳|aura|AURA|明日/.test(kw)) return LYRIC_THEMES.mirai;
-  return LYRIC_THEMES.def;
+for (var key in LYRIC_THEMES) { if (LYRIC_THEMES[key].kw.test(kw)) return LYRIC_THEMES[key];}
+return LYRIC_THEMES.def;
+}
+function shuffled(arr){
+var a = arr.slice();
+for (var i = a.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t;}
+return a;
+}
+var lastLyrics = "";
+function makeDeck(arr){
+  var deck = shuffled(arr), i = 0;
+  return function(){
+    if (i >= deck.length) { deck = shuffled(arr); i = 0; }
+    return deck[i++];
+  };
 }
 function composeLyrics(kw){
   var th = pickTheme(kw || "");
-  var parts = [];
-  parts.push("【サビ】\n" + th.sabi.join("\n"));
-  parts.push("【Aメロ】\n" + th.a.join("\n"));
-  parts.push("【Bメロ】\n" + th.b.join("\n"));
-  parts.push("【サビ】\n" + th.sabi.join("\n"));
-  var text = parts.join("\n\n");
-  var fi = 0;
-  while (text.length < 780 && fi < 40){ text += "\n" + LYRIC_FILLER[fi % LYRIC_FILLER.length]; fi++; }
-  return text;
+  var nextSabi = makeDeck(th.sabi), nextA = makeDeck(th.a), nextB = makeDeck(th.b);
+  var head = kw ? "題材「" + kw + "」" : "題材「" + th.title + "」";
+  var lines = [head, "", "【サビ】"];
+  function block(next, n){ for (var i = 0; i < n; i++) lines.push(next()); }
+  block(nextSabi, 8);
+  lines.push("", "【Aメロ】"); block(nextA, 8);
+  lines.push("", "【Bメロ】"); block(nextB, 4);
+  lines.push("", "【サビ】"); block(nextSabi, 8);
+  lines.push("", "【Aメロ】"); block(nextA, 8);
+  lines.push("", "【サビ】"); block(nextSabi, 8);
+  lines.push("", "【Bメロ】"); block(nextB, 4);
+  lines.push("", "【大サビ】"); block(nextSabi, 8);
+  lines.push("", "MIC VICTORY / MICV SOUND");
+  return lines.join("\n");
 }
-var lastLyrics = "";
 $("btnLyrics").addEventListener("click", function(){
-  var kw = $("lyricKw").value.trim();
-  lastLyrics = composeLyrics(kw);
-  var out = $("lyricsOut");
-  out.style.display = "block";
-  out.value = lastLyrics;
-  $("lyricsCount").style.display = "block";
-  $("lyricsCount").textContent = lastLyrics.length + "字（手で直せます）";
-  $("lyricsBtns").style.display = "flex";
-  setStatus("AI歌詞ができました（約" + lastLyrics.length + "字・サビ中心）。表示された歌詞は、そのまま手で編集できます。");
+ensureCtx();
+var kw = $("lyricKw").value.replace(/^\s+|\s+$/g, "");
+lastLyrics = composeLyrics(kw);
+var out = $("lyricsOut");
+out.style.display = "block";
+out.value = lastLyrics;
+$("lyricsCount").style.display = "block";
+$("lyricsCount").textContent = lastLyrics.length + "字（手で直せます。押すたびに中身が変わります）";
+$("lyricsBtns").style.display = "flex";
+setStatus("AI歌詞ができました（約" + lastLyrics.length + "字・サビ中心）。表示された歌詞は、そのまま手で編集できます。もう一度押すと別の歌詞になります。");
 });
 $("lyricsOut").addEventListener("input", function(){
-  lastLyrics = $("lyricsOut").value;
-  $("lyricsCount").textContent = lastLyrics.length + "字（手で直せます）";
+lastLyrics = $("lyricsOut").value;
+$("lyricsCount").textContent = lastLyrics.length + "字（手で直せます）";
 });
 $("btnLyricsCopy").addEventListener("click", function(){
-  if (!lastLyrics) return;
-  $("lyrics").value = lastLyrics;
-  saveState();
-  setStatus("歌詞メモにコピーして保存しました。");
+if (!lastLyrics) return;
+$("lyrics").value = lastLyrics;
+saveState();
+setStatus("歌詞メモにコピーしました（編集した内容で保存されます）。");
 });
 
 // ===== AI予測メロディ（手動メロディから作る） =====
