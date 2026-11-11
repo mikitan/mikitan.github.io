@@ -333,6 +333,7 @@
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>ボーカル</span><strong id="vol-vocal" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('vocal', this.value)" class="w-full accent-mvPink"></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>ベース</span><strong id="vol-bass" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('bass', this.value)" class="w-full accent-mvCyan"></div>
 <div class="space-y-1 col-span-2"><button onclick="toggleBassSub()" id="bassSubBtn" class="w-full bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">ベース超重低音：OFF</button></div>
+<div class="space-y-1 col-span-2"><div class="flex justify-between text-gray-400"><span>ベース音色</span></div><div class="grid grid-cols-3 gap-1.5"><button onclick="setBassTone('electric')" id="bassToneBtn-electric" class="bg-mvCyan/25 border border-mvCyan text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95">エレキ</button><button onclick="setBassTone('finger')" id="bassToneBtn-finger" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">指弾き</button><button onclick="setBassTone('synth')" id="bassToneBtn-synth" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">シンセ</button></div></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>アコギ</span><strong id="vol-acoustic" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('acoustic', this.value)" class="w-full accent-mvGreen"></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>エレキ</span><strong id="vol-electric" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('electric', this.value)" class="w-full accent-mvYellow"></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>バイオリン</span><strong id="vol-violin" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('violin', this.value)" class="w-full accent-mvAccent"></div>
@@ -621,6 +622,17 @@ electric: 1.0, violin: 1.0, trumpet: 1.2, drums: 1.5, tambourine: 0.9
 let fxState = { reverb: false, delay: false, lowpass: false, highpass: false};
 let currentGenre = 'popping';
 let bassSubOn = false;
+let bassTone = 'electric';
+
+function setBassTone(t) {
+    bassTone = t;
+    ['electric','finger','synth'].forEach(function(k){
+        const b = document.getElementById('bassToneBtn-' + k);
+        if (b) b.className = (k === t)
+            ? "bg-mvCyan/25 border border-mvCyan text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95"
+            : "bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95";
+    });
+}
 
 let totalBars = 38;
 let currentStepsPerBar = 18;
@@ -1034,6 +1046,38 @@ return audioCtx;
             const targetOutputNode = trackGains[trackType] || masterGain;
 
             if (trackType === 'bass') {
+                if (bassTone === 'finger') {
+                    // 指弾きベース：柔らかいサイン波＋短いプラック
+                    const fOsc = audioCtx.createOscillator();
+                    fOsc.type = 'sine';
+                    fOsc.frequency.setValueAtTime(freq / 2, now);
+                    const fFilter = audioCtx.createBiquadFilter();
+                    fFilter.type = 'lowpass';
+                    fFilter.frequency.setValueAtTime(900, now);
+                    fFilter.frequency.exponentialRampToValueAtTime(300, now + duration * 0.7);
+                    const fGain = audioCtx.createGain();
+                    fGain.gain.setValueAtTime(velocity * 1.7, now);
+                    fGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    fOsc.connect(fFilter); fFilter.connect(fGain); fGain.connect(targetOutputNode);
+                    fOsc.start(now); fOsc.stop(now + duration);
+                    return;
+                }
+                if (bassTone === 'synth') {
+                    // シンセベース：太い矩形波＋フィルターが閉じる音
+                    const sOsc = audioCtx.createOscillator();
+                    sOsc.type = 'square';
+                    sOsc.frequency.setValueAtTime(freq / 2, now);
+                    const sFilter = audioCtx.createBiquadFilter();
+                    sFilter.type = 'lowpass';
+                    sFilter.frequency.setValueAtTime(1400, now);
+                    sFilter.frequency.exponentialRampToValueAtTime(200, now + duration);
+                    const sGain = audioCtx.createGain();
+                    sGain.gain.setValueAtTime(velocity * 1.2, now);
+                    sGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    sOsc.connect(sFilter); sFilter.connect(sGain); sGain.connect(targetOutputNode);
+                    sOsc.start(now); sOsc.stop(now + duration);
+                    return;
+                }
                 const mainOsc = audioCtx.createOscillator();
                 mainOsc.type = 'sawtooth';
                 mainOsc.frequency.setValueAtTime(freq / 2, now);
