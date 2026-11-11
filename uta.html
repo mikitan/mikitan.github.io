@@ -66,6 +66,7 @@
   <button class="bigbtn" id="btnMake">🎼 ① AIで土台を作る</button>
   <button class="bigbtn" id="btnPlay">▶ ② 再生する</button>
   <button class="bigbtn" id="btnRec">🎤 ③ 歌を録音する</button>
+  <button class="bigbtn" id="btnRender" style="background:#9059d6;">🎬 ④ Render（曲だけファイルにする）</button>
 
   <div class="bars" id="bars">
     <div class="bar">1</div><div class="bar">2</div><div class="bar">3</div><div class="bar">4</div>
@@ -444,6 +445,33 @@ function makeFoundationIfNeeded(){
 }
 $("btnPlay").addEventListener("click", function(){ makeFoundationIfNeeded(); if (playing) { stopPlay(); setStatus("止めました。"); } else startPlay(); });
 $("btnRec").addEventListener("click", function(){ if (recording) { if (recorder) recorder.stop(); stopPlay(); } else { makeFoundationIfNeeded(); startRec(); } });
+$("btnRender").addEventListener("click", function(){
+  if (recording) { setStatus("録音中です。先に止めてください。"); return; }
+  makeFoundationIfNeeded();
+  ensureCtx();
+  var chunks = [];
+  var rr;
+  try { try { rr = new MediaRecorder(recDest.stream, { mimeType: "audio/webm" }); } catch (e1) { rr = new MediaRecorder(recDest.stream); } }
+  catch (e) { setStatus("Renderできませんでした。もう一度お試しください。"); return; }
+  rr.ondataavailable = function(e){ if (e.data.size > 0) chunks.push(e.data); };
+  rr.onstop = function(){
+    var blob = new Blob(chunks, { type: "audio/webm" });
+    var url = URL.createObjectURL(blob);
+    $("recPlayer").src = url;
+    var dl = $("dlLink"); dl.href = url; dl.setAttribute("download", "mic-victory-render.webm");
+    $("recArea").style.display = "block";
+    setStatus("Render完了！曲だけのファイルができました。下の「録音を保存する」で保存できます。");
+  };
+  if (playing) stopPlay();
+  rr.start();
+  startPlay();
+  setStatus("Render中…曲を再生しながら書き出しています。終わるまで待ってください。");
+  var totalMs = (stepDur() * 16 * 8 + 0.8) * 1000;
+  setTimeout(function(){
+    if (playing) stopPlay();
+    if (rr.state !== "inactive") rr.stop();
+  }, totalMs);
+});
 
 // ===== AI歌詞（題材ライブラリ＋シャッフルで毎回変わる・800字・サビ中心） =====
 var LYRIC_THEMES = {
