@@ -203,8 +203,10 @@
 <span id="genreLabel" class="text-mvPink font-mono font-bold text-[10px]">Popping Dance</span>
 </div>
 <div class="grid grid-cols-2 gap-2">
-<button onclick="setGenre('pops')" id="genreBtn-pops" class="py-2.5 rounded-xl text-xs font-bold bg-gray-900 border border-gray-700 text-gray-300 transition active:scale-95">Pops</button>
+<button onclick="setGenre('pops')" id="genreBtn-pops" class="py-2.5 rounded-xl text-xs font-bold bg-gray-900 border border-gray-700 text-gray-300 transition active:scale-95">Pops（爽やか）</button>
 <button onclick="setGenre('popping')" id="genreBtn-popping" class="py-2.5 rounded-xl text-xs font-bold bg-mvPink text-white border border-mvPink shadow-lg transition active:scale-95">Popping Dance</button>
+<button onclick="setGenre('black')" id="genreBtn-black" class="py-2.5 rounded-xl text-xs font-bold bg-gray-900 border border-gray-700 text-gray-300 transition active:scale-95">Black</button>
+<button onclick="setGenre('contemporary')" id="genreBtn-contemporary" class="py-2.5 rounded-xl text-xs font-bold bg-gray-900 border border-gray-700 text-gray-300 transition active:scale-95">Contemporary</button>
 </div>
 <p class="text-[9px] text-gray-500">「AI全自動プロデュース」と「楽器別AI作曲」が、このジャンルのコード進行とリズムで作ります。</p>
 </div>
@@ -241,6 +243,7 @@
 <p class="text-[9px] text-gray-500">歌詞はテキストファイル、音楽はJSONファイルで保存・読み込みできます。別の端末やバックアップ用にどうぞ。</p>
 <button onclick="loadChristmasSong()" class="w-full bg-gradient-to-r from-red-600 to-mvGreen text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🎄 クリスマス曲（歌詞＋メロディ）を読み込む</button>
 <button onclick="generateChristmasAI()" class="w-full bg-gradient-to-r from-mvPink via-mvAccent to-mvCyan text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🎄✨ クリスマスAI作曲（ジングルベル全自動）</button>
+<button onclick="loadUploadedRhythm()" class="w-full bg-gradient-to-r from-mvCyan to-mvAccent text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🥁 アップした音源のリズムを読み込む</button>
 <input type="file" id="lyricsFileInput" accept=".txt,text/plain" style="display:none" onchange="importLyricsFile(event)">
 <input type="file" id="musicFileInput" accept=".json,application/json" style="display:none" onchange="importMusicFile(event)">
 </div>
@@ -704,8 +707,9 @@ function loadBassSettings() {
 /* 🎸 ベースメロディAI作成：ジャンルのコード進行に沿って、今の音色らしいベースラインを全小節に作る */
 function generateBassMelody() {
     getAudioContext();
-    const isPops = currentGenre === 'pops';
-    const roots = isPops ? ['C3', 'G3', 'A3', 'F3'] : ['A3', 'A3', 'F3', 'G3', 'A3', 'A3', 'D3', 'E3'];
+    const conf = GENRE_CONF[currentGenre] || GENRE_CONF['popping'];
+    const isPops = conf.light;
+    const roots = conf.bass;
     const steps = currentStepsPerBar;
     const mid = Math.floor(steps / 2);
     for (let b = 0; b < totalBars; b++) {
@@ -913,14 +917,22 @@ alert("✨ 800字歌詞モーダルへこの歌詞を反映しました！");
 openModal('lyricsModal');
 }
 
-/* 🎵 ジャンル切り替え */
+/* 🎵 ジャンル設定：MIC VICTORY のスタイル定義 */
+const GENRE_CONF = {
+    pops:        { label: 'Pops（爽やか）', prog: ['C', 'G', 'Am', 'F'], bass: ['C3', 'G3', 'A3', 'F3'], pool: ['C', 'G', 'Am', 'F', 'Em', 'C4', 'E4', 'G4', 'A4', 'C5'], light: true },
+    popping:     { label: 'Popping Dance', prog: ['Am', 'Am', 'F', 'G', 'Am', 'Am', 'Dm', 'Em'], bass: ['A3', 'A3', 'F3', 'G3', 'A3', 'A3', 'D3', 'E3'], pool: ['Am', 'Am7', 'Dm', 'E7', 'A4', 'C5', 'E4', 'G4', 'B4', 'D4'], light: false },
+    black:       { label: 'Black', prog: ['Am7', 'Dm7', 'Am7', 'Em7'], bass: ['A3', 'D3', 'A3', 'E3'], pool: ['Am7', 'Dm7', 'Em7', 'A4', 'C5', 'E4', 'G4', 'B4', 'D5', 'E5'], light: false },
+    contemporary:{ label: 'Contemporary', prog: ['C', 'Am', 'F', 'G'], bass: ['C3', 'A3', 'F3', 'G3'], pool: ['C', 'Am', 'F', 'G', 'E4', 'G4', 'A4', 'C5', 'E5', 'D5'], light: true }
+};
 function setGenre(g) {
     currentGenre = g;
     const onCls = "py-2.5 rounded-xl text-xs font-bold bg-mvPink text-white border border-mvPink shadow-lg transition active:scale-95";
     const offCls = "py-2.5 rounded-xl text-xs font-bold bg-gray-900 border border-gray-700 text-gray-300 transition active:scale-95";
-    document.getElementById('genreBtn-pops').className = (g === 'pops') ? onCls : offCls;
-    document.getElementById('genreBtn-popping').className = (g === 'popping') ? onCls : offCls;
-    document.getElementById('genreLabel').innerText = (g === 'pops') ? 'Pops' : 'Popping Dance';
+    ['pops', 'popping', 'black', 'contemporary'].forEach(function(k) {
+        const b = document.getElementById('genreBtn-' + k);
+        if (b) b.className = (g === k) ? onCls : offCls;
+    });
+    document.getElementById('genreLabel').innerText = GENRE_CONF[g] ? GENRE_CONF[g].label : g;
 }
 
 /* ✂️ ベースカット ON/OFF：音を短く切ってチョッパー感を出す */
@@ -1674,9 +1686,10 @@ function insertEmptyIntroBars(barsCount) {
         }
 
         function generateFullAIPolishSong() {
-            const isPops = currentGenre === 'pops';
-            const chordProgression = isPops ? ['C', 'G', 'Am', 'F'] : ['Am', 'Am', 'F', 'G', 'Am', 'Am', 'Dm', 'Em'];
-            const bassNotes = isPops ? ['C3', 'G3', 'A3', 'F3'] : ['A3', 'A3', 'F3', 'G3', 'A3', 'A3', 'D3', 'E3'];
+            const conf = GENRE_CONF[currentGenre] || GENRE_CONF['popping'];
+            const isPops = conf.light;
+            const chordProgression = conf.prog;
+            const bassNotes = conf.bass;
             const steps = currentStepsPerBar;
             const mid = Math.floor(steps / 2);
 
@@ -1710,7 +1723,16 @@ function insertEmptyIntroBars(barsCount) {
                 const kick = { note: 'KICK', duration: 0.2, velocity: 1.0 };
                 const snare = { note: 'SNARE', duration: 0.2, velocity: 1.0 };
                 const hat = { note: 'HH', duration: 0.12, velocity: 0.7 };
-                if (isPops) {
+                if (currentGenre === 'black') {
+                    // Black：粘るグルーヴ。キック少なめ、スネアは後ろにも1発
+                    dSteps[0] = kick; dSteps[3] = hat; dSteps[7] = kick;
+                    dSteps[mid] = snare; dSteps[mid + 3] = hat; dSteps[steps - 2] = snare;
+                    dSteps[2] = hat; dSteps[steps - 5] = kick;
+                } else if (currentGenre === 'contemporary') {
+                    // Contemporary：爽やかで軽い。ハットは少なめ
+                    dSteps[0] = kick; dSteps[mid] = snare;
+                    dSteps[4] = hat; dSteps[mid + 4] = hat; dSteps[steps - 2] = kick;
+                } else if (isPops) {
                     dSteps[0] = kick; dSteps[2] = hat; dSteps[4] = hat;
                     dSteps[mid - 3] = kick; dSteps[mid] = snare;
                     dSteps[mid + 2] = hat; dSteps[mid + 4] = hat; dSteps[steps - 2] = kick;
@@ -1722,17 +1744,18 @@ function insertEmptyIntroBars(barsCount) {
                 tracksData['drums'][b] = dSteps;
             }
             renderStepGrid();
-            alert(isPops ? "✨ AI全自動プロデュース完了！（Pops）" : "✨ AI全自動プロデュース完了！（Popping Dance）");
+            alert("✨ AI全自動プロデュース完了！（" + conf.label + "）");
         }
 
         function generateCurrentTrackAIMelody() {
-            const isPops = currentGenre === 'pops';
-            const pool = isPops
-                ? ['C', 'G', 'Am', 'F', 'Em', 'C4', 'E4', 'G4', 'A4', 'C5']
-                : ['Am', 'Am7', 'Dm', 'E7', 'A4', 'C5', 'E4', 'G4', 'B4', 'D4'];
-            const drumPattern = isPops
+            const conf = GENRE_CONF[currentGenre] || GENRE_CONF['popping'];
+            const isPops = conf.light;
+            const pool = conf.pool;
+            const drumPattern = currentGenre === 'black'
+                ? ['KICK', 'HH', 'SNARE', 'HH', 'KICK', 'HH', 'SNARE', 'HH']
+                : (isPops
                 ? ['KICK', 'HH', 'HH', 'KICK', 'HH', 'HH', 'SNARE', 'HH']
-                : ['KICK', 'HH', 'KICK', 'HH', 'HH', 'SNARE', 'HH', 'SNARE'];
+                : ['KICK', 'HH', 'KICK', 'HH', 'HH', 'SNARE', 'HH', 'SNARE']);
             const isDrumTrack = (activeTrack === 'drums' || activeTrack === 'tambourine');
             for(let b=0; b<totalBars; b++) {
                 let barSteps = new Array(currentStepsPerBar).fill(null);
@@ -2013,6 +2036,46 @@ function insertEmptyIntroBars(barsCount) {
             renderBarSelector();
             renderStepGrid();
             alert("🎄✨ クリスマスAI作曲ができました！ジングルベル16小節・BPM104です。再生して歌ってみてください。");
+        }
+
+        /* 🥁 アップした brand 音源（リズムループ）のパターンを BANDLAND に再現 */
+        function loadUploadedRhythm() {
+            if (!confirm("アップした音源のリズムを読み込みますか？今の音楽データは置き換わります。")) return;
+            const nb = 8;
+            Object.keys(tracksData).forEach(function(trackKey) {
+                const arr = [];
+                for (let i = 0; i < nb; i++) arr.push(new Array(currentStepsPerBar).fill(null));
+                tracksData[trackKey] = arr;
+            });
+            totalBars = nb;
+            document.getElementById('totalBarsDisplay').innerText = totalBars;
+            document.getElementById('totalBarsLabel2').innerText = totalBars;
+            document.getElementById('totalBarsLabel3').innerText = totalBars;
+            document.querySelectorAll('.bars-btn').forEach(function(b) {
+                const active = parseInt(b.getAttribute('data-bars')) === totalBars;
+                b.className = active
+                    ? "bars-btn bg-mvCyan/20 border border-mvCyan text-mvCyan text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95"
+                    : "bars-btn bg-gray-900 border border-gray-700 text-gray-300 text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95";
+            });
+            activeBar = 1;
+            setBpm(116);
+            for (let b = 0; b < nb; b++) {
+                // 前半：アクセントの打点、後半：刻むパルス（録音の繰り返しパターンから）
+                tracksData['drums'][b][0] = { note: 'KICK', duration: 0.2, velocity: 1.0 };
+                tracksData['drums'][b][2] = { note: 'KICK', duration: 0.2, velocity: 0.8 };
+                tracksData['drums'][b][4] = { note: 'SNARE', duration: 0.15, velocity: 0.9 };
+                [9, 11, 13, 15, 17].forEach(function(s) { tracksData['drums'][b][s] = { note: 'KICK', duration: 0.15, velocity: 0.95 }; });
+                tracksData['drums'][b][13] = { note: 'SNARE', duration: 0.15, velocity: 1.0 };
+                for (let s = 0; s < currentStepsPerBar; s += 2) {
+                    if (!tracksData['tambourine'][b][s]) tracksData['tambourine'][b][s] = { note: 'HH', duration: 0.08, velocity: 0.5 };
+                }
+                // ベースも同じパルスで刻む
+                [0, 9, 11, 13, 15, 17].forEach(function(s) { tracksData['bass'][b][s] = { note: 'A3', duration: 0.18, velocity: 1.0, tone: bassTone }; });
+            }
+            tracksData['drums'][0][0] = { note: 'CRASH', duration: 0.4, velocity: 0.8 };
+            renderBarSelector();
+            renderStepGrid();
+            alert("🥁 アップした音源のリズムを読み込みました！BPM116・8小節です。");
         }
 
         function openModal(modalId) { document.getElementById(modalId).classList.remove('hidden'); }
