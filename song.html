@@ -413,7 +413,7 @@
 <div class="flex items-center justify-between">
 <div>
 <h3 class="text-xs font-bold text-white">ドレミファソ鍵盤 ＆ コード手動記録</h3>
-<p class="text-[10px] text-gray-400">タップして音を聴きながらステップへ自動記録</p>
+<p class="text-[10px] text-gray-400">タップすると音が鳴って、そのままステップへ記録されます</p>
 </div>
 <div class="text-[10px] font-mono text-mvPink bg-pink-500/10 px-2.5 py-1 rounded-lg border border-pink-500/30">
 ポインタ: <strong id="pointerDisplay">1</strong>/<span id="maxPointerDisplay">18</span>
@@ -484,11 +484,12 @@
 </h3>
 <span id="selectedPartLabel" class="text-[10px] text-mvCyan font-bold font-mono">ドン (Bass)</span>
 </div>
-<div id="drumPartsGrid" class="grid grid-cols-4 gap-1.5 pt-1">
+<div id="drumPartsGrid" class="grid grid-cols-5 gap-1.5 pt-1">
 <button onclick="selectDrumPart('KICK')" id="dpad-KICK" class="py-3 rounded-lg text-[10px] font-bold bg-mvCyan text-black border border-mvCyan shadow">ドン (Bass)</button>
 <button onclick="selectDrumPart('SNARE')" id="dpad-SNARE" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">パッ (Snare)</button>
 <button onclick="selectDrumPart('HH')" id="dpad-HH" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">チッ (Hat)</button>
 <button onclick="selectDrumPart('CRASH')" id="dpad-CRASH" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">バーン (Cym)</button>
+<button onclick="selectDrumPart('BELL')" id="dpad-BELL" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">鐘 (Bell)</button>
 </div>
 </div>
 
@@ -716,14 +717,17 @@ function generateBassMelody() {
             bs[0] = { note: root, duration: 0.9, velocity: 1.0 };
             bs[mid] = { note: root, duration: 0.7, velocity: 0.95 };
         } else if (bassTone === 'finger') {
+            const fifthMap = { 'A3': 'E4', 'C3': 'G3', 'F3': 'C4', 'G3': 'D4', 'D3': 'A3', 'E3': 'B3' };
+            const octMap = { 'A3': 'A4', 'C3': 'C4', 'F3': 'F4', 'G3': 'G4', 'D3': 'D4', 'E3': 'E4' };
             bs[0] = { note: root, duration: currentNoteDuration, velocity: 1.0 };
-            bs[4] = { note: root, duration: currentNoteDuration, velocity: 0.8 };
+            bs[4] = { note: fifthMap[root] || root, duration: currentNoteDuration, velocity: 0.85 };
             bs[mid] = { note: root, duration: currentNoteDuration, velocity: 0.95 };
-            bs[steps - 3] = { note: root, duration: currentNoteDuration, velocity: 0.8 };
+            bs[steps - 3] = { note: octMap[root] || root, duration: currentNoteDuration, velocity: 0.8 };
         } else {
+            const fifthMap2 = { 'A3': 'E4', 'C3': 'G3', 'F3': 'C4', 'G3': 'D4', 'D3': 'A3', 'E3': 'B3' };
             bs[0] = { note: root, duration: currentNoteDuration, velocity: 1.0 };
-            if (isPops) { bs[mid] = { note: root, duration: currentNoteDuration, velocity: 0.9 }; }
-            else { bs[3] = { note: root, duration: currentNoteDuration, velocity: 0.9 }; bs[mid] = { note: root, duration: currentNoteDuration, velocity: 1.0 }; bs[steps - 2] = { note: root, duration: currentNoteDuration, velocity: 0.85 }; }
+            if (isPops) { bs[mid] = { note: fifthMap2[root] || root, duration: currentNoteDuration, velocity: 0.9 }; bs[steps - 2] = { note: root, duration: currentNoteDuration, velocity: 0.85 }; }
+            else { bs[3] = { note: root, duration: currentNoteDuration, velocity: 0.9 }; bs[mid] = { note: fifthMap2[root] || root, duration: currentNoteDuration, velocity: 1.0 }; bs[steps - 2] = { note: root, duration: currentNoteDuration, velocity: 0.85 }; }
         }
         bs.forEach(function(e){ if (e) e.tone = bassTone; });
         tracksData['bass'][b] = bs;
@@ -763,7 +767,8 @@ const drum4Parts = [
 { id: 'KICK', label: 'ドン (Bass)', short: 'ドン(Bass)'},
 { id: 'SNARE', label: 'パッ (Snare)', short: 'パッ(Snare)'},
 { id: 'HH', label: 'ハイハット', short: 'チッ(Hat)'},
-{ id: 'CRASH', label: 'シンバル', short: 'バーン(Cym)'}
+{ id: 'CRASH', label: 'シンバル', short: 'バーン(Cym)'},
+{ id: 'BELL', label: '鐘 (Bell)', short: '鐘(Bell)'}
 ];
 let selectedDrumPart = 'KICK';
 let currentParams = { duration: 0.40, velocity: 0.85};
@@ -1125,6 +1130,18 @@ return audioCtx;
                 bodyGain.gain.exponentialRampToValueAtTime(0.001, now + kickDur * 0.65);
                 bodyOsc.connect(bodyGain); bodyGain.connect(out);
                 bodyOsc.start(now); bodyOsc.stop(now + kickDur * 0.65);
+            } else if (partId === 'BELL') {
+                // 鐘：倍音がずれた金属音が長く響く
+                [1568, 2093, 2637, 3520].forEach(function(f, i) {
+                    const o = audioCtx.createOscillator();
+                    o.type = 'sine';
+                    o.frequency.setValueAtTime(f, now);
+                    const g = audioCtx.createGain();
+                    g.gain.setValueAtTime(vel * 0.5 / (i + 1), now);
+                    g.gain.exponentialRampToValueAtTime(0.0001, now + 1.4 - i * 0.2);
+                    o.connect(g); g.connect(out);
+                    o.start(now); o.stop(now + 1.4);
+                });
             } else if (partId === 'SNARE') {
                 const shell = audioCtx.createOscillator();
                 const shellGain = audioCtx.createGain();
@@ -1135,6 +1152,19 @@ return audioCtx;
                 shellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
                 shell.connect(shellGain); shellGain.connect(out);
                 shell.start(now); shell.stop(now + 0.18);
+                // スネアらしい「バシャッ」というノイズを追加
+                const nDur = 0.13;
+                const nBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * nDur, audioCtx.sampleRate);
+                const nData = nBuf.getChannelData(0);
+                for (let i = 0; i < nData.length; i++) { nData[i] = Math.random() * 2 - 1; }
+                const nSrc = audioCtx.createBufferSource(); nSrc.buffer = nBuf;
+                const nFilter = audioCtx.createBiquadFilter();
+                nFilter.type = 'bandpass'; nFilter.frequency.setValueAtTime(1800, now); nFilter.Q.setValueAtTime(0.8, now);
+                const nGain = audioCtx.createGain();
+                nGain.gain.setValueAtTime(vel * 1.3, now);
+                nGain.gain.exponentialRampToValueAtTime(0.0001, now + nDur);
+                nSrc.connect(nFilter); nFilter.connect(nGain); nGain.connect(out);
+                nSrc.start(now); nSrc.stop(now + nDur);
             } else {
                 const isCrash = (partId === 'CRASH');
                 const dur = isCrash ? crashDur : Math.min(0.09, Math.max(0.03, stepSec * 1.2));
@@ -1146,7 +1176,7 @@ return audioCtx;
                 noise.buffer = buffer;
                 const filter = audioCtx.createBiquadFilter();
                 filter.type = 'highpass';
-                filter.frequency.setValueAtTime(isCrash ? 2500 : 5500, now);
+                filter.frequency.setValueAtTime(isCrash ? 2500 : 7000, now);
                 const noiseGain = audioCtx.createGain();
                 const crashVolScale = (isCrash && currentBpm > 200) ? Math.max(0.3, 200 / currentBpm) : 1;
                 noiseGain.gain.setValueAtTime(vel * (isCrash ? 1.8 : 0.9) * crashVolScale, now);
@@ -1359,11 +1389,14 @@ return audioCtx;
             if (activeTrack === 'bass') expr.tone = bassTone;
             playSoundWithExpression(activeTrack, expr);
 
-            if (isRecordMode) {
-                tracksData[activeTrack][activeBar - 1][currentStepPointer] = expr;
-                renderStepGrid();
-                advanceRecordPointer();
+            tracksData[activeTrack][activeBar - 1][currentStepPointer] = expr;
+            renderStepGrid();
+            currentStepPointer++;
+            if (currentStepPointer >= currentStepsPerBar) {
+                currentStepPointer = 0;
+                if (activeBar < totalBars) { activeBar++; renderBarSelector(); renderStepGrid(); }
             }
+            updatePointerDisplay();
         }
 
         function playChord(chordName) {
@@ -1824,7 +1857,7 @@ function insertEmptyIntroBars(barsCount) {
                     const step = Math.min(currentStepsPerBar - 1, Math.round(beat * 4.5));
                     tracksData['bass'][b][step] = { note: roots[b], duration: 0.5, velocity: 1.0, tone: bassTone };
                 });
-                tracksData['drums'][b][0] = { note: 'KICK', duration: 0.2, velocity: 1.0 };
+                tracksData['drums'][b][0] = (b === nb - 1) ? { note: 'BELL', duration: 1.2, velocity: 1.0 } : { note: 'KICK', duration: 0.2, velocity: 1.0 };
                 tracksData['drums'][b][9] = { note: 'SNARE', duration: 0.2, velocity: 0.9 };
                 tracksData['drums'][b][14] = { note: 'KICK', duration: 0.2, velocity: 0.9 };
                 for (let s = 0; s < currentStepsPerBar; s += 2) {
