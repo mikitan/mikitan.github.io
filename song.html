@@ -1390,6 +1390,22 @@ return audioCtx;
                 return;
             }
 
+            if (trackType === 'piano' && targetParam && targetParam.tone === 'marimba') {
+                // マリンバ：木の温かい音、短くポロンと消える
+                const mDur = 0.4;
+                const f1 = audioCtx.createOscillator(); f1.type = 'sine'; f1.frequency.setValueAtTime(freq, now);
+                const g1 = audioCtx.createGain();
+                g1.gain.setValueAtTime(velocity * 1.1, now);
+                g1.gain.exponentialRampToValueAtTime(0.0001, now + mDur);
+                f1.connect(g1); g1.connect(targetOutputNode); f1.start(now); f1.stop(now + mDur);
+                const f2 = audioCtx.createOscillator(); f2.type = 'sine'; f2.frequency.setValueAtTime(freq * 3.9, now);
+                const g2 = audioCtx.createGain();
+                g2.gain.setValueAtTime(velocity * 0.35, now);
+                g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+                f2.connect(g2); g2.connect(targetOutputNode); f2.start(now); f2.stop(now + 0.12);
+                return;
+            }
+
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             osc.type = (trackType === 'trumpet' || trackType === 'electric') ? 'sawtooth' : 'triangle';
@@ -1903,15 +1919,19 @@ function insertEmptyIntroBars(barsCount) {
             for (let b = 0; b < nb; b++) {
                 melody[b].forEach(function(n) {
                     const step = Math.min(currentStepsPerBar - 1, Math.round(n[1] * 4.5));
-                    tracksData['piano'][b][step] = { note: n[0], duration: 0.45, velocity: 0.9 };
+                    tracksData['piano'][b][step] = { note: n[0], duration: 0.45, velocity: 0.9, tone: 'marimba' };
                 });
                 [0, 1.5, 3].forEach(function(beat) {
                     const step = Math.min(currentStepsPerBar - 1, Math.round(beat * 4.5));
                     tracksData['bass'][b][step] = { note: roots[b], duration: 0.5, velocity: 1.0, tone: bassTone };
                 });
-                tracksData['drums'][b][0] = (b === nb - 1) ? { note: 'BELL', duration: 1.2, velocity: 1.0 } : { note: 'KICK', duration: 0.2, velocity: 1.0 };
-                tracksData['drums'][b][9] = { note: 'SNARE', duration: 0.2, velocity: 0.9 };
-                tracksData['drums'][b][14] = { note: 'KICK', duration: 0.2, velocity: 0.9 };
+                if (b === nb - 1) {
+                    tracksData['drums'][b][0] = { note: 'BELL', duration: 1.2, velocity: 1.0 };
+                } else {
+                    // コンガ風：低い音と高い音を交互に（裏拍で跳ねる）
+                    [0, 6, 12].forEach(function(s) { tracksData['drums'][b][s] = { note: 'KICK', duration: 0.15, velocity: 0.65 }; });
+                    [3, 9, 15].forEach(function(s) { tracksData['drums'][b][s] = { note: 'SNARE', duration: 0.1, velocity: 0.55 }; });
+                }
                 for (let s = 0; s < currentStepsPerBar; s += 2) {
                     tracksData['tambourine'][b][s] = { note: 'HH', duration: 0.1, velocity: 0.55 };
                 }
