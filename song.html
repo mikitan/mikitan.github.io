@@ -240,6 +240,7 @@
 </div>
 <p class="text-[9px] text-gray-500">歌詞はテキストファイル、音楽はJSONファイルで保存・読み込みできます。別の端末やバックアップ用にどうぞ。</p>
 <button onclick="loadChristmasSong()" class="w-full bg-gradient-to-r from-red-600 to-mvGreen text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🎄 クリスマス曲（歌詞＋メロディ）を読み込む</button>
+<button onclick="generateChristmasAI()" class="w-full bg-gradient-to-r from-mvPink via-mvAccent to-mvCyan text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🎄✨ クリスマスAI作曲（ジングルベル全自動）</button>
 <input type="file" id="lyricsFileInput" accept=".txt,text/plain" style="display:none" onchange="importLyricsFile(event)">
 <input type="file" id="musicFileInput" accept=".json,application/json" style="display:none" onchange="importMusicFile(event)">
 </div>
@@ -1390,7 +1391,7 @@ return audioCtx;
                 return;
             }
 
-            if (trackType === 'piano' && targetParam && targetParam.tone === 'marimba') {
+            if (trackType === 'piano' && toneOverride === 'marimba') {
                 // マリンバ：木の温かい音、短くポロンと消える
                 const mDur = 0.4;
                 const f1 = audioCtx.createOscillator(); f1.type = 'sine'; f1.frequency.setValueAtTime(freq, now);
@@ -1944,6 +1945,74 @@ function insertEmptyIntroBars(barsCount) {
             renderBarSelector();
             renderStepGrid();
             alert("🎄 クリスマス曲を読み込みました！BPM104・8小節です。再生して歌ってみてください。");
+        }
+
+        /* 🎄✨ クリスマスAI作曲：ジングルベルをラテン×アフリカ風に全自動アレンジ */
+        function generateChristmasAI() {
+            if (!confirm("クリスマスAI作曲をしますか？今の音楽データは置き換わります。")) return;
+            const nb = 16;
+            Object.keys(tracksData).forEach(function(trackKey) {
+                const arr = [];
+                for (let i = 0; i < nb; i++) arr.push(new Array(currentStepsPerBar).fill(null));
+                tracksData[trackKey] = arr;
+            });
+            totalBars = nb;
+            document.getElementById('totalBarsDisplay').innerText = totalBars;
+            document.getElementById('totalBarsLabel2').innerText = totalBars;
+            document.getElementById('totalBarsLabel3').innerText = totalBars;
+            document.querySelectorAll('.bars-btn').forEach(function(b) {
+                const active = parseInt(b.getAttribute('data-bars')) === totalBars;
+                b.className = active
+                    ? "bars-btn bg-mvCyan/20 border border-mvCyan text-mvCyan text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95"
+                    : "bars-btn bg-gray-900 border border-gray-700 text-gray-300 text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95";
+            });
+            activeBar = 1;
+            setBpm(104);
+            const melA = [
+                [['E4',0],['E4',1],['E4',2]],
+                [['E4',0],['E4',1],['E4',2]],
+                [['E4',0],['G4',1],['C4',2],['D4',3]],
+                [['E4',0]],
+                [['F4',0],['F4',1],['F4',2]],
+                [['F4',0],['E4',1],['E4',2],['E4',3]],
+                [['E4',0],['D4',1],['D4',2],['E4',3]],
+                [['D4',0],['G4',2]]
+            ];
+            const melB = [
+                [['E4',0],['E4',1],['E4',2]],
+                [['E4',0],['E4',1],['E4',2]],
+                [['E4',0],['G4',1],['C4',2],['D4',3]],
+                [['E4',0]],
+                [['F4',0],['F4',1],['F4',2]],
+                [['F4',0],['E4',1],['E4',2],['E4',3]],
+                [['G4',0],['G4',1],['F4',2],['D4',3]],
+                [['C4',0]]
+            ];
+            const melody = melA.concat(melB);
+            const roots = ['C3','C3','C3','C3','F3','C3','G3','C3','C3','C3','C3','C3','F3','C3','G3','C3'];
+            for (let b = 0; b < nb; b++) {
+                melody[b].forEach(function(n) {
+                    const step = Math.min(currentStepsPerBar - 1, Math.round(n[1] * 4.5));
+                    tracksData['piano'][b][step] = { note: n[0], duration: 0.45, velocity: 0.95, tone: 'marimba' };
+                });
+                [0, 1.5, 3].forEach(function(beat) {
+                    const step = Math.min(currentStepsPerBar - 1, Math.round(beat * 4.5));
+                    tracksData['bass'][b][step] = { note: roots[b], duration: 0.5, velocity: 1.0, tone: bassTone };
+                });
+                [0, 6, 12].forEach(function(s) { tracksData['drums'][b][s] = { note: 'KICK', duration: 0.15, velocity: 0.65 }; });
+                [3, 9, 15].forEach(function(s) { tracksData['drums'][b][s] = { note: 'SNARE', duration: 0.1, velocity: 0.55 }; });
+                for (let s = 0; s < currentStepsPerBar; s += 2) {
+                    tracksData['tambourine'][b][s] = { note: 'HH', duration: 0.1, velocity: 0.55 };
+                }
+            }
+            tracksData['bell'][7][0] = { note: 'C5', duration: 0.8, velocity: 0.9 };
+            tracksData['bell'][15][0] = { note: 'C5', duration: 0.8, velocity: 1.0 };
+            tracksData['gong'][15][0] = { note: 'C4', duration: 1.5, velocity: 0.9 };
+            document.getElementById('lyricsModalContent').innerText = XMAS_LYRICS;
+            document.getElementById('searchResultLyricsBox').value = XMAS_LYRICS;
+            renderBarSelector();
+            renderStepGrid();
+            alert("🎄✨ クリスマスAI作曲ができました！ジングルベル16小節・BPM104です。再生して歌ってみてください。");
         }
 
         function openModal(modalId) { document.getElementById(modalId).classList.remove('hidden'); }
