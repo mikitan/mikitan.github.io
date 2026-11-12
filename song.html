@@ -438,6 +438,28 @@
 </div>
 </div>
 
+<!-- 🎸 ベース手動録音パネル：ボタンを押すと今の音色で鳴って、そのままグリッドに記録される -->
+<div id="bassManualPanel" class="bg-mvCard border border-mvCyan/50 rounded-2xl p-3.5 shadow-xl space-y-2 hidden">
+<div class="flex items-center justify-between">
+<h3 class="text-xs font-bold text-white flex items-center space-x-2">
+<i class="fa-solid fa-guitar text-mvCyan"></i>
+<span>ベース手動録音（押すとグリッドに直接記録）</span>
+</h3>
+<span class="text-[10px] text-mvCyan font-mono">今の音色で録音</span>
+</div>
+<div class="grid grid-cols-8 gap-1 bg-gray-950 p-2 rounded-xl border border-gray-800">
+<button onclick="playBassManualNote('C3')" class="key-btn bg-gray-900 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center transition"><span class="text-[9px] text-gray-400">C3</span><span class="text-xs font-bold">ド</span></button>
+<button onclick="playBassManualNote('D3')" class="key-btn bg-gray-900 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center transition"><span class="text-[9px] text-gray-400">D3</span><span class="text-xs font-bold">レ</span></button>
+<button onclick="playBassManualNote('E3')" class="key-btn bg-gray-900 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center transition"><span class="text-[9px] text-gray-400">E3</span><span class="text-xs font-bold">ミ</span></button>
+<button onclick="playBassManualNote('F3')" class="key-btn bg-gray-900 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center transition"><span class="text-[9px] text-gray-400">F3</span><span class="text-xs font-bold">ファ</span></button>
+<button onclick="playBassManualNote('G3')" class="key-btn bg-gray-900 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center transition"><span class="text-[9px] text-gray-400">G3</span><span class="text-xs font-bold">ソ</span></button>
+<button onclick="playBassManualNote('A3')" class="key-btn bg-gray-900 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center transition"><span class="text-[9px] text-gray-400">A3</span><span class="text-xs font-bold">ラ</span></button>
+<button onclick="playBassManualNote('B3')" class="key-btn bg-gray-900 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center transition"><span class="text-[9px] text-gray-400">B3</span><span class="text-xs font-bold">シ</span></button>
+<button onclick="playBassManualNote('C4')" class="key-btn bg-gray-900 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center transition"><span class="text-[9px] text-gray-400">C4</span><span class="text-xs font-bold">ド↑</span></button>
+</div>
+<p class="text-[10px] text-gray-400">押した音は、今選んでいるベース音色で鳴って、そのままステップに記録されます。「小節再生」で聞き直せます。</p>
+</div>
+
 <!-- 🥁 リアル生ドラムパッド -->
 <div id="drum4PartsSelectorContainer" class="bg-mvCard border border-mvCyan/40 rounded-2xl p-3.5 shadow-xl space-y-2 hidden">
 <div class="flex items-center justify-between">
@@ -688,6 +710,7 @@ function generateBassMelody() {
             if (isPops) { bs[mid] = { note: root, duration: currentNoteDuration, velocity: 0.9 }; }
             else { bs[3] = { note: root, duration: currentNoteDuration, velocity: 0.9 }; bs[mid] = { note: root, duration: currentNoteDuration, velocity: 1.0 }; bs[steps - 2] = { note: root, duration: currentNoteDuration, velocity: 0.85 }; }
         }
+        bs.forEach(function(e){ if (e) e.tone = bassTone; });
         tracksData['bass'][b] = bs;
     }
     renderStepGrid();
@@ -1123,13 +1146,14 @@ return audioCtx;
             'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00, 'A4': 440.00, 'B4': 493.88, 'C5': 523.25
         };
 
-        function playSingleFreq(trackType, freq, duration, velocity) {
+        function playSingleFreq(trackType, freq, duration, velocity, toneOverride) {
             const now = audioCtx.currentTime;
             const targetOutputNode = trackGains[trackType] || masterGain;
 
             if (trackType === 'bass') {
+                const bt = toneOverride || bassTone;
                 if (bassCutOn) duration = Math.min(duration, 0.12);
-                if (bassTone === 'deep') {
+                if (bt === 'deep') {
                     // ドードー重低音：腹に響く太い低音。リミッターが守るので割れない
                     const dDur = duration * 1.2;
                     const dFilter = audioCtx.createBiquadFilter();
@@ -1154,7 +1178,7 @@ return audioCtx;
                     dSub.start(now); dSub.stop(now + dDur);
                     return;
                 }
-                if (bassTone === 'elec') {
+                if (bt === 'elec') {
                     // 電子低音：ピッチが沈むシンセの低音＋電子的なうなり。EDM系のドンという音
                     const eGain = audioCtx.createGain();
                     eGain.gain.setValueAtTime(velocity * 1.7, now);
@@ -1180,7 +1204,7 @@ return audioCtx;
                     eSub.start(now); eSub.stop(now + duration);
                     return;
                 }
-                if (bassTone === 'chopper') {
+                if (bt === 'chopper') {
                     // チョッパー（スラップ）： bright なアタック＋短く切れる音
                     const cDur = Math.min(duration, 0.22);
                     const cOsc = audioCtx.createOscillator();
@@ -1206,7 +1230,7 @@ return audioCtx;
                     click.start(now); click.stop(now + 0.03);
                     return;
                 }
-                if (bassTone === 'finger') {
+                if (bt === 'finger') {
                     // 指弾きベース：柔らかいサイン波＋短いプラック
                     const fOsc = audioCtx.createOscillator();
                     fOsc.type = 'sine';
@@ -1222,7 +1246,7 @@ return audioCtx;
                     fOsc.start(now); fOsc.stop(now + duration);
                     return;
                 }
-                if (bassTone === 'synth') {
+                if (bt === 'synth') {
                     // シンセベース：太い矩形波＋フィルターが閉じる音
                     const sOsc = audioCtx.createOscillator();
                     sOsc.type = 'square';
@@ -1294,15 +1318,29 @@ return audioCtx;
 
             if (chordDefinitions[note]) {
                 chordDefinitions[note].forEach(n => {
-                    playSingleFreq(trackType, notesFreqMap[n] || 261.63, duration, velocity);
+                    playSingleFreq(trackType, notesFreqMap[n] || 261.63, duration, velocity, expr.tone);
                 });
             } else {
-                playSingleFreq(trackType, notesFreqMap[note] || 261.63, duration, velocity);
+                playSingleFreq(trackType, notesFreqMap[note] || 261.63, duration, velocity, expr.tone);
             }
+        }
+
+        function playBassManualNote(noteName) {
+            const expr = { note: noteName, duration: currentNoteDuration, velocity: currentParams.velocity, style: 'single', tone: bassTone };
+            playSoundWithExpression('bass', expr);
+            tracksData['bass'][activeBar - 1][currentStepPointer] = expr;
+            renderStepGrid();
+            currentStepPointer++;
+            if (currentStepPointer >= currentStepsPerBar) {
+                currentStepPointer = 0;
+                if (activeBar < totalBars) { activeBar++; renderBarSelector(); renderStepGrid(); }
+            }
+            updatePointerDisplay();
         }
 
         function playKeyboardNote(noteName) {
             const expr = { note: noteName, duration: currentNoteDuration, velocity: currentParams.velocity, style: 'single' };
+            if (activeTrack === 'bass') expr.tone = bassTone;
             playSoundWithExpression(activeTrack, expr);
 
             if (isRecordMode) {
@@ -1369,6 +1407,8 @@ return audioCtx;
             const pianoKeyboard = document.getElementById('pianoKeyboardWrapper');
             const drumSelector = document.getElementById('drum4PartsSelectorContainer');
             const vocalRecorder = document.getElementById('vocalRecorderContainer');
+            const bassPanel = document.getElementById('bassManualPanel');
+            if (bassPanel) { if (trackName === 'bass') bassPanel.classList.remove('hidden'); else bassPanel.classList.add('hidden'); }
 
             if (trackName === 'drums' || trackName === 'tambourine') {
                 pianoKeyboard.classList.add('hidden');
@@ -1421,6 +1461,10 @@ return audioCtx;
                         displayLabel = m ? m.short : expr.note;
                     } else {
                         displayLabel = expr.note;
+                        if (activeTrack === 'bass' && expr.tone) {
+                            const ts = { electric: 'エ', finger: '指', synth: 'シ', deep: 'ド', chopper: 'チ', elec: '電' };
+                            if (ts[expr.tone]) displayLabel += '·' + ts[expr.tone];
+                        }
                     }
                 }
 
@@ -1541,6 +1585,7 @@ function insertEmptyIntroBars(barsCount) {
                     if (!bSteps[mid + 3]) bSteps[mid + 3] = { note: bNote, duration: 0.08, velocity: 0.65 };
                     if (!bSteps[steps - 4]) bSteps[steps - 4] = { note: bNote, duration: 0.08, velocity: 0.7 };
                 }
+                bSteps.forEach(function(e){ if (e) e.tone = bassTone; });
                 tracksData['bass'][b] = bSteps;
 
                 let dSteps = new Array(steps).fill(null);
