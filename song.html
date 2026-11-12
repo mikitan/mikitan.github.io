@@ -228,6 +228,20 @@
 <i class="fa-solid fa-trash-can"></i>
 <span>全音楽データ一括クリア</span>
 </button>
+
+<!-- 📂 インポート / エクスポート -->
+<div class="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-2">
+<div class="text-[11px] font-bold text-gray-300">📂 歌詞・音楽のインポート / エクスポート</div>
+<div class="grid grid-cols-2 gap-2">
+<button onclick="exportLyrics()" class="bg-gray-900 border border-mvPink/60 text-mvPink text-[11px] py-2 rounded-lg font-bold transition active:scale-95">歌詞エクスポート</button>
+<button onclick="document.getElementById('lyricsFileInput').click()" class="bg-gray-900 border border-gray-700 text-gray-200 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">歌詞インポート</button>
+<button onclick="exportMusic()" class="bg-gray-900 border border-mvCyan/60 text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95">音楽エクスポート</button>
+<button onclick="document.getElementById('musicFileInput').click()" class="bg-gray-900 border border-gray-700 text-gray-200 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">音楽インポート</button>
+</div>
+<p class="text-[9px] text-gray-500">歌詞はテキストファイル、音楽はJSONファイルで保存・読み込みできます。別の端末やバックアップ用にどうぞ。</p>
+<input type="file" id="lyricsFileInput" accept=".txt,text/plain" style="display:none" onchange="importLyricsFile(event)">
+<input type="file" id="musicFileInput" accept=".json,application/json" style="display:none" onchange="importMusicFile(event)">
+</div>
 </div>
 
 <!-- 🔍 AI歌詞検索・キーワード生成窓 -->
@@ -1678,6 +1692,92 @@ function insertEmptyIntroBars(barsCount) {
             document.getElementById('statusText').innerText = "停止中";
             document.getElementById('playIcon').className = "fa-solid fa-play";
             document.getElementById('playBtnText').innerText = "38小節再生";
+        }
+
+        /* 📂 歌詞・音楽 インポート / エクスポート */
+        function downloadFile(name, text, type) {
+            const blob = new Blob([text], { type: type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = name;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+        }
+        function exportLyrics() {
+            const modalText = (document.getElementById('lyricsModalContent').innerText || '').trim();
+            const boxText = (document.getElementById('searchResultLyricsBox').value || '').trim();
+            const text = modalText || boxText;
+            if (!text) { alert("歌詞がまだありません。"); return; }
+            downloadFile('micvictory-lyrics.txt', text, 'text/plain');
+            alert("🎵 歌詞をファイルに保存しました（ダウンロードに入ります）");
+        }
+        function importLyricsFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function() {
+                const text = String(reader.result || '');
+                document.getElementById('searchResultLyricsBox').value = text;
+                document.getElementById('lyricsModalContent').innerText = text;
+                alert("🎵 歌詞を読み込みました！");
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+        function exportMusic() {
+            const data = {
+                app: 'MICVICTORY BANDLAND', version: 1,
+                totalBars: totalBars, bpm: currentBpm, genre: currentGenre,
+                bassTone: bassTone, bassSubOn: bassSubOn, bassCutOn: bassCutOn,
+                noteDuration: currentNoteDuration, trackVolumes: trackVolumes,
+                tracksData: tracksData
+            };
+            downloadFile('micvictory-song.json', JSON.stringify(data), 'application/json');
+            alert("🎼 音楽データをファイルに保存しました（ダウンロードに入ります）");
+        }
+        function importMusicFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function() {
+                try {
+                    const data = JSON.parse(String(reader.result || ''));
+                    if (!data.tracksData) { alert("音楽データが見つかりませんでした。"); return; }
+                    const nb = Math.max(8, Math.min(64, parseInt(data.totalBars) || 38));
+                    Object.keys(tracksData).forEach(function(trackKey) {
+                        const srcTrack = data.tracksData[trackKey] || [];
+                        const arr = [];
+                        for (let i = 0; i < nb; i++) {
+                            const srcBar = (srcTrack[i] || []).slice(0, currentStepsPerBar);
+                            while (srcBar.length < currentStepsPerBar) srcBar.push(null);
+                            arr.push(srcBar);
+                        }
+                        tracksData[trackKey] = arr;
+                    });
+                    totalBars = nb;
+                    document.getElementById('totalBarsDisplay').innerText = totalBars;
+                    document.getElementById('totalBarsLabel2').innerText = totalBars;
+                    document.getElementById('totalBarsLabel3').innerText = totalBars;
+                    document.querySelectorAll('.bars-btn').forEach(function(b) {
+                        const active = parseInt(b.getAttribute('data-bars')) === totalBars;
+                        b.className = active
+                            ? "bars-btn bg-mvCyan/20 border border-mvCyan text-mvCyan text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95"
+                            : "bars-btn bg-gray-900 border border-gray-700 text-gray-300 text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95";
+                    });
+                    if (activeBar > totalBars) activeBar = totalBars;
+                    if (data.bpm) setBpm(data.bpm);
+                    if (data.genre) setGenre(data.genre);
+                    if (data.noteDuration) updateNoteDuration(data.noteDuration);
+                    if (data.bassTone) setBassTone(data.bassTone);
+                    renderBarSelector();
+                    renderStepGrid();
+                    alert("🎼 音楽データを読み込みました！");
+                } catch (e) {
+                    alert("読み込みに失敗しました。ファイルを確認してください。");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
         }
 
         function openModal(modalId) { document.getElementById(modalId).classList.remove('hidden'); }
