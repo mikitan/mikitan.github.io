@@ -333,8 +333,9 @@
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>ボーカル</span><strong id="vol-vocal" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('vocal', this.value)" class="w-full accent-mvPink"></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>ベース</span><strong id="vol-bass" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('bass', this.value)" class="w-full accent-mvCyan"></div>
 <div class="space-y-1 col-span-2"><button onclick="toggleBassSub()" id="bassSubBtn" class="w-full bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">ベース超重低音：OFF</button></div>
-<div class="space-y-1 col-span-2"><div class="flex justify-between text-gray-400"><span>ベース音色</span></div><div class="grid grid-cols-3 gap-1.5"><button onclick="setBassTone('electric')" id="bassToneBtn-electric" class="bg-mvCyan/25 border border-mvCyan text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95">エレキ</button><button onclick="setBassTone('finger')" id="bassToneBtn-finger" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">指弾き</button><button onclick="setBassTone('synth')" id="bassToneBtn-synth" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">シンセ</button><button onclick="setBassTone('deep')" id="bassToneBtn-deep" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">ドードー重低音</button><button onclick="setBassTone('chopper')" id="bassToneBtn-chopper" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">チョッパー</button></div></div>
+<div class="space-y-1 col-span-2"><div class="flex justify-between text-gray-400"><span>ベース音色</span></div><div class="grid grid-cols-3 gap-1.5"><button onclick="setBassTone('electric')" id="bassToneBtn-electric" class="bg-mvCyan/25 border border-mvCyan text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95">エレキ</button><button onclick="setBassTone('finger')" id="bassToneBtn-finger" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">指弾き</button><button onclick="setBassTone('synth')" id="bassToneBtn-synth" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">シンセ</button><button onclick="setBassTone('deep')" id="bassToneBtn-deep" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">ドードー重低音</button><button onclick="setBassTone('chopper')" id="bassToneBtn-chopper" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">チョッパー</button><button onclick="setBassTone('elec')" id="bassToneBtn-elec" class="bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">電子低音</button></div></div>
 <div class="space-y-1 col-span-2"><button onclick="toggleBassCut()" id="bassCutBtn" class="w-full bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">ベースカット（短く切る）：OFF</button></div>
+<div class="space-y-1 col-span-2"><button onclick="generateBassMelody()" class="w-full bg-gradient-to-r from-mvCyan to-mvAccent text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🎸 ベースメロディAI作成（全小節・今の音色で）</button></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>アコギ</span><strong id="vol-acoustic" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('acoustic', this.value)" class="w-full accent-mvGreen"></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>エレキ</span><strong id="vol-electric" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('electric', this.value)" class="w-full accent-mvYellow"></div>
 <div class="space-y-1"><div class="flex justify-between text-gray-400"><span>バイオリン</span><strong id="vol-violin" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('violin', this.value)" class="w-full accent-mvAccent"></div>
@@ -627,12 +628,70 @@ let bassTone = 'electric';
 
 function setBassTone(t) {
     bassTone = t;
-    ['electric','finger','synth','deep','chopper'].forEach(function(k){
+    saveBassSettings();
+    ['electric','finger','synth','deep','chopper','elec'].forEach(function(k){
         const b = document.getElementById('bassToneBtn-' + k);
         if (b) b.className = (k === t)
             ? "bg-mvCyan/25 border border-mvCyan text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95"
             : "bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95";
     });
+}
+
+/* 💾 ベース設定の記憶（音色・超重低音・カットを次回も覚える） */
+const BASS_SAVE_KEY = 'BANDLAND_BASS_V1';
+function saveBassSettings() {
+    try { localStorage.setItem(BASS_SAVE_KEY, JSON.stringify({ tone: bassTone, sub: bassSubOn, cut: (typeof bassCutOn !== 'undefined') ? bassCutOn : false })); } catch (e) {}
+}
+function loadBassSettings() {
+    try {
+        const s = JSON.parse(localStorage.getItem(BASS_SAVE_KEY) || 'null');
+        if (!s) return;
+        if (s.tone) setBassTone(s.tone);
+        bassSubOn = !!s.sub;
+        const sb = document.getElementById('bassSubBtn');
+        if (sb) { sb.innerText = bassSubOn ? 'ベース超重低音：ON' : 'ベース超重低音：OFF'; sb.className = bassSubOn ? "w-full bg-mvCyan/25 border border-mvCyan text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95" : "w-full bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95"; }
+        if (typeof bassCutOn !== 'undefined') {
+            bassCutOn = !!s.cut;
+            const cb = document.getElementById('bassCutBtn');
+            if (cb) { cb.innerText = bassCutOn ? 'ベースカット（短く切る）：ON' : 'ベースカット（短く切る）：OFF'; cb.className = bassCutOn ? "w-full bg-mvCyan/25 border border-mvCyan text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95" : "w-full bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95"; }
+        }
+    } catch (e) {}
+}
+
+/* 🎸 ベースメロディAI作成：ジャンルのコード進行に沿って、今の音色らしいベースラインを全小節に作る */
+function generateBassMelody() {
+    getAudioContext();
+    const isPops = currentGenre === 'pops';
+    const roots = isPops ? ['C3', 'G3', 'A3', 'F3'] : ['A3', 'A3', 'F3', 'G3', 'A3', 'A3', 'D3', 'E3'];
+    const steps = currentStepsPerBar;
+    const mid = Math.floor(steps / 2);
+    for (let b = 0; b < totalBars; b++) {
+        const root = roots[b % roots.length];
+        let bs = new Array(steps).fill(null);
+        if (bassTone === 'chopper') {
+            bs[0] = { note: root, duration: 0.1, velocity: 1.0 };
+            bs[3] = { note: root, duration: 0.08, velocity: 0.8 };
+            bs[6] = { note: root, duration: 0.08, velocity: 0.7 };
+            bs[mid] = { note: root, duration: 0.1, velocity: 1.0 };
+            bs[mid + 3] = { note: root, duration: 0.08, velocity: 0.7 };
+            bs[steps - 2] = { note: root, duration: 0.08, velocity: 0.85 };
+        } else if (bassTone === 'deep' || bassTone === 'elec') {
+            bs[0] = { note: root, duration: 0.9, velocity: 1.0 };
+            bs[mid] = { note: root, duration: 0.7, velocity: 0.95 };
+        } else if (bassTone === 'finger') {
+            bs[0] = { note: root, duration: currentNoteDuration, velocity: 1.0 };
+            bs[4] = { note: root, duration: currentNoteDuration, velocity: 0.8 };
+            bs[mid] = { note: root, duration: currentNoteDuration, velocity: 0.95 };
+            bs[steps - 3] = { note: root, duration: currentNoteDuration, velocity: 0.8 };
+        } else {
+            bs[0] = { note: root, duration: currentNoteDuration, velocity: 1.0 };
+            if (isPops) { bs[mid] = { note: root, duration: currentNoteDuration, velocity: 0.9 }; }
+            else { bs[3] = { note: root, duration: currentNoteDuration, velocity: 0.9 }; bs[mid] = { note: root, duration: currentNoteDuration, velocity: 1.0 }; bs[steps - 2] = { note: root, duration: currentNoteDuration, velocity: 0.85 }; }
+        }
+        tracksData['bass'][b] = bs;
+    }
+    renderStepGrid();
+    alert("🎸 ベースメロディを作りました！（音色：" + bassTone + "）");
 }
 
 let totalBars = 38;
@@ -692,6 +751,7 @@ trumpet: 'トランペット', drums: 'ドラム', tambourine: 'タンバリン'
 };
 
 function initApp() {
+loadBassSettings();
 renderBarSelector();
 renderStepGrid();
 updatePointerDisplay();
@@ -817,6 +877,7 @@ function setGenre(g) {
 let bassCutOn = false;
 function toggleBassCut() {
     bassCutOn = !bassCutOn;
+    saveBassSettings();
     const btn = document.getElementById('bassCutBtn');
     btn.innerText = bassCutOn ? 'ベースカット（短く切る）：ON' : 'ベースカット（短く切る）：OFF';
     btn.className = bassCutOn
@@ -827,6 +888,7 @@ function toggleBassCut() {
 /* 🔊 ベース超重低音 ON/OFF 切り替え */
 function toggleBassSub() {
     bassSubOn = !bassSubOn;
+    saveBassSettings();
     const btn = document.getElementById('bassSubBtn');
     btn.innerText = bassSubOn ? 'ベース超重低音：ON' : 'ベース超重低音：OFF';
     btn.className = bassSubOn
