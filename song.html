@@ -1092,6 +1092,32 @@ return audioCtx;
                     dSub.start(now); dSub.stop(now + dDur);
                     return;
                 }
+                if (bassTone === 'elec') {
+                    // 電子低音：ピッチが沈むシンセの低音＋電子的なうなり。EDM系のドンという音
+                    const eGain = audioCtx.createGain();
+                    eGain.gain.setValueAtTime(velocity * 1.7, now);
+                    eGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    const eFilter = audioCtx.createBiquadFilter();
+                    eFilter.type = 'lowpass';
+                    eFilter.frequency.setValueAtTime(900, now);
+                    eFilter.frequency.exponentialRampToValueAtTime(180, now + duration);
+                    eFilter.connect(eGain); eGain.connect(targetOutputNode);
+                    const eMain = audioCtx.createOscillator();
+                    eMain.type = 'sine';
+                    eMain.frequency.setValueAtTime(freq, now);
+                    eMain.frequency.exponentialRampToValueAtTime(freq / 2, now + 0.09);
+                    eMain.connect(eFilter);
+                    eMain.start(now); eMain.stop(now + duration);
+                    const eSub = audioCtx.createOscillator();
+                    eSub.type = 'triangle';
+                    eSub.frequency.setValueAtTime(freq / 2, now);
+                    const eSubGain = audioCtx.createGain();
+                    eSubGain.gain.setValueAtTime(velocity * 0.8, now);
+                    eSubGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    eSub.connect(eSubGain); eSubGain.connect(eFilter);
+                    eSub.start(now); eSub.stop(now + duration);
+                    return;
+                }
                 if (bassTone === 'chopper') {
                     // チョッパー（スラップ）： bright なアタック＋短く切れる音
                     const cDur = Math.min(duration, 0.22);
