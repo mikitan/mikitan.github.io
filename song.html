@@ -364,6 +364,7 @@
 <div class="space-y-1 col-span-2"><div class="flex justify-between text-gray-400"><span>シンセ</span><strong id="vol-synth" class="text-white">0.9</strong></div><input type="range" min="0" max="2" step="0.1" value="0.9" oninput="changeTrackVolume('synth', this.value)" class="w-full accent-mvCyan"></div>
 <div class="space-y-1 col-span-2"><div class="flex justify-between text-gray-400"><span>エレクトーン</span><strong id="vol-electone" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('electone', this.value)" class="w-full accent-mvGreen"></div>
 <div class="space-y-1 col-span-2"><div class="flex justify-between text-gray-400"><span>トロンボーン</span><strong id="vol-trombone" class="text-white">1.1</strong></div><input type="range" min="0" max="2" step="0.1" value="1.1" oninput="changeTrackVolume('trombone', this.value)" class="w-full accent-red-400"></div>
+<div class="space-y-1 col-span-2"><div class="flex justify-between text-gray-400"><span>チューバ</span><strong id="vol-tuba" class="text-white">1.2</strong></div><input type="range" min="0" max="2" step="0.1" value="1.2" oninput="changeTrackVolume('tuba', this.value)" class="w-full accent-yellow-600"></div>
 </div>
 </div>
 
@@ -388,6 +389,7 @@
 <button onclick="switchTrack('synth')" id="track-synth" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-wave-square text-mvCyan"></i><span>シンセ</span></button>
 <button onclick="switchTrack('electone')" id="track-electone" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-keyboard text-mvGreen"></i><span>エレクトーン</span></button>
 <button onclick="switchTrack('trombone')" id="track-trombone" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-music text-red-400"></i><span>トロンボーン</span></button>
+<button onclick="switchTrack('tuba')" id="track-tuba" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-music text-yellow-600"></i><span>チューバ</span></button>
 </div>
 </div>
 
@@ -676,7 +678,7 @@ let vocalAudioBlob = null;
 let trackGains = {};
 let trackVolumes = {
 piano: 1.0, vocal: 1.0, bass: 1.0, acoustic: 1.0,
-electric: 1.0, violin: 1.0, trumpet: 1.2, drums: 1.5, tambourine: 0.9, bell: 1.0, gong: 1.0, synth: 0.9, electone: 1.0, trombone: 1.1
+electric: 1.0, violin: 1.0, trumpet: 1.2, drums: 1.5, tambourine: 0.9, bell: 1.0, gong: 1.0, synth: 0.9, electone: 1.0, trombone: 1.1, tuba: 1.2
 };
 
 let fxState = { reverb: false, delay: false, lowpass: false, highpass: false};
@@ -810,13 +812,14 @@ bell: createTrackExpression(18),
 gong: createTrackExpression(18),
 synth: createTrackExpression(18),
 electone: createTrackExpression(18),
-trombone: createTrackExpression(18)
+trombone: createTrackExpression(18),
+tuba: createTrackExpression(18)
 };
 
 const trackNamesMap = {
 piano: 'ピアノ', vocal: 'ボーカル', bass: 'ベース',
 acoustic: 'アコギ', electric: 'エレキ', violin: 'バイオリン',
-trumpet: 'トランペット', drums: 'ドラム', tambourine: 'タンバリン', bell: '鐘', gong: 'ドラ', synth: 'シンセ', electone: 'エレクトーン', trombone: 'トロンボーン'
+trumpet: 'トランペット', drums: 'ドラム', tambourine: 'タンバリン', bell: '鐘', gong: 'ドラ', synth: 'シンセ', electone: 'エレクトーン', trombone: 'トロンボーン', tuba: 'チューバ'
 };
 
 function initApp() {
@@ -1233,6 +1236,34 @@ return audioCtx;
             const now = audioCtx.currentTime;
             const targetOutputNode = trackGains[trackType] || masterGain;
 
+            if (trackType === 'tuba') {
+                // チューバ：最低音の金管。丸く太く、土台を支える音
+                const uDur = Math.max(duration, 0.4);
+                const uFilter = audioCtx.createBiquadFilter();
+                uFilter.type = 'lowpass';
+                uFilter.frequency.setValueAtTime(900, now);
+                uFilter.frequency.exponentialRampToValueAtTime(500, now + uDur);
+                const uGain = audioCtx.createGain();
+                uGain.gain.setValueAtTime(0.0001, now);
+                uGain.gain.exponentialRampToValueAtTime(Math.max(velocity * 0.65, 0.0011), now + 0.09);
+                uGain.gain.setValueAtTime(Math.max(velocity * 0.65, 0.0011), now + Math.max(0.1, uDur - 0.1));
+                uGain.gain.exponentialRampToValueAtTime(0.001, now + uDur);
+                uFilter.connect(uGain); uGain.connect(targetOutputNode);
+                const uOsc = audioCtx.createOscillator();
+                uOsc.type = 'triangle'; uOsc.frequency.value = freq;
+                uOsc.connect(uFilter); uOsc.start(now); uOsc.stop(now + uDur);
+                const uSub = audioCtx.createOscillator();
+                uSub.type = 'sine'; uSub.frequency.value = freq;
+                const uSubGain = audioCtx.createGain(); uSubGain.gain.value = 0.5;
+                uSub.connect(uSubGain); uSubGain.connect(uFilter);
+                uSub.start(now); uSub.stop(now + uDur);
+                const uSaw = audioCtx.createOscillator();
+                uSaw.type = 'sawtooth'; uSaw.frequency.value = freq * 2;
+                const uSawGain = audioCtx.createGain(); uSawGain.gain.value = 0.12;
+                uSaw.connect(uSawGain); uSawGain.connect(uFilter);
+                uSaw.start(now); uSaw.stop(now + uDur);
+                return;
+            }
             if (trackType === 'trombone') {
                 // トロンボーン：温かい金管。ゆっくり立ち上がり、後半に小さなビブラート
                 const tDur = Math.max(duration, 0.35);
