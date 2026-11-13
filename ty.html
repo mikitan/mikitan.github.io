@@ -36,7 +36,7 @@
 <div class="card">
   <label class="bigbtn btn-photo" style="text-align:center;">
     📷 ① 新聞の写真を撮る／選ぶ
-    <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+    <input type="file" id="photoInput" accept="image/*" multiple style="display:none">
   </label>
   <div id="status">写真を選んでください</div>
   <progress id="prog" value="0" max="100" style="display:none"></progress>
@@ -48,10 +48,17 @@
   <textarea id="textArea" placeholder="ここに文章が出ます。自分で打ってもOKです"></textarea>
   <div id="savebar">保存：まだ</div>
   <div>
+    <button class="smallbtn" id="btnSummary">✂️ まとめ（短くする）</button>
     <button class="smallbtn" id="btnSaveHist">💾 履歴に保存</button>
     <button class="smallbtn" id="btnExport">📤 書き出し</button>
     <button class="smallbtn" id="btnRestore">↩ 前の保存に戻す</button>
   </div>
+</div>
+
+<div class="card" id="summaryCard" style="display:none">
+  <div style="font-size:14px; margin-bottom:6px;">✂️ まとめ（短い版）</div>
+  <textarea id="summaryArea" style="min-height:120px" placeholder="まとめがここに出ます"></textarea>
+  <button class="bigbtn btn-play" id="btnPlaySummary">🔊 このまとめを読む</button>
 </div>
 
 <div class="card">
@@ -141,32 +148,48 @@ function loadAll(done) {
 /* ---------- OCR ---------- */
 var statusEl = document.getElementById("status");
 document.getElementById("photoInput").addEventListener("change", function(e) {
-  var file = e.target.files[0];
-  if (!file) return;
+  var files = Array.prototype.slice.call(e.target.files || []);
+  if (!files.length) return;
   var img = document.getElementById("preview");
-  img.src = URL.createObjectURL(file);
+  img.src = URL.createObjectURL(files[0]);
   img.style.display = "block";
   var prog = document.getElementById("prog");
   prog.style.display = "block"; prog.value = 0;
-  statusEl.textContent = "読み取り中…少し待ってください";
-  Tesseract.recognize(file, "jpn", {
-    logger: function(m) {
-      if (m.status === "recognizing text") {
-        prog.value = Math.round(m.progress * 100);
-        statusEl.textContent = "読み取り中… " + Math.round(m.progress * 100) + "%";
-      }
+  var allText = document.getElementById("textArea").value.trim();
+  var pageNo = state.items.length ? 0 : 0;
+  var doneCount = 0;
+  statusEl.textContent = "読み取り中… 1/" + files.length + "枚目";
+  function next(i) {
+    if (i >= files.length) {
+      prog.style.display = "none";
+      document.getElementById("textArea").value = allText;
+      state.lastText = allText;
+      saveAll();
+      statusEl.textContent = "読み取り完了（" + files.length + "枚・" + allText.length + "文字）。下の「読む」を押してください";
+      return;
     }
-  }).then(function(result) {
-    prog.style.display = "none";
-    var text = (result.data.text || "").replace(/[ \t]+/g, " ").trim();
-    document.getElementById("textArea").value = text;
-    state.lastText = text;
-    saveAll();
-    statusEl.textContent = "読み取り完了（" + text.length + "文字）。下の「読む」を押してください";
-  }).catch(function(err) {
-    prog.style.display = "none";
-    statusEl.textContent = "読み取れませんでした。明るい場所で、まっすぐ撮り直してください";
-  });
+    Tesseract.recognize(files[i], "jpn", {
+      logger: function(m) {
+        if (m.status === "recognizing text") {
+          var pct = Math.round(((i + m.progress) / files.length) * 100);
+          prog.value = pct;
+          statusEl.textContent = "読み取り中… " + (i + 1) + "/" + files.length + "枚目 " + Math.round(m.progress * 100) + "%";
+        }
+      }
+    }).then(function(result) {
+      var text = (result.data.text || "").replace(/[ \t]+/g, " ").trim();
+      if (text) {
+        if (allText) allText += "\n";
+        allText += text;
+      }
+      doneCount++;
+      next(i + 1);
+    }).catch(function() {
+      doneCount++;
+      next(i + 1);
+    });
+  }
+  next(0);
 });
 document.getElementById("textArea").addEventListener("input", function() {
   state.lastText = this.value;
@@ -249,6 +272,36 @@ function renderHist() {
     el.appendChild(div);
   });
 }
+function summarizeText(text) {
+  var sentences = text.replace(/\n+/g, "。").split(/(?<=。|！|？)/).map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 4; });
+  if (sentences.length <= 3) return text;
+  var scored = sentences.map(function(s, i) {
+    var score = 0;
+    if (i === 0) score += 3;
+    if (/[0-9０-９]/.test(s)) score += 2;
+    if (/は、|は「|すると|のため|方針|発表|決定|見通し/.test(s)) score += 1;
+    if (s.length >= 15 && s.length <= 60) score += 1;
+    return { s: s, i: i, score: score };
+  });
+  var keepCount = Math.max(3, Math.ceil(sentences.length / 3));
+  var top = scored.slice().sort(function(a, b){ return b.score - a.score; }).slice(0, keepCount);
+  top.sort(function(a, b){ return a.i - b.i; });
+  return top.map(function(t){ return t.s; }).join("");
+}
+document.getElementById("btnSummary").addEventListener("click", function() {
+  var text = document.getElementById("textArea").value.trim();
+  if (!text) { statusEl.textContent = "先に文章を入れてください"; return; }
+  var sum = summarizeText(text);
+  document.getElementById("summaryArea").value = sum;
+  document.getElementById("summaryCard").style.display = "block";
+  statusEl.textContent = "まとめました（" + text.length + "文字 → " + sum.length + "文字）";
+});
+document.getElementById("btnPlaySummary").addEventListener("click", function() {
+  document.getElementById("textArea").value = document.getElementById("summaryArea").value;
+  state.lastText = document.getElementById("textArea").value;
+  saveAll();
+  document.getElementById("btnPlay").click();
+});
 document.getElementById("btnSaveHist").addEventListener("click", function() {
   var text = document.getElementById("textArea").value.trim();
   if (!text) return;
