@@ -241,9 +241,7 @@
 <button onclick="document.getElementById('musicFileInput').click()" class="bg-gray-900 border border-gray-700 text-gray-200 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">音楽インポート</button>
 </div>
 <p class="text-[9px] text-gray-500">歌詞はテキストファイル、音楽はJSONファイルで保存・読み込みできます。別の端末やバックアップ用にどうぞ。</p>
-<button onclick="loadChristmasSong()" class="w-full bg-gradient-to-r from-red-600 to-mvGreen text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🎄 クリスマス曲（歌詞＋メロディ）を読み込む</button>
 <button onclick="loadUploadedRhythm()" class="w-full bg-gradient-to-r from-mvCyan to-mvAccent text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🥁 アップした音源のリズムを読み込む</button>
-<button onclick="loadPoppingFoundation()" class="w-full bg-gradient-to-r from-mvPink to-mvCyan text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🕺 Popping Dance土台（かっこいい・効果音・Dance AI）を読み込む</button>
 <input type="file" id="lyricsFileInput" accept=".txt,text/plain" style="display:none" onchange="importLyricsFile(event)">
 <input type="file" id="musicFileInput" accept=".json,application/json" style="display:none" onchange="importMusicFile(event)">
 </div>
@@ -1966,70 +1964,7 @@ function insertEmptyIntroBars(barsCount) {
             event.target.value = '';
         }
 
-        /* 🎄 クリスマス曲（ラテン×アフリカ風）歌詞＋メロディを一括で流し込む */
-        const XMAS_LYRICS = "【サビ】\n雪のない街にも　鐘の音は響く\n涙の数だけ　強くなれたから\n聖なるこの夜に　歌おう希望の歌\n逆境を富に変える　それがVictory\n\n【Aメロ】\n遠い国のリズムが　心を揺らす夜\n赤い実の木の下で　手を取って踊ろう\n寒い夜も笑顔で　乗り越えてきた\nあの日の涙さえ　今は宝物\n\n【最後にサビをもう一度】";
-        function loadChristmasSong() {
-            if (!confirm("クリスマス曲（歌詞＋メロディ）を読み込みますか？今の音楽データは置き換わります。")) return;
-            const nb = 8;
-            Object.keys(tracksData).forEach(function(trackKey) {
-                const arr = [];
-                for (let i = 0; i < nb; i++) arr.push(new Array(currentStepsPerBar).fill(null));
-                tracksData[trackKey] = arr;
-            });
-            totalBars = nb;
-            document.getElementById('totalBarsDisplay').innerText = totalBars;
-            document.getElementById('totalBarsLabel2').innerText = totalBars;
-            document.getElementById('totalBarsLabel3').innerText = totalBars;
-            document.querySelectorAll('.bars-btn').forEach(function(b) {
-                const active = parseInt(b.getAttribute('data-bars')) === totalBars;
-                b.className = active
-                    ? "bars-btn bg-mvCyan/20 border border-mvCyan text-mvCyan text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95"
-                    : "bars-btn bg-gray-900 border border-gray-700 text-gray-300 text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95";
-            });
-            if (activeBar > totalBars) activeBar = 1;
-            setBpm(84);
-            const melody = [
-                [['A4',0],['C5',1],['E5',1.5],['D5',3],['E5',3.5]],
-                [['C5',0],['A4',2],['G4',2.5],['A4',3]],
-                [['F4',0],['E4',1],['F4',1.5],['G4',2],['E4',3]],
-                [['A4',0],['G4',2],['E4',2.5],['D4',3]],
-                [['A4',0],['C5',1],['E5',1.5],['G5',3],['E5',3.5]],
-                [['F4',0],['E4',0.5],['D4',1],['C4',1.5],['D4',2]],
-                [['E4',0],['D4',1],['E4',1.5],['G4',2],['A4',2.5],['G4',3.5]],
-                [['A4',0]]
-            ];
-            const roots = ['A3','F3','G3','A3','A3','F3','G3','A3'];
-            for (let b = 0; b < nb; b++) {
-                melody[b].forEach(function(n) {
-                    const step = Math.min(currentStepsPerBar - 1, Math.round(n[1] * 4.5));
-                    tracksData['piano'][b][step] = { note: n[0], duration: 0.45, velocity: 0.9, tone: 'marimba' };
-                });
-                [0, 1.5, 3].forEach(function(beat) {
-                    const step = Math.min(currentStepsPerBar - 1, Math.round(beat * 4.5));
-                    tracksData['bass'][b][step] = { note: roots[b], duration: 0.5, velocity: 1.0, tone: bassTone };
-                });
-                if (b === nb - 1) {
-                    tracksData['drums'][b][0] = { note: 'BELL', duration: 1.2, velocity: 1.0 };
-                } else {
-                    // コンガ風：低い音と高い音を交互に（裏拍で跳ねる）
-                    [0, 6, 12].forEach(function(s) { tracksData['drums'][b][s] = { note: 'KICK', duration: 0.15, velocity: 0.65 }; });
-                    [3, 9, 15].forEach(function(s) { tracksData['drums'][b][s] = { note: 'SNARE', duration: 0.1, velocity: 0.55 }; });
-                }
-                for (let s = 0; s < currentStepsPerBar; s += 2) {
-                    tracksData['tambourine'][b][s] = { note: 'HH', duration: 0.1, velocity: 0.55 };
-                }
-            }
-            tracksData['bell'][0][0] = { note: 'E5', duration: 0.8, velocity: 0.9 };
-            tracksData['bell'][nb - 1][0] = { note: 'E5', duration: 0.8, velocity: 1.0 };
-            tracksData['bell'][nb - 1][9] = { note: 'C5', duration: 0.8, velocity: 0.8 };
-            document.getElementById('lyricsModalContent').innerText = XMAS_LYRICS;
-            document.getElementById('searchResultLyricsBox').value = XMAS_LYRICS;
-            renderBarSelector();
-            renderStepGrid();
-            alert("🎄 クリスマス曲を読み込みました！BPM84・8小節、ゆっくり感動的に歌ってみてください。");
-        }
-
-/* 💾 録音ライブラリ：IndexedDBに永久保存（削除するまで残る） */
+        /* 💾 録音ライブラリ：IndexedDBに永久保存（削除するまで残る） */
 const REC_DB_NAME = 'BANDLAND_REC_DB';
 function recDbOpen() {
     return new Promise(function(res, rej) {
@@ -2124,67 +2059,6 @@ async function deleteLibraryRec(id) {
     tx.oncomplete = function() { refreshRecLibrary(); };
 }
 window.addEventListener('load', function() { setTimeout(refreshRecLibrary, 400); });
-
-function loadPoppingFoundation() {
-    if (!confirm('Popping Dance土台を読み込みます。今の楽曲データは置き換わります。よろしいですか？')) return;
-    const nb = 8;
-    Object.keys(tracksData).forEach(function(trackKey) {
-        const arr = [];
-        for (let i = 0; i < nb; i++) arr.push(new Array(currentStepsPerBar).fill(null));
-        tracksData[trackKey] = arr;
-    });
-    totalBars = nb;
-    document.getElementById('totalBarsDisplay').innerText = totalBars;
-    document.getElementById('totalBarsLabel2').innerText = totalBars;
-    document.getElementById('totalBarsLabel3').innerText = totalBars;
-    document.querySelectorAll('.bars-btn').forEach(function(b) {
-        const active = parseInt(b.getAttribute('data-bars')) === totalBars;
-        b.className = active
-            ? "bars-btn bg-mvCyan/20 border border-mvCyan text-mvCyan text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95"
-            : "bars-btn bg-gray-900 border border-gray-700 text-gray-300 text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95";
-    });
-    activeBar = 1;
-    setBpm(116);
-    if (typeof setGenre === 'function') setGenre('popping');
-    const riffA = [[0,'A4'],[2,'C5'],[4,'E5'],[7,'D5'],[9,'E5'],[11,'C5'],[13,'A4'],[16,'G4']];
-    const riffB = [[0,'A4'],[2,'E5'],[4,'A5'],[7,'G5'],[9,'E5'],[11,'D5'],[13,'C5'],[16,'E5']];
-    for (let b = 0; b < nb; b++) {
-        const K = function(s, v) { tracksData.drums[b][s] = { note: 'KICK', duration: 0.2, velocity: v }; };
-        const S = function(s, v) { tracksData.drums[b][s] = { note: 'SNARE', duration: 0.15, velocity: v }; };
-        const B = function(s, n) { tracksData.bass[b][s] = { note: n, duration: 0.15, velocity: 1.0, tone: 'chopper' }; };
-        if (b === 3 || b === 7) {
-            // ダイナストップ：全員でヒット→無音→後半で戻る
-            tracksData.drums[b][0] = { note: 'CRASH', duration: 0.4, velocity: 1.0 };
-            B(0, 'A2');
-            tracksData.synth[b][0] = { note: 'A4', duration: 0.3, velocity: 1.0 };
-            tracksData.electric[b][0] = { note: 'A3', duration: 0.25, velocity: 0.9 };
-            tracksData.gong[b][0] = { note: 'C4', duration: 0.8, velocity: 0.85 };
-            tracksData.bell[b][11] = { note: 'E5', duration: 0.5, velocity: 0.7 };
-            K(9, 0.9); B(11, 'A2'); S(13, 1.0);
-            tracksData.synth[b][13] = { note: 'E5', duration: 0.25, velocity: 0.9 };
-            K(16, 0.9); B(16, 'A3');
-            if (b === 7) { S(14, 0.7); S(15, 0.85); }
-            continue;
-        }
-        K(0, 1.0); K(6, 0.9); K(11, 0.85);
-        S(4, 0.95); S(13, 1.0);
-        if (b % 2 === 1) { S(16, 0.55); K(14, 0.7); tracksData.synth[b][17] = { note: 'A5', duration: 0.12, velocity: 0.65 }; }
-        if (b === 0 || b === 4) tracksData.bell[b][0] = { note: 'A5', duration: 0.5, velocity: 0.55 };
-        if (b === 2 || b === 6) { tracksData.electone[b][0] = { note: 'A3', duration: 0.5, velocity: 0.5 }; tracksData.electone[b][9] = { note: 'C4', duration: 0.5, velocity: 0.45 }; }
-        for (let s = 0; s < currentStepsPerBar; s += 2) tracksData.tambourine[b][s] = { note: 'HH', duration: 0.08, velocity: (s % 4 === 0) ? 0.6 : 0.45 };
-        [[0,'A2'],[3,'A3'],[6,'A2'],[9,'A2'],[11,'A3'],[13,'A2'],[16,'E3']].forEach(function(p) { B(p[0], p[1]); });
-        (b % 2 === 0 ? riffA : riffB).forEach(function(p) { tracksData.synth[b][p[0]] = { note: p[1], duration: 0.22, velocity: 0.9 }; });
-        const padRoots = ['A3', 'A3', 'F3', 'G3', 'A3', 'A3', 'F3', 'G3'];
-        const padHarm = { 'A3': 'E4', 'F3': 'C4', 'G3': 'D4' };
-        tracksData.piano[b][0] = { note: padRoots[b], duration: 1.4, velocity: 0.5 };
-        if (b !== 2 && b !== 6) tracksData.electone[b][9] = { note: padHarm[padRoots[b]], duration: 1.0, velocity: 0.4 };
-        tracksData.electric[b][4] = { note: 'A3', duration: 0.18, velocity: 0.6 };
-        tracksData.electric[b][13] = { note: 'A3', duration: 0.18, velocity: 0.6 };
-        if (b === 0) tracksData.drums[b][0] = { note: 'CRASH', duration: 0.4, velocity: 0.85 };
-    }
-    renderBarSelector(); renderStepGrid();
-    alert('🕺 Popping Dance土台を読み込みました（8小節・BPM116）。踊れるビートの下に、感動のピアノコードが流れます。');
-}
 
         function loadUploadedRhythm() {
             if (!confirm("アップした音源のリズムを読み込みますか？今の音楽データは置き換わります。")) return;
