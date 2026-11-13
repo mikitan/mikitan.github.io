@@ -245,6 +245,7 @@
 <button onclick="generateChristmasAI()" class="w-full bg-gradient-to-r from-mvPink via-mvAccent to-mvCyan text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🎄✨ クリスマスAI作曲（ジングルベル全自動）</button>
 <button onclick="loadUploadedRhythm()" class="w-full bg-gradient-to-r from-mvCyan to-mvAccent text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🥁 アップした音源のリズムを読み込む</button>
 <button onclick="loadShoutBeat()" class="w-full bg-gradient-to-r from-red-500 to-mvAccent text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🎤 アップした曲風（ラップ／シャウト土台）を読み込む</button>
+<button onclick="loadPoppingFoundation()" class="w-full bg-gradient-to-r from-mvPink to-mvCyan text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🕺 Popping Dance土台（キレ・ヒット・シンセ電子）を読み込む</button>
 <input type="file" id="lyricsFileInput" accept=".txt,text/plain" style="display:none" onchange="importLyricsFile(event)">
 <input type="file" id="musicFileInput" accept=".json,application/json" style="display:none" onchange="importMusicFile(event)">
 </div>
@@ -2136,28 +2137,80 @@ function loadShoutBeat() {
         tracksData[t] = [];
         for (let b = 0; b < totalBars; b++) tracksData[t].push(new Array(currentStepsPerBar).fill(null));
     });
+    tracksData.drums = [];
+    tracksData.tambourine = [];
+    for (let b = 0; b < totalBars; b++) { tracksData.drums.push(new Array(currentStepsPerBar).fill(null)); tracksData.tambourine.push(new Array(currentStepsPerBar).fill(null)); }
     for (let b = 0; b < totalBars; b++) {
-        const d = [];
-        for (let s = 0; s < currentStepsPerBar; s++) d.push({ kick: false, snare: false, hihat: false, crash: false, velocity: 1.0 });
-        const K = function(s, v) { d[s].kick = true; d[s].velocity = v; };
-        const S = function(s, v) { d[s].snare = true; d[s].velocity = v; };
-        const H = function(s, v) { d[s].hihat = true; d[s].velocity = v; };
-        K(0, 1.0); K(6, 0.9); K(13, 0.95);
-        S(9, 1.0);
-        for (let s = 0; s < currentStepsPerBar; s += 2) H(s, 0.5);
+        const K = function(s, v) { tracksData.drums[b][s] = { note: 'KICK', duration: 0.2, velocity: v }; };
+        const S = function(s, v) { tracksData.drums[b][s] = { note: 'SNARE', duration: 0.15, velocity: v }; };
+        K(0, 1.0); K(6, 0.9); K(11, 0.85);
+        S(4, 0.95); S(13, 1.0);
+        for (let s = 0; s < currentStepsPerBar; s += 2) tracksData.tambourine[b][s] = { note: 'HH', duration: 0.08, velocity: 0.5 };
         if (b % 2 === 1) K(16, 0.85);
-        if (b === 0) d[0].crash = true;
+        if (b === 0) tracksData.drums[b][0] = { note: 'CRASH', duration: 0.4, velocity: 0.9 };
         if (b === totalBars - 1) { S(16, 0.7); S(17, 0.8); }
-        tracksData.drums[b] = d;
         const bassLine = [[0, 'A2'], [3, 'A2'], [6, 'A2'], [9, 'C3'], [11, 'D3'], [13, 'A2'], [16, 'E3']];
-        bassLine.forEach(function(pair) { tracksData.bass[b][pair[0]] = { note: pair[1], velocity: 1.0, tone: 'chopper' }; });
-        tracksData.electric[b][0] = { note: 'A3', velocity: 0.7 };
-        tracksData.electric[b][9] = { note: 'A3', velocity: 0.7 };
-        tracksData.electric[b][13] = { note: 'C4', velocity: 0.65 };
-        tracksData.electric[b][16] = { note: 'D4', velocity: 0.65 };
+        bassLine.forEach(function(pair) { tracksData.bass[b][pair[0]] = { note: pair[1], duration: 0.18, velocity: 1.0, tone: 'chopper' }; });
+        tracksData.electric[b][0] = { note: 'A3', duration: 0.2, velocity: 0.7 };
+        tracksData.electric[b][9] = { note: 'A3', duration: 0.2, velocity: 0.7 };
+        tracksData.electric[b][13] = { note: 'C4', duration: 0.2, velocity: 0.65 };
+        tracksData.electric[b][16] = { note: 'D4', duration: 0.2, velocity: 0.65 };
     }
     renderBarSelector(); renderStepGrid();
     alert('🎤 ラップ／シャウト用の土台を読み込みました（8小節・BPM140）。マイクで声を重ねてください。');
+}
+
+/* 🕺 Popping Dance土台：キレ・ヒット・ハリ・ノリ＋シンセ電子メロディ（8小節・BPM116） */
+function loadPoppingFoundation() {
+    if (!confirm('Popping Dance土台を読み込みます。今の楽曲データは置き換わります。よろしいですか？')) return;
+    const nb = 8;
+    Object.keys(tracksData).forEach(function(trackKey) {
+        const arr = [];
+        for (let i = 0; i < nb; i++) arr.push(new Array(currentStepsPerBar).fill(null));
+        tracksData[trackKey] = arr;
+    });
+    totalBars = nb;
+    document.getElementById('totalBarsDisplay').innerText = totalBars;
+    document.getElementById('totalBarsLabel2').innerText = totalBars;
+    document.getElementById('totalBarsLabel3').innerText = totalBars;
+    document.querySelectorAll('.bars-btn').forEach(function(b) {
+        const active = parseInt(b.getAttribute('data-bars')) === totalBars;
+        b.className = active
+            ? "bars-btn bg-mvCyan/20 border border-mvCyan text-mvCyan text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95"
+            : "bars-btn bg-gray-900 border border-gray-700 text-gray-300 text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95";
+    });
+    activeBar = 1;
+    setBpm(116);
+    if (typeof setGenre === 'function') setGenre('popping');
+    const riffA = [[0,'A4'],[2,'C5'],[4,'E5'],[7,'D5'],[9,'E5'],[11,'C5'],[13,'A4'],[16,'G4']];
+    const riffB = [[0,'A4'],[2,'E5'],[4,'A5'],[7,'G5'],[9,'E5'],[11,'D5'],[13,'C5'],[16,'E5']];
+    for (let b = 0; b < nb; b++) {
+        const K = function(s, v) { tracksData.drums[b][s] = { note: 'KICK', duration: 0.2, velocity: v }; };
+        const S = function(s, v) { tracksData.drums[b][s] = { note: 'SNARE', duration: 0.15, velocity: v }; };
+        const B = function(s, n) { tracksData.bass[b][s] = { note: n, duration: 0.15, velocity: 1.0, tone: 'chopper' }; };
+        if (b === 3 || b === 7) {
+            // ダイナストップ：全員でヒット→無音→後半で戻る
+            tracksData.drums[b][0] = { note: 'CRASH', duration: 0.4, velocity: 1.0 };
+            B(0, 'A2');
+            tracksData.synth[b][0] = { note: 'A4', duration: 0.3, velocity: 1.0 };
+            tracksData.electric[b][0] = { note: 'A3', duration: 0.25, velocity: 0.9 };
+            K(9, 0.9); B(11, 'A2'); S(13, 1.0);
+            tracksData.synth[b][13] = { note: 'E5', duration: 0.25, velocity: 0.9 };
+            K(16, 0.9); B(16, 'A3');
+            continue;
+        }
+        K(0, 1.0); K(6, 0.9); K(11, 0.85);
+        S(4, 0.95); S(13, 1.0);
+        if (b % 2 === 1) S(16, 0.55);
+        for (let s = 0; s < currentStepsPerBar; s += 2) tracksData.tambourine[b][s] = { note: 'HH', duration: 0.08, velocity: (s % 4 === 0) ? 0.6 : 0.45 };
+        [[0,'A2'],[3,'A3'],[6,'A2'],[9,'A2'],[11,'A3'],[13,'A2'],[16,'E3']].forEach(function(p) { B(p[0], p[1]); });
+        (b % 2 === 0 ? riffA : riffB).forEach(function(p) { tracksData.synth[b][p[0]] = { note: p[1], duration: 0.22, velocity: 0.9 }; });
+        tracksData.electric[b][4] = { note: 'A3', duration: 0.18, velocity: 0.6 };
+        tracksData.electric[b][13] = { note: 'A3', duration: 0.18, velocity: 0.6 };
+        if (b === 0) tracksData.drums[b][0] = { note: 'CRASH', duration: 0.4, velocity: 0.85 };
+    }
+    renderBarSelector(); renderStepGrid();
+    alert('🕺 Popping Dance土台を読み込みました（8小節・BPM116）。4小節目と8小節目にダイナストップが入っています。');
 }
 
         function generateChristmasAI() {
