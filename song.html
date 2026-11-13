@@ -364,6 +364,7 @@
 <div class="space-y-1 col-span-2"><div class="flex justify-between text-gray-400"><span>タンバリン</span><strong id="vol-tambourine" class="text-white">0.9</strong></div><input type="range" min="0" max="2" step="0.1" value="0.9" oninput="changeTrackVolume('tambourine', this.value)" class="w-full accent-mvPink"></div>
 <div class="space-y-1 col-span-2"><div class="flex justify-between text-gray-400"><span>鐘</span><strong id="vol-bell" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('bell', this.value)" class="w-full accent-mvYellow"></div>
 <div class="space-y-1 col-span-2"><div class="flex justify-between text-gray-400"><span>ドラ</span><strong id="vol-gong" class="text-white">1.0</strong></div><input type="range" min="0" max="2" step="0.1" value="1.0" oninput="changeTrackVolume('gong', this.value)" class="w-full accent-mvOrange"></div>
+<div class="space-y-1 col-span-2"><div class="flex justify-between text-gray-400"><span>シンセ</span><strong id="vol-synth" class="text-white">0.9</strong></div><input type="range" min="0" max="2" step="0.1" value="0.9" oninput="changeTrackVolume('synth', this.value)" class="w-full accent-mvCyan"></div>
 </div>
 </div>
 
@@ -373,7 +374,7 @@
 <span class="text-xs font-semibold text-gray-400">トラック選択 (各<span id="totalBarsLabel2">38</span>小節)</span>
 <span id="activeTrackName" class="text-xs text-mvCyan font-bold">ピアノ</span>
 </div>
-<div class="grid grid-cols-11 gap-1">
+<div class="grid grid-cols-12 gap-1">
 <button onclick="switchTrack('piano')" id="track-piano" class="track-btn bg-mvAccent/20 border border-mvAccent text-white text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-music text-mvAccent"></i><span>ピアノ</span></button>
 <button onclick="switchTrack('vocal')" id="track-vocal" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-microphone text-mvPink"></i><span>ボーカル</span></button>
 <button onclick="switchTrack('bass')" id="track-bass" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-guitar text-mvCyan"></i><span>ベース</span></button>
@@ -385,6 +386,7 @@
 <button onclick="switchTrack('tambourine')" id="track-tambourine" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-bell"></i><span>タンバリン</span></button>
 <button onclick="switchTrack('bell')" id="track-bell" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-bell text-mvYellow"></i><span>鐘</span></button>
 <button onclick="switchTrack('gong')" id="track-gong" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-circle-dot text-mvOrange"></i><span>ドラ</span></button>
+<button onclick="switchTrack('synth')" id="track-synth" class="track-btn bg-gray-900 border border-gray-800 text-gray-400 text-[7px] py-2 rounded-xl flex flex-col items-center justify-center space-y-1 transition"><i class="fa-solid fa-wave-square text-mvCyan"></i><span>シンセ</span></button>
 </div>
 </div>
 
@@ -665,7 +667,7 @@ let vocalAudioBlob = null;
 let trackGains = {};
 let trackVolumes = {
 piano: 1.0, vocal: 1.0, bass: 1.0, acoustic: 1.0,
-electric: 1.0, violin: 1.0, trumpet: 1.2, drums: 1.5, tambourine: 0.9, bell: 1.0, gong: 1.0
+electric: 1.0, violin: 1.0, trumpet: 1.2, drums: 1.5, tambourine: 0.9, bell: 1.0, gong: 1.0, synth: 0.9
 };
 
 let fxState = { reverb: false, delay: false, lowpass: false, highpass: false};
@@ -796,13 +798,14 @@ piano: createTrackExpression(18), vocal: createTrackExpression(18), bass: create
 acoustic: createTrackExpression(18), electric: createTrackExpression(18), violin: createTrackExpression(18),
 trumpet: createTrackExpression(18), drums: createTrackExpression(18), tambourine: createTrackExpression(18),
 bell: createTrackExpression(18),
-gong: createTrackExpression(18)
+gong: createTrackExpression(18),
+synth: createTrackExpression(18)
 };
 
 const trackNamesMap = {
 piano: 'ピアノ', vocal: 'ボーカル', bass: 'ベース',
 acoustic: 'アコギ', electric: 'エレキ', violin: 'バイオリン',
-trumpet: 'トランペット', drums: 'ドラム', tambourine: 'タンバリン', bell: '鐘', gong: 'ドラ'
+trumpet: 'トランペット', drums: 'ドラム', tambourine: 'タンバリン', bell: '鐘', gong: 'ドラ', synth: 'シンセ'
 };
 
 function initApp() {
@@ -1216,6 +1219,25 @@ return audioCtx;
             const now = audioCtx.currentTime;
             const targetOutputNode = trackGains[trackType] || masterGain;
 
+            if (trackType === 'synth') {
+                // シンセサイザー：2つのノコギリ波を少しずらして重ね、フィルターが開いて閉じる電子音
+                const sDur = Math.max(duration, 0.35);
+                const sFilter = audioCtx.createBiquadFilter();
+                sFilter.type = 'lowpass'; sFilter.Q.value = 6;
+                sFilter.frequency.setValueAtTime(2800, now);
+                sFilter.frequency.exponentialRampToValueAtTime(500, now + sDur);
+                const sGain = audioCtx.createGain();
+                sGain.gain.setValueAtTime(0.0001, now);
+                sGain.gain.exponentialRampToValueAtTime(Math.max(velocity * 0.5, 0.0011), now + 0.02);
+                sGain.gain.exponentialRampToValueAtTime(0.001, now + sDur);
+                sFilter.connect(sGain); sGain.connect(targetOutputNode);
+                [-9, 9].forEach(function(cents) {
+                    const o = audioCtx.createOscillator();
+                    o.type = 'sawtooth'; o.frequency.value = freq; o.detune.value = cents;
+                    o.connect(sFilter); o.start(now); o.stop(now + sDur);
+                });
+                return;
+            }
             if (trackType === 'bass') {
                 const bt = toneOverride || bassTone;
                 if (bassCutOn) duration = Math.min(duration, 0.12);
@@ -1975,35 +1997,33 @@ function insertEmptyIntroBars(barsCount) {
 /* 🎤 アップした曲風：ラップ／シャウト用の硬い土台（8小節・BPM140） */
 function loadShoutBeat() {
     if (!confirm('アップした曲風の土台（ラップ／シャウト用）を読み込みます。今の楽曲データは置き換わります。よろしいですか？')) return;
-    TOTAL_STEPS = 18; totalBars = 8; currentBarIndex = 0;
-    bpm = 140;
-    const bpmSlider = document.getElementById('bpmSlider'); if (bpmSlider) bpmSlider.value = 140;
-    const bpmDisp = document.getElementById('bpmDisplay'); if (bpmDisp) bpmDisp.innerText = 140;
-    ['piano','bass','violin','trumpet','guitar','synthLead','flute','bell','gong'].forEach(function(t) {
+    totalBars = 8; activeBar = 1;
+    if (typeof setBpm === 'function') { setBpm(140); } else { currentBpm = 140; }
+    ['piano','vocal','bass','acoustic','electric','violin','trumpet','tambourine','bell','gong','synth'].forEach(function(t) {
         tracksData[t] = [];
-        for (let b = 0; b < totalBars; b++) tracksData[t].push(new Array(TOTAL_STEPS).fill(null));
+        for (let b = 0; b < totalBars; b++) tracksData[t].push(new Array(currentStepsPerBar).fill(null));
     });
     for (let b = 0; b < totalBars; b++) {
         const d = [];
-        for (let s = 0; s < TOTAL_STEPS; s++) d.push({ kick: false, snare: false, hihat: false, crash: false, velocity: 1.0 });
+        for (let s = 0; s < currentStepsPerBar; s++) d.push({ kick: false, snare: false, hihat: false, crash: false, velocity: 1.0 });
         const K = function(s, v) { d[s].kick = true; d[s].velocity = v; };
         const S = function(s, v) { d[s].snare = true; d[s].velocity = v; };
         const H = function(s, v) { d[s].hihat = true; d[s].velocity = v; };
         K(0, 1.0); K(6, 0.9); K(13, 0.95);
         S(9, 1.0);
-        for (let s = 0; s < TOTAL_STEPS; s += 2) H(s, 0.5);
+        for (let s = 0; s < currentStepsPerBar; s += 2) H(s, 0.5);
         if (b % 2 === 1) K(16, 0.85);
         if (b === 0) d[0].crash = true;
         if (b === totalBars - 1) { S(16, 0.7); S(17, 0.8); }
         tracksData.drums[b] = d;
         const bassLine = [[0, 'A2'], [3, 'A2'], [6, 'A2'], [9, 'C3'], [11, 'D3'], [13, 'A2'], [16, 'E3']];
         bassLine.forEach(function(pair) { tracksData.bass[b][pair[0]] = { note: pair[1], velocity: 1.0, tone: 'chopper' }; });
-        tracksData.guitar[b][0] = { note: 'A3', velocity: 0.7 };
-        tracksData.guitar[b][9] = { note: 'A3', velocity: 0.7 };
-        tracksData.guitar[b][13] = { note: 'C4', velocity: 0.65 };
-        tracksData.guitar[b][16] = { note: 'D4', velocity: 0.65 };
+        tracksData.electric[b][0] = { note: 'A3', velocity: 0.7 };
+        tracksData.electric[b][9] = { note: 'A3', velocity: 0.7 };
+        tracksData.electric[b][13] = { note: 'C4', velocity: 0.65 };
+        tracksData.electric[b][16] = { note: 'D4', velocity: 0.65 };
     }
-    updateBarTabsUI(); renderGrid();
+    renderBarSelector(); renderStepGrid();
     alert('🎤 ラップ／シャウト用の土台を読み込みました（8小節・BPM140）。マイクで声を重ねてください。');
 }
 
