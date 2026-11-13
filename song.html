@@ -390,6 +390,14 @@
 </div>
 </div>
 
+<!-- 💾 録音ライブラリ（永久保存） -->
+<div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3.5 shadow-xl space-y-2">
+<h3 class="text-xs font-bold text-white flex items-center space-x-2"><i class="fa-solid fa-database text-mvCyan"></i><span>録音ライブラリ（永久保存）</span></h3>
+<p class="text-[10px] text-gray-400">録音すると自動でここに保存され、スマホのダウンロードフォルダにも書き出されます。削除するまで残ります。</p>
+<div id="recLibraryList" class="space-y-2"></div>
+<audio id="recLibraryPlayer" controls class="w-full hidden"></audio>
+</div>
+
 <!-- 🎙️ Vocalトラック専用 実マイク録音パネル -->
 <div id="vocalRecorderContainer" class="bg-mvCard border border-mvPink/60 rounded-2xl p-3.5 shadow-xl space-y-3 hidden">
 <div class="flex items-center justify-between">
@@ -809,6 +817,7 @@ trumpet: 'トランペット', drums: 'ドラム', tambourine: 'タンバリン'
 };
 
 function initApp() {
+refreshRecLibrary();
 loadBassSettings();
 renderBarSelector();
 renderStepGrid();
@@ -854,6 +863,7 @@ activeRecorder = new MediaRecorder(targetStream, { mimeType: 'audio/webm'});
 activeRecorder.ondataavailable = e => { if (e.data.size > 0) activeChunks.push(e.data);};
 activeRecorder.onstop = () => {
 activeAudioBlob = new Blob(activeChunks, { type: 'audio/webm'});
+saveRecordingToLibrary(activeAudioBlob, recordingSource === 'internal' ? '内部ミックス' : '外部マイク');
 document.getElementById('recStatusLabel').innerText = "録音完了！";
 const playBtn = document.getElementById('playRecAudioBtn');
 playBtn.disabled = false;
@@ -1066,6 +1076,7 @@ return audioCtx;
                 vocalRecorder.ondataavailable = e => { if (e.data.size > 0) vocalChunks.push(e.data); };
                 vocalRecorder.onstop = () => {
                     vocalAudioBlob = new Blob(vocalChunks, { type: 'audio/webm' });
+                    saveRecordingToLibrary(vocalAudioBlob, 'ボーカル');
                     document.getElementById('vocalRecStatus').innerText = "歌声キャプチャ完了";
                     const pBtn = document.getElementById('vocalPlayBtn');
                     pBtn.disabled = false;
@@ -1994,6 +2005,102 @@ function insertEmptyIntroBars(barsCount) {
         }
 
         /* 🎄✨ クリスマスAI作曲：ジングルベルをラテン×アフリカ風に全自動アレンジ */
+/* 💾 録音ライブラリ：IndexedDBに永久保存（削除するまで残る） */
+const REC_DB_NAME = 'BANDLAND_REC_DB';
+function recDbOpen() {
+    return new Promise(function(res, rej) {
+        const r = indexedDB.open(REC_DB_NAME, 1);
+        r.onupgradeneeded = function() { r.result.createObjectStore('recordings', { keyPath: 'id', autoIncrement: true }); };
+        r.onsuccess = function() { res(r.result); };
+        r.onerror = function() { rej(r.error); };
+    });
+}
+async function saveRecordingToLibrary(blob, kind) {
+    if (!blob || blob.size === 0) return;
+    try {
+        const db = await recDbOpen();
+        const tx = db.transaction('recordings', 'readwrite');
+        const ts = Date.now();
+        tx.objectStore('recordings').add({ createdAt: ts, kind: kind, type: blob.type || 'audio/webm', blob: blob });
+        tx.oncomplete = function() {
+            refreshRecLibrary();
+            // 他にも保存：スマホのダウンロードフォルダへ自動で書き出す
+            try {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'bandland-' + kind + '-' + ts + '.webm';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(function() { URL.revokeObjectURL(a.href); }, 4000);
+            } catch (e) {}
+        };
+    } catch (e) { console.warn('録音の保存に失敗', e); }
+}
+async function refreshRecLibrary() {
+    const list = document.getElementById('recLibraryList');
+    if (!list) return;
+    try {
+        const db = await recDbOpen();
+        const tx = db.transaction('recordings', 'readonly');
+        const req = tx.objectStore('recordings').getAll();
+        req.onsuccess = function() {
+            const items = (req.result || []).sort(function(a, b) { return b.createdAt - a.createdAt; });
+            if (!items.length) { list.innerHTML = '<p class="text-[10px] text-gray-500">まだ録音はありません。録音すると自動で保存されます。</p>'; return; }
+            list.innerHTML = '';
+            items.forEach(function(it) {
+                const d = new Date(it.createdAt);
+                const label = d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ' ・ ' + it.kind + ' ・ ' + Math.max(1, Math.round(it.blob.size / 1024)) + 'KB';
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between bg-gray-950 border border-gray-800 rounded-lg px-2 py-1.5';
+                const span = document.createElement('span');
+                span.className = 'text-[10px] text-gray-300';
+                span.innerText = label;
+                const btns = document.createElement('div');
+                btns.className = 'flex space-x-1';
+                const mk = function(txt, fn) { const b = document.createElement('button'); b.className = 'bg-gray-900 border border-gray-700 text-gray-200 text-[10px] px-2 py-1 rounded-md font-bold active:scale-95 transition'; b.innerText = txt; b.onclick = fn; return b; };
+                btns.appendChild(mk('▶ 再生', function() { playLibraryRec(it.id); }));
+                btns.appendChild(mk('保存', function() { downloadLibraryRec(it.id); }));
+                btns.appendChild(mk('削除', function() { deleteLibraryRec(it.id); }));
+                row.appendChild(span); row.appendChild(btns);
+                list.appendChild(row);
+            });
+        };
+    } catch (e) { list.innerHTML = '<p class="text-[10px] text-gray-500">ライブラリを開けませんでした。</p>'; }
+}
+async function getLibraryRec(id) {
+    const db = await recDbOpen();
+    return new Promise(function(res) {
+        const req = db.transaction('recordings', 'readonly').objectStore('recordings').get(id);
+        req.onsuccess = function() { res(req.result); };
+        req.onerror = function() { res(null); };
+    });
+}
+async function playLibraryRec(id) {
+    const it = await getLibraryRec(id);
+    if (!it) return;
+    const player = document.getElementById('recLibraryPlayer');
+    player.src = URL.createObjectURL(it.blob);
+    player.classList.remove('hidden');
+    player.play();
+}
+async function downloadLibraryRec(id) {
+    const it = await getLibraryRec(id);
+    if (!it) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(it.blob);
+    a.download = 'bandland-rec-' + it.createdAt + '.webm';
+    a.click();
+}
+async function deleteLibraryRec(id) {
+    if (!confirm('この録音を削除しますか？')) return;
+    const db = await recDbOpen();
+    const tx = db.transaction('recordings', 'readwrite');
+    tx.objectStore('recordings').delete(id);
+    tx.oncomplete = function() { refreshRecLibrary(); };
+}
+window.addEventListener('load', function() { setTimeout(refreshRecLibrary, 400); });
+
 /* 🎤 アップした曲風：ラップ／シャウト用の硬い土台（8小節・BPM140） */
 function loadShoutBeat() {
     if (!confirm('アップした曲風の土台（ラップ／シャウト用）を読み込みます。今の楽曲データは置き換わります。よろしいですか？')) return;
