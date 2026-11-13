@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新聞よみあげアプリ | MIC VICTORY</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+  body { font-family: sans-serif; background:#111827; color:#f9fafb; margin:0; padding:16px; }
+  h1 { font-size:20px; text-align:center; margin:8px 0 4px; }
+  .sub { text-align:center; color:#9ca3af; font-size:12px; margin-bottom:14px; }
+  .card { background:#1f2937; border:1px solid #374151; border-radius:16px; padding:14px; margin-bottom:14px; }
+  .bigbtn { display:block; width:100%; padding:18px; font-size:18px; font-weight:bold; border:none; border-radius:14px; margin:8px 0; cursor:pointer; }
+  .btn-photo { background:#f59e0b; color:#111827; }
+  .btn-play { background:#22c55e; color:#111827; }
+  .btn-pause { background:#3b82f6; color:#fff; }
+  .btn-stop { background:#ef4444; color:#fff; }
+  .row { display:flex; gap:8px; }
+  .row .bigbtn { flex:1; }
+  textarea { width:100%; min-height:220px; background:#111827; color:#f9fafb; border:1px solid #4b5563; border-radius:12px; padding:10px; font-size:16px; line-height:1.7; box-sizing:border-box; }
+  #status { font-size:13px; color:#fbbf24; min-height:20px; margin:6px 0; }
+  #savebar { font-size:11px; color:#9ca3af; margin-top:6px; }
+  progress { width:100%; height:14px; }
+  input[type=range] { width:100%; }
+  .hist-item { padding:10px; border-bottom:1px solid #374151; cursor:pointer; font-size:14px; }
+  .hist-item small { color:#9ca3af; }
+  .smallbtn { padding:8px 12px; font-size:13px; border-radius:10px; border:1px solid #4b5563; background:#374151; color:#fff; cursor:pointer; margin:4px 4px 0 0; }
+  #nowReading { background:#111827; border:1px solid #4b5563; border-radius:12px; padding:10px; font-size:16px; line-height:1.8; min-height:60px; white-space:pre-wrap; }
+  .cur { background:#f59e0b; color:#111827; border-radius:4px; padding:0 2px; }
+</style>
+</head>
+<body>
+<h1>📰 新聞よみあげアプリ</h1>
+<div class="sub">写真を撮ると文字に変えて、声で読み上げます</div>
+
+<div class="card">
+  <label class="bigbtn btn-photo" style="text-align:center;">
+    📷 ① 新聞の写真を撮る／選ぶ
+    <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+  </label>
+  <div id="status">写真を選んでください</div>
+  <progress id="prog" value="0" max="100" style="display:none"></progress>
+  <img id="preview" style="width:100%; border-radius:12px; display:none; margin-top:8px;">
+</div>
+
+<div class="card">
+  <div style="font-size:14px; margin-bottom:6px;">② 読み取った文章（直せます）</div>
+  <textarea id="textArea" placeholder="ここに文章が出ます。自分で打ってもOKです"></textarea>
+  <div id="savebar">保存：まだ</div>
+  <div>
+    <button class="smallbtn" id="btnSaveHist">💾 履歴に保存</button>
+    <button class="smallbtn" id="btnExport">📤 書き出し</button>
+    <button class="smallbtn" id="btnRestore">↩ 前の保存に戻す</button>
+  </div>
+</div>
+
+<div class="card">
+  <div style="font-size:14px; margin-bottom:6px;">③ 声で聞く</div>
+  <div class="row">
+    <button class="bigbtn btn-play" id="btnPlay">🔊 読む</button>
+    <button class="bigbtn btn-pause" id="btnPause">⏸ 止める</button>
+  </div>
+  <button class="bigbtn btn-stop" id="btnStop">⏹ 最初から</button>
+  <div style="font-size:13px; margin-top:8px;">速さ <span id="rateLabel">1.0倍</span></div>
+  <input type="range" id="rate" min="0.7" max="1.6" step="0.1" value="1.0">
+  <div style="font-size:13px; margin:8px 0 4px;">今読んでいる所</div>
+  <div id="nowReading">―</div>
+</div>
+
+<div class="card">
+  <div style="font-size:14px; margin-bottom:6px;">📚 履歴（タップで開く）</div>
+  <div id="histList"></div>
+</div>
+
+<script>
+var STORE_KEY = "NEWSPAPER_READER_V1";
+var MIRROR_KEY = "NEWSPAPER_READER_V1_MIRROR";
+var state = { items: [], lastText: "", lastSave: "" };
+var prevState = null;
+var dataLoaded = false;
+
+/* ---------- 保存（4か所） ---------- */
+function openDB(cb) {
+  var req = indexedDB.open("NEWSPAPER_READER_DB", 1);
+  req.onupgradeneeded = function(e) { e.target.result.createObjectStore("kv"); };
+  req.onsuccess = function(e) { cb(e.target.result); };
+  req.onerror = function() { cb(null); };
+}
+function saveAll() {
+  if (!dataLoaded) return;
+  prevState = JSON.parse(JSON.stringify(state));
+  state.lastSave = new Date().toLocaleString("ja-JP");
+  var s = JSON.stringify(state);
+  try { localStorage.setItem(STORE_KEY, s); } catch(e) {}
+  try { localStorage.setItem(MIRROR_KEY, s); } catch(e) {}
+  try { document.cookie = "np_reader_v1=" + encodeURIComponent(s.slice(0, 3000)) + "; max-age=31536000; path=/"; } catch(e) {}
+  openDB(function(db) {
+    if (!db) return;
+    try { db.transaction("kv", "readwrite").objectStore("kv").put(s, "data"); } catch(e) {}
+  });
+  document.getElementById("savebar").textContent = "保存済み：" + state.lastSave + "（履歴" + state.items.length + "件）";
+}
+function pickBest(cands) {
+  var best = null;
+  cands.forEach(function(c) {
+    if (!c) return;
+    try {
+      var o = JSON.parse(c);
+      if (!best || (o.items || []).length > (best.items || []).length) best = o;
+    } catch(e) {}
+  });
+  return best;
+}
+function loadAll(done) {
+  var cands = [];
+  try { cands.push(localStorage.getItem(STORE_KEY)); } catch(e) {}
+  try { cands.push(localStorage.getItem(MIRROR_KEY)); } catch(e) {}
+  var m = document.cookie.match(/np_reader_v1=([^;]+)/);
+  if (m) { try { cands.push(decodeURIComponent(m[1])); } catch(e) {} }
+  openDB(function(db) {
+    if (!db) { finishLoad(); return; }
+    try {
+      var req = db.transaction("kv", "readonly").objectStore("kv").get("data");
+      req.onsuccess = function() { cands.push(req.result || null); finishLoad(); };
+      req.onerror = function() { finishLoad(); };
+    } catch(e) { finishLoad(); }
+  });
+  function finishLoad() {
+    var best = pickBest(cands);
+    if (best && ((best.items || []).length > 0 || best.lastText)) {
+      state = best;
+    }
+    dataLoaded = true;
+    document.getElementById("textArea").value = state.lastText || "";
+    if (state.lastSave) document.getElementById("savebar").textContent = "保存済み：" + state.lastSave + "（履歴" + state.items.length + "件）";
+    renderHist();
+    if (done) done();
+  }
+}
+
+/* ---------- OCR ---------- */
+var statusEl = document.getElementById("status");
+document.getElementById("photoInput").addEventListener("change", function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var img = document.getElementById("preview");
+  img.src = URL.createObjectURL(file);
+  img.style.display = "block";
+  var prog = document.getElementById("prog");
+  prog.style.display = "block"; prog.value = 0;
+  statusEl.textContent = "読み取り中…少し待ってください";
+  Tesseract.recognize(file, "jpn", {
+    logger: function(m) {
+      if (m.status === "recognizing text") {
+        prog.value = Math.round(m.progress * 100);
+        statusEl.textContent = "読み取り中… " + Math.round(m.progress * 100) + "%";
+      }
+    }
+  }).then(function(result) {
+    prog.style.display = "none";
+    var text = (result.data.text || "").replace(/[ \t]+/g, " ").trim();
+    document.getElementById("textArea").value = text;
+    state.lastText = text;
+    saveAll();
+    statusEl.textContent = "読み取り完了（" + text.length + "文字）。下の「読む」を押してください";
+  }).catch(function(err) {
+    prog.style.display = "none";
+    statusEl.textContent = "読み取れませんでした。明るい場所で、まっすぐ撮り直してください";
+  });
+});
+document.getElementById("textArea").addEventListener("input", function() {
+  state.lastText = this.value;
+  saveAll();
+});
+
+/* ---------- 読み上げ ---------- */
+var chunks = [], curIdx = 0, speaking = false, paused = false;
+function makeChunks(text) {
+  var parts = text.replace(/\n+/g, "。").split(/(?<=。|！|？)/);
+  var out = [];
+  parts.forEach(function(p) { p = p.trim(); if (p) out.push(p); });
+  return out;
+}
+function showNow() {
+  var el = document.getElementById("nowReading");
+  if (!chunks.length) { el.textContent = "―"; return; }
+  var before = chunks.slice(Math.max(0, curIdx - 1), curIdx).join("");
+  var cur = chunks[curIdx] || "";
+  var after = chunks.slice(curIdx + 1, curIdx + 2).join("");
+  el.innerHTML = "";
+  el.appendChild(document.createTextNode(before));
+  var span = document.createElement("span");
+  span.className = "cur"; span.textContent = cur;
+  el.appendChild(span);
+  el.appendChild(document.createTextNode(after));
+}
+function speakNext() {
+  if (curIdx >= chunks.length) { speaking = false; document.getElementById("status").textContent = "読み終わりました"; showNow(); return; }
+  showNow();
+  var u = new SpeechSynthesisUtterance(chunks[curIdx]);
+  u.lang = "ja-JP";
+  u.rate = parseFloat(document.getElementById("rate").value);
+  u.onend = function() { if (speaking && !paused) { curIdx++; speakNext(); } };
+  u.onerror = function() { if (speaking && !paused) { curIdx++; speakNext(); } };
+  speechSynthesis.speak(u);
+}
+document.getElementById("btnPlay").addEventListener("click", function() {
+  var text = document.getElementById("textArea").value.trim();
+  if (!text) { statusEl.textContent = "先に写真を読み取るか、文章を入れてください"; return; }
+  if (paused) { paused = false; speaking = true; speechSynthesis.resume(); return; }
+  speechSynthesis.cancel();
+  chunks = makeChunks(text);
+  curIdx = 0; speaking = true; paused = false;
+  speakNext();
+});
+document.getElementById("btnPause").addEventListener("click", function() {
+  if (speaking && !paused) { paused = true; speechSynthesis.pause(); }
+});
+document.getElementById("btnStop").addEventListener("click", function() {
+  speaking = false; paused = false; curIdx = 0;
+  speechSynthesis.cancel();
+  showNow();
+});
+document.getElementById("rate").addEventListener("input", function() {
+  document.getElementById("rateLabel").textContent = parseFloat(this.value).toFixed(1) + "倍";
+});
+
+/* ---------- 履歴 ---------- */
+function renderHist() {
+  var el = document.getElementById("histList");
+  el.innerHTML = "";
+  if (!state.items.length) { el.innerHTML = "<div style='color:#9ca3af;font-size:13px'>まだありません</div>"; return; }
+  state.items.slice().reverse().forEach(function(it, ri) {
+    var idx = state.items.length - 1 - ri;
+    var div = document.createElement("div");
+    div.className = "hist-item";
+    div.innerHTML = "";
+    var t = document.createElement("div");
+    t.textContent = it.title;
+    var s = document.createElement("small");
+    s.textContent = it.date + "・" + it.text.length + "文字";
+    div.appendChild(t); div.appendChild(s);
+    div.addEventListener("click", function() {
+      document.getElementById("textArea").value = state.items[idx].text;
+      state.lastText = state.items[idx].text;
+      saveAll();
+      statusEl.textContent = "履歴を開きました。「読む」を押してください";
+    });
+    el.appendChild(div);
+  });
+}
+document.getElementById("btnSaveHist").addEventListener("click", function() {
+  var text = document.getElementById("textArea").value.trim();
+  if (!text) return;
+  var firstLine = text.split("\n")[0].slice(0, 30) || "無題";
+  state.items.push({ title: firstLine, date: new Date().toLocaleString("ja-JP"), text: text });
+  saveAll(); renderHist();
+  statusEl.textContent = "履歴に保存しました";
+});
+document.getElementById("btnExport").addEventListener("click", function() {
+  var blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "newspaper-reader-backup.json";
+  a.click();
+});
+document.getElementById("btnRestore").addEventListener("click", function() {
+  if (prevState) {
+    state = prevState;
+    document.getElementById("textArea").value = state.lastText || "";
+    dataLoaded = true; saveAll(); renderHist();
+    statusEl.textContent = "前の保存に戻しました";
+  } else {
+    statusEl.textContent = "戻せる保存がまだありません";
+  }
+});
+
+loadAll();
+</script>
+</body>
+</html>
