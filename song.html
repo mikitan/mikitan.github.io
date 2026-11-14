@@ -413,6 +413,7 @@
 <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3.5 shadow-xl space-y-2">
 <h3 class="text-xs font-bold text-white flex items-center space-x-2"><i class="fa-solid fa-database text-mvCyan"></i><span>録音ライブラリ（永久保存）</span></h3>
 <p class="text-[10px] text-gray-400">録音すると自動でここに保存され、スマホのダウンロードフォルダにも書き出されます。削除するまで残ります。</p>
+<div id="recLatest" class="pb-2"></div>
 <div id="recLibraryList" class="space-y-2"></div>
 <audio id="recLibraryPlayer" controls class="w-full hidden"></audio>
 </div>
@@ -2083,18 +2084,34 @@ async function refreshRecLibrary() {
         const req = tx.objectStore('recordings').getAll();
         req.onsuccess = function() {
             const items = (req.result || []).sort(function(a, b) { return b.createdAt - a.createdAt; });
-            if (!items.length) { list.innerHTML = '<p class="text-[10px] text-gray-500">まだ録音はありません。録音すると自動で保存されます。</p>'; return; }
+            const latestBox = document.getElementById('recLatest');
+            if (!items.length) { list.innerHTML = '<p class="text-[10px] text-gray-500">まだ録音はありません。録音すると自動で保存されます。</p>'; if (latestBox) latestBox.innerHTML = ''; return; }
+            if (latestBox) {
+                latestBox.innerHTML = '';
+                const newest = items[0];
+                const nd = new Date(newest.createdAt);
+                const nlabel = document.createElement('p');
+                nlabel.className = 'text-[11px] font-bold text-mvCyan pb-1';
+                nlabel.innerText = '🎧 最新の録音（' + (nd.getMonth() + 1) + '/' + nd.getDate() + ' ' + ('0' + nd.getHours()).slice(-2) + ':' + ('0' + nd.getMinutes()).slice(-2) + ' ・ ' + newest.kind + '）';
+                const naudio = document.createElement('audio');
+                naudio.controls = true;
+                naudio.preload = 'metadata';
+                naudio.style.width = '100%';
+                naudio.style.height = '40px';
+                naudio.src = URL.createObjectURL(newest.blob);
+                latestBox.appendChild(nlabel); latestBox.appendChild(naudio);
+            }
             list.innerHTML = '';
             items.forEach(function(it) {
                 const d = new Date(it.createdAt);
                 const label = d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ' ・ ' + it.kind + ' ・ ' + Math.max(1, Math.round(it.blob.size / 1024)) + 'KB';
                 const row = document.createElement('div');
-                row.className = 'bg-gray-950 border border-gray-800 rounded-lg px-2 py-1.5 space-y-1';
+                row.className = 'bg-gray-950 border ' + (it === items[0] ? 'border-mvCyan' : 'border-gray-800') + ' rounded-lg px-2 py-1.5 space-y-1';
                 const top = document.createElement('div');
                 top.className = 'flex items-center justify-between';
                 const span = document.createElement('span');
                 span.className = 'text-[10px] text-gray-300';
-                span.innerText = label;
+                span.innerText = (it === items[0] ? '🆕 ' : '') + label;
                 const del = document.createElement('button');
                 del.className = 'bg-gray-900 border border-gray-700 text-gray-200 text-[10px] px-2 py-1 rounded-md font-bold active:scale-95 transition';
                 del.innerText = '削除';
