@@ -256,6 +256,7 @@
 </select>
 </div>
 <button onclick="loadPoppingBaseManual()" class="w-full bg-gradient-to-r from-mvPurple to-mvPink text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🕺 Popping土台・シンセベース付き（上は手動作曲）</button>
+<button onclick="makeSplashRhythm()" class="w-full bg-gray-900 border border-mvCyan/60 text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95">✋ パシ・リズム作成（今のテンポのまま、タンバリンに重ねる）</button>
 <div class="pt-1">
 <p class="text-[10px] text-gray-400 font-bold pb-1">🥁 リズムパーツ集（ドラム＋ベースだけ差し替え・メロディは残ります）</p>
 <div class="grid grid-cols-2 gap-1.5">
@@ -544,7 +545,7 @@
 <button onclick="selectDrumPart('HH')" id="dpad-HH" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">チッ (Hat)</button>
 <button onclick="selectDrumPart('CRASH')" id="dpad-CRASH" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">バーン (Cym)</button>
 <button onclick="selectDrumPart('BELL')" id="dpad-BELL" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">鐘 (Bell)</button>
-<button onclick="selectDrumPart('SPLASH')" id="dpad-SPLASH" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">パシャ (Splash)</button>
+<button onclick="selectDrumPart('SPLASH')" id="dpad-SPLASH" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">パシ (Pasi)</button>
 <button onclick="selectDrumPart('CHEER')" id="dpad-CHEER" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">声援 (Cheer)</button>
 <button onclick="selectDrumPart('APPLAUSE')" id="dpad-APPLAUSE" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">拍手 (Applause)</button>
 <button onclick="selectDrumPart('WHISTLE')" id="dpad-WHISTLE" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">ホイッスル</button>
@@ -803,6 +804,8 @@ let currentStepsPerBar = 18;
 let activeTrack = 'piano';
 let activeBar = 1;
 let isGlobalPlaying = false;
+let liveBarIdx = 0;
+let liveStepIdx = 0;
 let isRecordMode = true;
 let globalPlayInterval = null;
 let currentBpm = 128;
@@ -831,7 +834,7 @@ const drum4Parts = [
 { id: 'HH', label: 'ハイハット', short: 'チッ(Hat)'},
 { id: 'CRASH', label: 'シンバル', short: 'バーン(Cym)'},
 { id: 'BELL', label: '鐘 (Bell)', short: '鐘(Bell)'},
-{ id: 'SPLASH', label: 'パシャ (Splash)', short: 'パシャ' },
+{ id: 'SPLASH', label: 'パシ (Pasi)', short: 'パシ' },
 { id: 'CHEER', label: '声援 (Cheer)', short: '声援' },
 { id: 'APPLAUSE', label: '拍手 (Applause)', short: '拍手' },
 { id: 'WHISTLE', label: 'ホイッスル', short: '笛' },
@@ -1080,6 +1083,17 @@ btn.className = "py-2 rounded-xl text-xs font-bold bg-gray-900 border border-gra
 
 function selectDrumPart(partId) {
 selectedDrumPart = partId;
+try {
+    getAudioContext();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    playUltimateRealDrumSound(partId, 1.0, audioCtx.currentTime, masterGain);
+    // 再生中＋記録モードなら、流れているマスへ直接記録して表示
+    if (isGlobalPlaying && isRecordMode) {
+        const target = (activeTrack === 'drums' || activeTrack === 'tambourine' || activeTrack === 'fx') ? activeTrack : 'drums';
+        tracksData[target][liveBarIdx][liveStepIdx] = { note: partId, duration: partId === 'SPLASH' ? 0.06 : 0.15, velocity: 1.0 };
+        if (target === activeTrack && liveBarIdx === activeBar - 1) renderStepGrid();
+    }
+} catch (e) {}
 const found = drum4Parts.find(p => p.id === partId);
 document.getElementById('selectedPartLabel').innerText = found? found.label: partId;
 drum4Parts.forEach(p => {
@@ -1187,7 +1201,7 @@ return audioCtx;
             const kickDur = Math.min(0.7, Math.max(0.12, stepSec * 8));
             const crashDur = Math.min(1.5, Math.max(0.1, stepSec * 12));
             if (partId === 'SPLASH' || partId === 'CHEER' || partId === 'APPLAUSE') {
-                const fxDur = partId === 'SPLASH' ? 0.28 : 0.9;
+                const fxDur = partId === 'SPLASH' ? 0.06 : 0.9;
                 const fxBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * fxDur, audioCtx.sampleRate);
                 const fxData = fxBuf.getChannelData(0);
                 for (let i = 0; i < fxBuf.length; i++) { fxData[i] = Math.random() * 2 - 1; }
@@ -1208,8 +1222,9 @@ return audioCtx;
                 const fxFilter = audioCtx.createBiquadFilter();
                 const fxGain = audioCtx.createGain();
                 if (partId === 'SPLASH') {
-                    fxFilter.type = 'highpass'; fxFilter.frequency.value = 4500;
-                    fxGain.gain.setValueAtTime(vel * 1.3, now);
+                    // パシ：伸びない乾いたクリック音
+                    fxFilter.type = 'bandpass'; fxFilter.frequency.value = 1900; fxFilter.Q.value = 0.9;
+                    fxGain.gain.setValueAtTime(vel * 1.5, now);
                     fxGain.gain.exponentialRampToValueAtTime(0.0001, now + fxDur);
                 } else {
                     fxFilter.type = 'bandpass'; fxFilter.Q.value = 0.7;
@@ -1819,7 +1834,7 @@ return audioCtx;
             const bassPanel = document.getElementById('bassManualPanel');
             if (bassPanel) { if (trackName === 'bass') bassPanel.classList.remove('hidden'); else bassPanel.classList.add('hidden'); }
 
-            if (trackName === 'drums' || trackName === 'tambourine') {
+            if (trackName === 'drums' || trackName === 'tambourine' || trackName === 'fx') {
                 pianoKeyboard.classList.add('hidden');
                 drumSelector.classList.remove('hidden');
                 vocalRecorder.classList.add('hidden');
@@ -2081,6 +2096,7 @@ function insertEmptyIntroBars(barsCount) {
             globalPlayInterval = setInterval(() => {
                 const barIdx = Math.floor(stepCounter / currentStepsPerBar) % totalBars;
                 const stepIdx = stepCounter % currentStepsPerBar;
+                liveBarIdx = barIdx; liveStepIdx = stepIdx;
                 document.getElementById('currentBarDisplay').innerText = (barIdx + 1);
 
                 Object.keys(tracksData).forEach(trackKey => {
@@ -2450,7 +2466,7 @@ window.addEventListener('load', function() { setTimeout(refreshRecLibrary, 400);
                 }
                 [0, 9, 11].forEach(function(s) { tracksData['drums'][b][s] = { note: 'KICK', duration: 0.15, velocity: 1.0 }; });
                 if (b % 2 === 0) tracksData['drums'][b][7] = { note: 'KICK', duration: 0.15, velocity: 0.95 };
-                if (b === 1 || b === 5) tracksData['tambourine'][b][16] = { note: 'SPLASH', duration: 0.28, velocity: 0.75 };
+                if (b === 1 || b === 5) tracksData['tambourine'][b][16] = { note: 'SPLASH', duration: 0.06, velocity: 0.8 };
                 if (b % 2 === 1) tracksData['drums'][b][16] = { note: 'KICK', duration: 0.15, velocity: 0.9 };
                 [5, 14].forEach(function(s) { tracksData['drums'][b][s] = { note: 'SNARE', duration: 0.12, velocity: 1.0 }; });
                 for (let s = 0; s < currentStepsPerBar; s += 2) {
@@ -2465,6 +2481,21 @@ window.addEventListener('load', function() { setTimeout(refreshRecLibrary, 400);
             renderBarSelector();
             renderStepGrid();
             alert("🕺 Popping土台が入りました！ベースはシンセ（ブーブー系の電子低音）です。BPM116・8小節。ドラムとベースだけ入れて、ピアノ・シンセなど上の楽器は空けてあります。好きなメロディを手で入れてください。4小節目と8小節目はダイナストップ（鐘なし・選んだ効果音が入ります）。");
+        }
+
+        function makeSplashRhythm() {
+            if (!confirm("パシ（スプラッシュ）のリズムを、今のテンポのまま全小節のタンバリンに重ねますか？ドラムとメロディは残ります。")) return;
+            for (let b = 0; b < totalBars; b++) {
+                const steps = (b % 4 === 3) ? [4, 8, 12, 16] : [4, 12];
+                steps.forEach(function(s) {
+                    tracksData['tambourine'][b][s] = { note: 'SPLASH', duration: 0.06, velocity: 0.85 };
+                });
+                if (b % 2 === 1 && b % 4 !== 3) {
+                    tracksData['tambourine'][b][16] = { note: 'SPLASH', duration: 0.06, velocity: 0.75 };
+                }
+            }
+            renderStepGrid();
+            alert("✋ パシ・リズムを入れました！今のテンポ（BPM" + currentBpm + "）のまま、全" + totalBars + "小節です。手動で置く時は、ドラム・タンバリン・効果音のトラックでパッドの「パシ」を選んでマスを押してください。");
         }
 
         function loadUploadedRhythm() {
