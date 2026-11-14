@@ -2327,7 +2327,11 @@ async function refreshRecLibrary() {
                 del.className = 'bg-gray-900 border border-gray-700 text-gray-200 text-[10px] px-2 py-1 rounded-md font-bold active:scale-95 transition';
                 del.innerText = '削除';
                 del.onclick = function() { deleteLibraryRec(it.id); };
-                top.appendChild(span); top.appendChild(del);
+                const nameBtn = document.createElement('button');
+                nameBtn.className = 'bg-gray-900 border border-mvCyan/60 text-mvCyan text-[10px] px-2 py-1 rounded-md font-bold active:scale-95 transition';
+                nameBtn.innerText = '名前';
+                nameBtn.onclick = function() { renameLibraryRec(it.id); };
+                top.appendChild(span); top.appendChild(nameBtn); top.appendChild(del);
                 const audio = document.createElement('audio');
                 audio.controls = true;
                 audio.preload = 'metadata';
@@ -2339,6 +2343,21 @@ async function refreshRecLibrary() {
             });
         };
     } catch (e) { list.innerHTML = '<p class="text-[10px] text-gray-500">ライブラリを開けませんでした。</p>'; }
+}
+async function renameLibraryRec(id) {
+    const it = await getLibraryRec(id);
+    if (!it) return;
+    const cur = it.name || recFileName(it.createdAt);
+    const input = prompt('録音の名前を付けてください', cur.replace(/\.webm$/i, ''));
+    if (input === null) return;
+    let nm = input.trim().replace(/[\\/:*?"<>|]/g, '');
+    if (!nm) { alert('名前が空です。'); return; }
+    if (!/\.webm$/i.test(nm)) nm += '.webm';
+    it.name = nm;
+    const db = await recDbOpen();
+    const tx = db.transaction('recordings', 'readwrite');
+    tx.objectStore('recordings').put(it);
+    tx.oncomplete = function() { refreshRecLibrary(); };
 }
 async function getLibraryRec(id) {
     const db = await recDbOpen();
