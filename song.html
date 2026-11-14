@@ -243,20 +243,7 @@
 <p class="text-[9px] text-gray-500">歌詞はテキストファイル、音楽はJSONファイルで保存・読み込みできます。別の端末やバックアップ用にどうぞ。</p>
 <button onclick="loadChristmasSong()" class="w-full bg-gradient-to-r from-red-600 to-mvGreen text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🎄 クリスマスメロディ土台（歌詞800字つき）</button>
 <button onclick="loadUploadedRhythm()" class="w-full bg-gradient-to-r from-mvCyan to-mvAccent text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🥁 アップした音源のリズムを読み込む</button>
-<div class="flex items-center space-x-2">
-<span class="text-[10px] text-gray-300 font-bold whitespace-nowrap">🎉 効果音</span>
-<select id="poppingFxSelect" class="flex-1 bg-gray-900 border border-gray-700 text-white text-[11px] py-2 rounded-lg font-bold">
-<option value="CHEER" selected>声援（わーっ）</option>
-<option value="APPLAUSE">拍手</option>
-<option value="WHISTLE">ホイッスル</option>
-<option value="SCRATCH">スクラッチ</option>
-<option value="HORN">ホーン</option>
-<option value="SIREN">サイレン</option>
-<option value="none">なし</option>
-</select>
-</div>
-<button onclick="loadPoppingBaseManual()" class="w-full bg-gradient-to-r from-mvPurple to-mvPink text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🕺 Popping土台・シンセベース付き（上は手動作曲）</button>
-<button onclick="makeSplashRhythm()" class="w-full bg-gray-900 border border-mvCyan/60 text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95">✋ パシ・リズム作成（今のテンポのまま、タンバリンに重ねる）</button>
+
 <div class="pt-1">
 <p class="text-[10px] text-gray-400 font-bold pb-1">🥁 リズムパーツ集（ドラム＋ベースだけ差し替え・メロディは残ります）</p>
 <div class="grid grid-cols-2 gap-1.5">
@@ -552,6 +539,7 @@
 <button onclick="selectDrumPart('SCRATCH')" id="dpad-SCRATCH" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">スクラッチ</button>
 <button onclick="selectDrumPart('HORN')" id="dpad-HORN" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">ホーン (Horn)</button>
 <button onclick="selectDrumPart('SIREN')" id="dpad-SIREN" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">サイレン</button>
+<button onclick="selectDrumPart('CLAP')" id="dpad-CLAP" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">パン (Clap)</button>
 </div>
 </div>
 
@@ -840,7 +828,8 @@ const drum4Parts = [
 { id: 'WHISTLE', label: 'ホイッスル', short: '笛' },
 { id: 'SCRATCH', label: 'スクラッチ', short: 'キュッ' },
 { id: 'HORN', label: 'ホーン (Horn)', short: 'ホーン' },
-{ id: 'SIREN', label: 'サイレン', short: 'サイレン' }
+{ id: 'SIREN', label: 'サイレン', short: 'サイレン' },
+{ id: 'CLAP', label: 'パン (Clap)', short: 'パン' }
 ];
 let selectedDrumPart = 'KICK';
 let currentParams = { duration: 0.40, velocity: 0.85};
@@ -1200,6 +1189,23 @@ return audioCtx;
             const stepSec = (60 / currentBpm) / 4;
             const kickDur = Math.min(0.7, Math.max(0.12, stepSec * 8));
             const crashDur = Math.min(1.5, Math.max(0.1, stepSec * 12));
+            if (partId === 'CLAP') {
+                // パン：伸びない短いクラップ（3連の小さなバースト＋短い余韻）
+                const cBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.12, audioCtx.sampleRate);
+                const cData = cBuf.getChannelData(0);
+                for (let i = 0; i < cBuf.length; i++) { cData[i] = Math.random() * 2 - 1; }
+                [0, 0.013, 0.027].forEach(function(off, idx) {
+                    const cs = audioCtx.createBufferSource(); cs.buffer = cBuf;
+                    const cf = audioCtx.createBiquadFilter(); cf.type = 'bandpass'; cf.frequency.value = 1250; cf.Q.value = 1.1;
+                    const cg = audioCtx.createGain();
+                    const t0 = now + off;
+                    cg.gain.setValueAtTime(vel * (idx === 2 ? 1.0 : 0.55), t0);
+                    cg.gain.exponentialRampToValueAtTime(0.0001, t0 + (idx === 2 ? 0.075 : 0.03));
+                    cs.connect(cf); cf.connect(cg); cg.connect(out);
+                    cs.start(t0); cs.stop(t0 + 0.1);
+                });
+                return;
+            }
             if (partId === 'SPLASH' || partId === 'CHEER' || partId === 'APPLAUSE') {
                 const fxDur = partId === 'SPLASH' ? 0.06 : 0.9;
                 const fxBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * fxDur, audioCtx.sampleRate);
@@ -2423,79 +2429,6 @@ window.addEventListener('load', function() { setTimeout(refreshRecLibrary, 400);
             }
             renderStepGrid();
             alert("🥁 リズムパーツ「" + p.name + "」を入れました！BPM" + p.bpm + "・全" + totalBars + "小節です。");
-        }
-
-        function loadPoppingBaseManual() {
-            if (!confirm("Popping土台（ドラム＋ベース）を読み込みますか？今の音楽データは置き換わります。メロディの楽器は空けておくので、手で作曲できます。")) return;
-            setGenre('popping');
-            const nb = 8;
-            Object.keys(tracksData).forEach(function(trackKey) {
-                const arr = [];
-                for (let i = 0; i < nb; i++) arr.push(new Array(currentStepsPerBar).fill(null));
-                tracksData[trackKey] = arr;
-            });
-            totalBars = nb;
-            document.getElementById('totalBarsDisplay').innerText = totalBars;
-            document.getElementById('totalBarsLabel2').innerText = totalBars;
-            document.getElementById('totalBarsLabel3').innerText = totalBars;
-            document.querySelectorAll('.bars-btn').forEach(function(b) {
-                const active = parseInt(b.getAttribute('data-bars')) === totalBars;
-                b.className = active
-                    ? "bars-btn bg-mvCyan/20 border border-mvCyan text-mvCyan text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95"
-                    : "bars-btn bg-gray-900 border border-gray-700 text-gray-300 text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95";
-            });
-            if (activeBar > totalBars) activeBar = 1;
-            setBpm(116);
-            if (typeof setBassTone === 'function') setBassTone('synth');
-            const roots = ['A2','A2','F2','G2','A2','A2','D3','E3'];
-            const rootsHi = ['A3','A3','F3','G3','A3','A3','D4','E4'];
-            for (let b = 0; b < nb; b++) {
-                const isStop = (b === 3 || b === 7);
-                if (isStop) {
-                    // ダイナストップ：最初に強くヒット → 静寂 → 鐘でポンと戻る合図
-                    tracksData['drums'][b][0] = { note: 'KICK', duration: 0.2, velocity: 1.0 };
-                    tracksData['tambourine'][b][0] = { note: 'SNARE', duration: 0.15, velocity: 1.0 };
-                    tracksData['bass'][b][0] = { note: roots[b], duration: 0.3, velocity: 1.0, tone: 'synth' };
-                    const fxSel = document.getElementById('poppingFxSelect');
-                    const fxNote = fxSel ? fxSel.value : 'CHEER';
-                    if (fxNote !== 'none') {
-                        tracksData['fx'][b][9] = { note: fxNote, duration: 0.9, velocity: 1.0 };
-                        if (b === 7) tracksData['fx'][b][16] = { note: fxNote, duration: 0.9, velocity: 1.0 };
-                    }
-                    continue;
-                }
-                [0, 9, 11].forEach(function(s) { tracksData['drums'][b][s] = { note: 'KICK', duration: 0.15, velocity: 1.0 }; });
-                if (b % 2 === 0) tracksData['drums'][b][7] = { note: 'KICK', duration: 0.15, velocity: 0.95 };
-                if (b === 1 || b === 5) tracksData['tambourine'][b][16] = { note: 'SPLASH', duration: 0.06, velocity: 0.8 };
-                if (b % 2 === 1) tracksData['drums'][b][16] = { note: 'KICK', duration: 0.15, velocity: 0.9 };
-                [5, 14].forEach(function(s) { tracksData['drums'][b][s] = { note: 'SNARE', duration: 0.12, velocity: 1.0 }; });
-                for (let s = 0; s < currentStepsPerBar; s += 2) {
-                    tracksData['tambourine'][b][s] = { note: 'HH', duration: 0.08, velocity: 0.55 };
-                }
-                // チョッパーベース：ルートを刻み、オクターブで跳ねる
-                [0, 9, 11].forEach(function(s) { tracksData['bass'][b][s] = { note: roots[b], duration: 0.3, velocity: 1.0, tone: 'synth' }; });
-                tracksData['bass'][b][14] = { note: rootsHi[b], duration: 0.25, velocity: 0.9, tone: 'synth' };
-                if (b % 2 === 0) tracksData['bass'][b][16] = { note: roots[b], duration: 0.25, velocity: 0.9, tone: 'synth' };
-                if (b === 0) tracksData['drums'][b][0] = { note: 'CRASH', duration: 0.7, velocity: 0.7 };
-            }
-            renderBarSelector();
-            renderStepGrid();
-            alert("🕺 Popping土台が入りました！ベースはシンセ（ブーブー系の電子低音）です。BPM116・8小節。ドラムとベースだけ入れて、ピアノ・シンセなど上の楽器は空けてあります。好きなメロディを手で入れてください。4小節目と8小節目はダイナストップ（鐘なし・選んだ効果音が入ります）。");
-        }
-
-        function makeSplashRhythm() {
-            if (!confirm("パシ（スプラッシュ）のリズムを、今のテンポのまま全小節のタンバリンに重ねますか？ドラムとメロディは残ります。")) return;
-            for (let b = 0; b < totalBars; b++) {
-                const steps = (b % 4 === 3) ? [4, 8, 12, 16] : [4, 12];
-                steps.forEach(function(s) {
-                    tracksData['tambourine'][b][s] = { note: 'SPLASH', duration: 0.06, velocity: 0.85 };
-                });
-                if (b % 2 === 1 && b % 4 !== 3) {
-                    tracksData['tambourine'][b][16] = { note: 'SPLASH', duration: 0.06, velocity: 0.75 };
-                }
-            }
-            renderStepGrid();
-            alert("✋ パシ・リズムを入れました！今のテンポ（BPM" + currentBpm + "）のまま、全" + totalBars + "小節です。手動で置く時は、ドラム・タンバリン・効果音のトラックでパッドの「パシ」を選んでマスを押してください。");
         }
 
         function loadUploadedRhythm() {
