@@ -2258,20 +2258,26 @@ function recDbOpen() {
         r.onerror = function() { rej(r.error); };
     });
 }
+function recFileName(ts) {
+    const d = new Date(ts);
+    const p = function(n) { return ('0' + n).slice(-2); };
+    return 'micvictory-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + '.webm';
+}
 async function saveRecordingToLibrary(blob, kind) {
     if (!blob || blob.size === 0) return;
     try {
         const db = await recDbOpen();
         const tx = db.transaction('recordings', 'readwrite');
         const ts = Date.now();
-        tx.objectStore('recordings').add({ createdAt: ts, kind: kind, type: blob.type || 'audio/webm', blob: blob });
+        const fname = recFileName(ts);
+        tx.objectStore('recordings').add({ createdAt: ts, kind: kind, name: fname, type: blob.type || 'audio/webm', blob: blob });
         tx.oncomplete = function() {
             refreshRecLibrary();
             // 他にも保存：スマホのダウンロードフォルダへ自動で書き出す
             try {
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                a.download = 'bandland-' + kind + '-' + ts + '.webm';
+                a.download = fname;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
@@ -2297,7 +2303,7 @@ async function refreshRecLibrary() {
                 const nd = new Date(newest.createdAt);
                 const nlabel = document.createElement('p');
                 nlabel.className = 'text-[11px] font-bold text-mvCyan pb-1';
-                nlabel.innerText = '🎧 最新の録音（' + (nd.getMonth() + 1) + '/' + nd.getDate() + ' ' + ('0' + nd.getHours()).slice(-2) + ':' + ('0' + nd.getMinutes()).slice(-2) + ' ・ ' + newest.kind + '）';
+                nlabel.innerText = '🎧 最新の録音：' + (newest.name || recFileName(newest.createdAt)) + '（' + (nd.getMonth() + 1) + '/' + nd.getDate() + ' ' + ('0' + nd.getHours()).slice(-2) + ':' + ('0' + nd.getMinutes()).slice(-2) + ' ・ ' + newest.kind + '）';
                 const naudio = document.createElement('audio');
                 naudio.controls = true;
                 naudio.preload = 'metadata';
@@ -2309,7 +2315,7 @@ async function refreshRecLibrary() {
             list.innerHTML = '';
             items.forEach(function(it) {
                 const d = new Date(it.createdAt);
-                const label = d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ' ・ ' + it.kind + ' ・ ' + Math.max(1, Math.round(it.blob.size / 1024)) + 'KB';
+                const label = (it.name || recFileName(it.createdAt)) + '（' + d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ' ・ ' + it.kind + ' ・ ' + Math.max(1, Math.round(it.blob.size / 1024)) + 'KB）';
                 const row = document.createElement('div');
                 row.className = 'bg-gray-950 border ' + (it === items[0] ? 'border-mvCyan' : 'border-gray-800') + ' rounded-lg px-2 py-1.5 space-y-1';
                 const top = document.createElement('div');
@@ -2355,7 +2361,7 @@ async function downloadLibraryRec(id) {
     if (!it) return;
     const a = document.createElement('a');
     a.href = URL.createObjectURL(it.blob);
-    a.download = 'bandland-rec-' + it.createdAt + '.webm';
+    a.download = it.name || recFileName(it.createdAt);
     a.click();
 }
 async function deleteLibraryRec(id) {
