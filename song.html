@@ -418,6 +418,8 @@
 <h3 class="text-xs font-bold text-white flex items-center space-x-2"><i class="fa-solid fa-database text-mvCyan"></i><span>録音ライブラリ（永久保存）</span></h3>
 <p class="text-[10px] text-gray-400">録音すると自動でここに保存され、スマホのダウンロードフォルダにも書き出されます。削除するまで残ります。</p>
 <div id="recLatest" class="pb-2"></div>
+<button onclick="document.getElementById('libraryFileInput').click()" class="w-full bg-gray-900 border border-mvCyan/60 text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95">📂 ファイルから追加（曲をライブラリに入れる）</button>
+<input type="file" id="libraryFileInput" accept="audio/*" multiple style="display:none" onchange="importFilesToLibrary(event)">
 <div id="recLibraryList" class="space-y-2"></div>
 <audio id="recLibraryPlayer" controls class="w-full hidden"></audio>
 </div>
@@ -2344,6 +2346,24 @@ async function refreshRecLibrary() {
         };
     } catch (e) { list.innerHTML = '<p class="text-[10px] text-gray-500">ライブラリを開けませんでした。</p>'; }
 }
+async function importFilesToLibrary(event) {
+    const files = Array.prototype.slice.call(event.target.files || []);
+    event.target.value = '';
+    if (!files.length) return;
+    const db = await recDbOpen();
+    let added = 0;
+    for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        await new Promise(function(res) {
+            const tx = db.transaction('recordings', 'readwrite');
+            tx.objectStore('recordings').add({ createdAt: Date.now() + i, kind: 'ファイル', name: f.name, type: f.type || 'audio/mpeg', blob: f });
+            tx.oncomplete = function() { added++; res(); };
+            tx.onerror = function() { res(); };
+        });
+    }
+    refreshRecLibrary();
+    alert('📂 ' + added + '曲をライブラリに入れました。永久保存されます。');
+}
 async function renameLibraryRec(id) {
     const it = await getLibraryRec(id);
     if (!it) return;
@@ -2352,7 +2372,7 @@ async function renameLibraryRec(id) {
     if (input === null) return;
     let nm = input.trim().replace(/[\\/:*?"<>|]/g, '');
     if (!nm) { alert('名前が空です。'); return; }
-    if (!/\.webm$/i.test(nm)) nm += '.webm';
+    if (!/\.(webm|mp3|m4a|wav|ogg)$/i.test(nm)) nm += '.webm';
     it.name = nm;
     const db = await recDbOpen();
     const tx = db.transaction('recordings', 'readwrite');
