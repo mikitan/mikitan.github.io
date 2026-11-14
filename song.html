@@ -243,6 +243,19 @@
 <p class="text-[9px] text-gray-500">歌詞はテキストファイル、音楽はJSONファイルで保存・読み込みできます。別の端末やバックアップ用にどうぞ。</p>
 <button onclick="loadChristmasSong()" class="w-full bg-gradient-to-r from-red-600 to-mvGreen text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🎄 クリスマスメロディ土台（歌詞800字つき）</button>
 <button onclick="loadUploadedRhythm()" class="w-full bg-gradient-to-r from-mvCyan to-mvAccent text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🥁 アップした音源のリズムを読み込む</button>
+<div class="bg-gray-950 border border-mvOrange/50 rounded-xl p-2.5 space-y-2">
+<p class="text-[10px] font-bold text-mvOrange">🎵 音源ファイルを取り込む（スマホの中の音源を、曲に重ねて再生・録音できます）</p>
+<p id="backingName" class="text-[10px] text-gray-400">音源はまだ入っていません</p>
+<div class="grid grid-cols-4 gap-1.5">
+<button onclick="document.getElementById('backingFileInput').click()" class="bg-gray-900 border border-mvOrange/60 text-mvOrange text-[10px] py-2 rounded-lg font-bold transition active:scale-95">📂 選ぶ</button>
+<button onclick="playBacking()" class="bg-gray-900 border border-mvGreen/60 text-mvGreen text-[10px] py-2 rounded-lg font-bold transition active:scale-95">▶ 再生</button>
+<button onclick="stopBacking()" class="bg-gray-900 border border-gray-700 text-gray-200 text-[10px] py-2 rounded-lg font-bold transition active:scale-95">■ 停止</button>
+<button onclick="deleteBacking()" class="bg-gray-900 border border-red-500/60 text-red-400 text-[10px] py-2 rounded-lg font-bold transition active:scale-95">削除</button>
+</div>
+<div class="flex items-center space-x-2"><span class="text-[9px] text-gray-400 whitespace-nowrap">音量</span><input type="range" min="0" max="1" step="0.05" value="0.9" oninput="setBackingVolume(this.value)" class="w-full accent-mvOrange"></div>
+<audio id="backingAudio" loop style="display:none"></audio>
+<input type="file" id="backingFileInput" accept="audio/*" style="display:none" onchange="importBackingFile(event)">
+</div>
 
 <div class="pt-1">
 <p class="text-[10px] text-gray-400 font-bold pb-1">🥁 リズムパーツ集（ドラム＋ベースだけ差し替え・メロディは残ります）</p>
@@ -2212,8 +2225,11 @@ function insertEmptyIntroBars(barsCount) {
 const REC_DB_NAME = 'BANDLAND_REC_DB';
 function recDbOpen() {
     return new Promise(function(res, rej) {
-        const r = indexedDB.open(REC_DB_NAME, 1);
-        r.onupgradeneeded = function() { r.result.createObjectStore('recordings', { keyPath: 'id', autoIncrement: true }); };
+        const r = indexedDB.open(REC_DB_NAME, 2);
+        r.onupgradeneeded = function() {
+            if (!r.result.objectStoreNames.contains('recordings')) r.result.createObjectStore('recordings', { keyPath: 'id', autoIncrement: true });
+            if (!r.result.objectStoreNames.contains('backing')) r.result.createObjectStore('backing', { keyPath: 'id' });
+        };
         r.onsuccess = function() { res(r.result); };
         r.onerror = function() { rej(r.error); };
     });
@@ -2430,6 +2446,72 @@ window.addEventListener('load', function() { setTimeout(refreshRecLibrary, 400);
             renderStepGrid();
             alert("🥁 リズムパーツ「" + p.name + "」を入れました！BPM" + p.bpm + "・全" + totalBars + "小節です。");
         }
+
+        /* 🎵 音源ファイル取り込み：スマホの音源を土台に重ねて再生・内部録音にも入る */
+        let backingSrcNode = null;
+        let backingGainNode = null;
+        function ensureBackingGraph() {
+            getAudioContext();
+            if (backingSrcNode) return;
+            const el = document.getElementById('backingAudio');
+            backingSrcNode = audioCtx.createMediaElementSource(el);
+            backingGainNode = audioCtx.createGain();
+            backingGainNode.gain.value = 0.9;
+            backingSrcNode.connect(backingGainNode);
+            backingGainNode.connect(masterGain);
+        }
+        function setBackingVolume(v) {
+            ensureBackingGraph();
+            if (backingGainNode) backingGainNode.gain.value = parseFloat(v);
+        }
+        function importBackingFile(event) {
+            const file = event.target.files && event.target.files[0];
+            event.target.value = '';
+            if (!file) return;
+            const el = document.getElementById('backingAudio');
+            el.src = URL.createObjectURL(file);
+            document.getElementById('backingName').innerText = '🎵 ' + file.name;
+            recDbOpen().then(function(db) {
+                const tx = db.transaction('backing', 'readwrite');
+                tx.objectStore('backing').put({ id: 'current', name: file.name, type: file.type || 'audio/mpeg', blob: file });
+                tx.oncomplete = function() { alert('🎵 音源を取り込みました。永久保存されるので、次に開いても残っています。「▶ 再生」で曲に重ねられます。'); };
+            }).catch(function() {});
+            ensureBackingGraph();
+        }
+        function loadBackingFromDB() {
+            recDbOpen().then(function(db) {
+                const req = db.transaction('backing', 'readonly').objectStore('backing').get('current');
+                req.onsuccess = function() {
+                    const it = req.result;
+                    if (!it || !it.blob) return;
+                    const el = document.getElementById('backingAudio');
+                    el.src = URL.createObjectURL(it.blob);
+                    document.getElementById('backingName').innerText = '🎵 ' + (it.name || '音源');
+                };
+            }).catch(function() {});
+        }
+        function playBacking() {
+            const el = document.getElementById('backingAudio');
+            if (!el.src) { alert('先に「📂 選ぶ」で音源ファイルを取り込んでください。'); return; }
+            ensureBackingGraph();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            el.play();
+        }
+        function stopBacking() {
+            const el = document.getElementById('backingAudio');
+            el.pause(); el.currentTime = 0;
+        }
+        function deleteBacking() {
+            if (!confirm('取り込んだ音源を削除しますか？')) return;
+            stopBacking();
+            const el = document.getElementById('backingAudio');
+            el.removeAttribute('src'); el.load();
+            document.getElementById('backingName').innerText = '音源はまだ入っていません';
+            recDbOpen().then(function(db) {
+                db.transaction('backing', 'readwrite').objectStore('backing').delete('current');
+            }).catch(function() {});
+        }
+        window.addEventListener('load', function() { setTimeout(loadBackingFromDB, 600); });
 
         function loadUploadedRhythm() {
             if (!confirm("アップした音源のリズムを読み込みますか？今の音楽データは置き換わります。")) return;
