@@ -417,6 +417,7 @@
 <div class="bg-mvCard border border-gray-800/80 rounded-2xl p-3.5 shadow-xl space-y-2">
 <h3 class="text-xs font-bold text-white flex items-center space-x-2"><i class="fa-solid fa-database text-mvCyan"></i><span>録音ライブラリ（永久保存）</span></h3>
 <p class="text-[10px] text-gray-400">録音すると自動でここに保存され、スマホのダウンロードフォルダにも書き出されます。削除するまで残ります。</p>
+<div id="recStorageStatus" class="text-[10px] font-bold text-gray-400">保存状態を確認中…</div>
 <div id="recLatest" class="pb-2"></div>
 <button onclick="document.getElementById('libraryFileInput').click()" class="w-full bg-gray-900 border border-mvCyan/60 text-mvCyan text-[11px] py-2 rounded-lg font-bold transition active:scale-95">📂 ファイルから追加（曲をライブラリに入れる）</button>
 <input type="file" id="libraryFileInput" accept="audio/*" multiple style="display:none" onchange="importFilesToLibrary(event)">
@@ -847,7 +848,25 @@ acoustic: 'アコギ', electric: 'エレキ', violin: 'バイオリン',
 trumpet: 'トランペット', drums: 'ドラム', tambourine: 'タンバリン', bell: '鐘', gong: 'ドラ', synth: 'シンセ', electone: 'エレクトーン', trombone: 'トロンボーン', tuba: 'チューバ', fx: '効果音'
 };
 
+async function ensurePersistentStorage() {
+    const el = document.getElementById('recStorageStatus');
+    try {
+        if (navigator.storage && navigator.storage.persist) {
+            let persisted = await navigator.storage.persisted();
+            if (!persisted) persisted = await navigator.storage.persist();
+            if (el) {
+                if (persisted) { el.textContent = '保存状態：消えにくい設定になっています'; el.style.color = '#34d399'; }
+                else { el.textContent = '保存状態：通常（録音はダウンロードフォルダにも保存されます）'; el.style.color = '#fbbf24'; }
+            }
+            return persisted;
+        }
+    } catch (e) {}
+    if (el) el.textContent = '保存状態：通常（録音はダウンロードフォルダにも保存されます）';
+    return false;
+}
+
 function initApp() {
+ensurePersistentStorage();
 refreshRecLibrary();
 loadBassSettings();
 renderBarSelector();
@@ -2267,6 +2286,7 @@ function recFileName(ts) {
 }
 async function saveRecordingToLibrary(blob, kind) {
     if (!blob || blob.size === 0) return;
+    ensurePersistentStorage();
     try {
         const db = await recDbOpen();
         const tx = db.transaction('recordings', 'readwrite');
