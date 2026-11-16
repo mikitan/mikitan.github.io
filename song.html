@@ -360,12 +360,12 @@
 </div>
 <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-3">
 <div class="grid grid-cols-2 gap-2">
-<button onclick="toggleFx('reverb')" id="fxBtn-reverb" class="py-2 rounded-xl text-xs font-bold bg-gray-900 border border-gray-800 text-gray-400 transition flex items-center justify-center space-x-1.5"><i class="fa-solid fa-house-chimney-window"></i><span>リバーブ</span></button>
-<button onclick="toggleFx('delay')" id="fxBtn-delay" class="py-2 rounded-xl text-xs font-bold bg-gray-900 border border-gray-800 text-gray-400 transition flex items-center justify-center space-x-1.5"><i class="fa-solid fa-wave-square"></i><span>ディレイ</span></button>
+<button onclick="toggleFx('reverb')" id="fxBtn-reverb" class="py-2 rounded-xl text-xs font-bold fx-active transition flex items-center justify-center space-x-1.5 border border-purple-400 shadow-md"><i class="fa-solid fa-house-chimney-window"></i><span>リバーブ</span></button>
+<button onclick="toggleFx('delay')" id="fxBtn-delay" class="py-2 rounded-xl text-xs font-bold fx-active transition flex items-center justify-center space-x-1.5 border border-purple-400 shadow-md"><i class="fa-solid fa-wave-square"></i><span>ディレイ</span></button>
 </div>
 <div class="grid grid-cols-2 gap-2">
-<button onclick="toggleFx('lowpass')" id="fxBtn-lowpass" class="py-2 rounded-xl text-xs font-bold bg-gray-900 border border-gray-800 text-gray-400 transition flex items-center justify-center space-x-1.5"><i class="fa-solid fa-filter"></i><span>ローパス</span></button>
-<button onclick="toggleFx('highpass')" id="fxBtn-highpass" class="py-2 rounded-xl text-xs font-bold bg-gray-900 border border-gray-800 text-gray-400 transition flex items-center justify-center space-x-1.5"><i class="fa-solid fa-filter-circle-xmark"></i><span>ハイパス</span></button>
+<button onclick="toggleFx('lowpass')" id="fxBtn-lowpass" class="py-2 rounded-xl text-xs font-bold fx-active transition flex items-center justify-center space-x-1.5 border border-purple-400 shadow-md"><i class="fa-solid fa-filter"></i><span>ローパス</span></button>
+<button onclick="toggleFx('highpass')" id="fxBtn-highpass" class="py-2 rounded-xl text-xs font-bold fx-active transition flex items-center justify-center space-x-1.5 border border-purple-400 shadow-md"><i class="fa-solid fa-filter-circle-xmark"></i><span>ハイパス</span></button>
 </div>
 </div>
 </div>
@@ -720,7 +720,8 @@ piano: 2.5, vocal: 2.5, bass: 2.5, acoustic: 2.5,
 electric: 2.5, violin: 2.5, trumpet: 2.7, drums: 3, tambourine: 2.4, bell: 2.5, gong: 2.5, synth: 2.4, electone: 2.5, trombone: 2.6, tuba: 2.7, fx: 2.5, harmonica: 2.5, elecburn: 2.6, sleighbell: 2.5
 };
 
-let fxState = { reverb: false, delay: false, lowpass: false, highpass: false};
+let fxState = { reverb: true, delay: true, lowpass: true, highpass: true};
+let masterFxNodes = null;
 let currentGenre = 'popping';
 let bassSubOn = false;
 let bassTone = 'deep';
@@ -1195,8 +1196,18 @@ trackGains[trackKey].gain.setValueAtTime(parseFloat(val), audioCtx.currentTime);
 }
 }
 
+function applyFxState() {
+if (!masterFxNodes || !audioCtx) return;
+const t = audioCtx.currentTime;
+masterFxNodes.hp.frequency.setValueAtTime(fxState.highpass ? 30 : 10, t);
+masterFxNodes.lp.frequency.setValueAtTime(fxState.lowpass ? 16000 : 19000, t);
+masterFxNodes.verbWet.gain.setValueAtTime(fxState.reverb ? 0.18 : 0.0, t);
+masterFxNodes.delayWet.gain.setValueAtTime(fxState.delay ? 0.15 : 0.0, t);
+}
+
 function toggleFx(fxName) {
 fxState[fxName] =!fxState[fxName];
+applyFxState();
 const btn = document.getElementById('fxBtn-' + fxName);
 if (fxState[fxName]) {
 btn.className = "py-2 rounded-xl text-xs font-bold fx-active transition flex items-center justify-center space-x-1.5 border border-purple-400 shadow-md";
@@ -1244,7 +1255,20 @@ limiter.knee.setValueAtTime(20, audioCtx.currentTime);
 limiter.ratio.setValueAtTime(12, audioCtx.currentTime);
 limiter.attack.setValueAtTime(0.003, audioCtx.currentTime);
 limiter.release.setValueAtTime(0.25, audioCtx.currentTime);
-masterGain.connect(limiter);
+const fxHp = audioCtx.createBiquadFilter(); fxHp.type = 'highpass'; fxHp.frequency.value = fxState.highpass ? 30 : 10;
+const fxLp = audioCtx.createBiquadFilter(); fxLp.type = 'lowpass'; fxLp.frequency.value = fxState.lowpass ? 16000 : 19000;
+masterGain.connect(fxHp); fxHp.connect(fxLp); fxLp.connect(limiter);
+const irLen = Math.floor(audioCtx.sampleRate * 1.2);
+const irBuf = audioCtx.createBuffer(2, irLen, audioCtx.sampleRate);
+for (let ch = 0; ch < 2; ch++) { const dd = irBuf.getChannelData(ch); for (let ii = 0; ii < irLen; ii++) { dd[ii] = (Math.random() * 2 - 1) * Math.pow(1 - ii / irLen, 2.2); } }
+const fxVerb = audioCtx.createConvolver(); fxVerb.buffer = irBuf;
+const fxVerbWet = audioCtx.createGain(); fxVerbWet.gain.value = fxState.reverb ? 0.18 : 0.0;
+fxLp.connect(fxVerb); fxVerb.connect(fxVerbWet); fxVerbWet.connect(limiter);
+const fxDly = audioCtx.createDelay(1.0); fxDly.delayTime.value = 0.28;
+const fxFb = audioCtx.createGain(); fxFb.gain.value = 0.3;
+const fxDlyWet = audioCtx.createGain(); fxDlyWet.gain.value = fxState.delay ? 0.15 : 0.0;
+fxLp.connect(fxDly); fxDly.connect(fxFb); fxFb.connect(fxDly); fxDly.connect(fxDlyWet); fxDlyWet.connect(limiter);
+masterFxNodes = { hp: fxHp, lp: fxLp, verbWet: fxVerbWet, delayWet: fxDlyWet };
 limiter.connect(audioCtx.destination);
 limiter.connect(destStreamNode);
 
@@ -1324,6 +1348,7 @@ return audioCtx;
             const stepSec = (60 / currentBpm) / 4;
             const kickDur = Math.min(0.7, Math.max(0.12, stepSec * 8));
             const crashDur = Math.min(1.5, Math.max(0.1, stepSec * 12));
+            if (partId === 'KICK' || partId === 'SNARE' || partId === 'TOM' || partId === 'RIM' || partId === 'COWBELL') vel = Math.min(1.3, vel * 1.2);
             if (partId === 'CLAP') {
                 // パン：伸びない短いクラップ（3連の小さなバースト＋短い余韻）
                 const cBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.12, audioCtx.sampleRate);
@@ -2020,9 +2045,10 @@ return audioCtx;
             osc.stop(now + duration);
         }
 
-        function playSleighBell(vel, now, out) {
-            // トナカイ鈴：シャン・シャン・シャンと、はっきり3回鳴るジングルベル
-            const partials = [2093, 2637, 3322, 4186, 5274];
+        function playSleighBell(vel, now, out, noteFreq) {
+            // トナカイ鈴：シャン・シャン・シャンと3回鳴る。ドレミファソの音程で鳴る
+            const ratio = (noteFreq || 523.25) / 523.25;
+            const partials = [2093, 2637, 3322, 4186, 5274].map(function(f) { return f * ratio; });
             const gains = [0.5, 0.4, 0.3, 0.22, 0.12];
             [[0, 1], [0.16, 0.8], [0.32, 1.05]].forEach(function(sh) {
                 const t = now + sh[0];
@@ -2054,7 +2080,7 @@ return audioCtx;
             const velocity = expr.velocity || 0.85;
 
             if (trackType === 'sleighbell') {
-                playSleighBell(velocity, audioCtx.currentTime, trackGains[trackType] || masterGain);
+                playSleighBell(velocity, audioCtx.currentTime, trackGains[trackType] || masterGain, notesFreqMap[note] || 523.25);
                 return;
             }
 
