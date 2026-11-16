@@ -528,7 +528,7 @@
 <i class="fa-solid fa-guitar text-mvCyan"></i>
 <span>ベース手動録音（押すとグリッドに直接記録）</span>
 </h3>
-<span class="text-[10px] text-mvCyan font-mono">今の音色で録音</span>
+<span class="text-[10px] text-mvCyan font-mono">重低音（ドードー）で録音</span>
 </div>
 <div class="grid grid-cols-8 gap-1 bg-gray-950 p-2 rounded-xl border border-gray-800">
 <button onclick="playBassManualNote('C3')" class="key-btn bg-gray-900 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center transition"><span class="text-[9px] text-gray-400">C3</span><span class="text-xs font-bold">ド</span></button>
@@ -540,7 +540,7 @@
 <button onclick="playBassManualNote('B3')" class="key-btn bg-gray-900 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center transition"><span class="text-[9px] text-gray-400">B3</span><span class="text-xs font-bold">シ</span></button>
 <button onclick="playBassManualNote('C4')" class="key-btn bg-gray-900 border border-gray-800 text-white py-3 rounded-lg flex flex-col items-center justify-center transition"><span class="text-[9px] text-gray-400">C4</span><span class="text-xs font-bold">ド↑</span></button>
 </div>
-<p class="text-[10px] text-gray-400">押した音は、今選んでいるベース音色で鳴って、そのままステップに記録されます。<span class="text-mvCyan font-bold">再生中に押すと、テンポに合わせて今流れているマスに打ち込まれます（リズム打ち込み）。</span>「小節再生」で聞き直せます。</p>
+<p class="text-[10px] text-gray-400">押した音は、重低音（ドードー）で鳴って、そのままステップに記録されます。<span class="text-mvCyan font-bold">再生中に押すと、テンポに合わせて今流れているマスに打ち込まれます（リズム打ち込み）。</span>「小節再生」で聞き直せます。</p>
 </div>
 
 <!-- 🥁 リアル生ドラムパッド -->
@@ -557,6 +557,10 @@
 <button onclick="selectDrumPart('SNARE')" id="dpad-SNARE" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">パッ (Snare)</button>
 <button onclick="selectDrumPart('HH')" id="dpad-HH" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">チッ (Hat)</button>
 <button onclick="selectDrumPart('CRASH')" id="dpad-CRASH" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">バーン (Cym)</button>
+<button onclick="selectDrumPart('TOM')" id="dpad-TOM" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">トム (Tom)</button>
+<button onclick="selectDrumPart('RIM')" id="dpad-RIM" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">リム (Rim)</button>
+<button onclick="selectDrumPart('COWBELL')" id="dpad-COWBELL" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">カウベル</button>
+<button onclick="selectDrumPart('SHAKER')" id="dpad-SHAKER" class="py-3 rounded-lg text-[10px] font-bold bg-gray-900 text-gray-300 border border-gray-800">シャカ (Shake)</button>
 </div>
 </div>
 
@@ -894,6 +898,10 @@ const drum4Parts = [
 { id: 'SNARE', label: 'パッ (Snare)', short: 'パッ(Snare)'},
 { id: 'HH', label: 'ハイハット', short: 'チッ(Hat)'},
 { id: 'CRASH', label: 'シンバル', short: 'バーン(Cym)'},
+{ id: 'TOM', label: 'トム (Tom)', short: 'トム(Tom)'},
+{ id: 'RIM', label: 'リム (Rim)', short: 'リム(Rim)'},
+{ id: 'COWBELL', label: 'カウベル', short: 'カウベル'},
+{ id: 'SHAKER', label: 'シェイカー', short: 'シャカ(Shake)'},
 ];
 let selectedDrumPart = 'KICK';
 let currentParams = { duration: 0.40, velocity: 0.85};
@@ -1501,6 +1509,73 @@ return audioCtx;
                     o.connect(g); g.connect(out);
                     o.start(now); o.stop(now + 1.4);
                 });
+            } else if (partId === 'TOM') {
+                // トム：音程が沈む太鼓。ポッピングのフィルに合う
+                const tOsc = audioCtx.createOscillator();
+                const tGain = audioCtx.createGain();
+                tOsc.type = 'sine';
+                tOsc.frequency.setValueAtTime(185, now);
+                tOsc.frequency.exponentialRampToValueAtTime(88, now + 0.16);
+                tGain.gain.setValueAtTime(vel * 2.2, now);
+                tGain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+                tOsc.connect(tGain); tGain.connect(out);
+                tOsc.start(now); tOsc.stop(now + 0.24);
+                const tAtk = audioCtx.createOscillator();
+                const tAtkGain = audioCtx.createGain();
+                tAtk.type = 'triangle';
+                tAtk.frequency.setValueAtTime(320, now);
+                tAtkGain.gain.setValueAtTime(vel * 0.9, now);
+                tAtkGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+                tAtk.connect(tAtkGain); tAtkGain.connect(out);
+                tAtk.start(now); tAtk.stop(now + 0.03);
+            } else if (partId === 'RIM') {
+                // リムショット：カッという鋭いクリック
+                const rBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.05, audioCtx.sampleRate);
+                const rData = rBuf.getChannelData(0);
+                for (let i = 0; i < rData.length; i++) { rData[i] = Math.random() * 2 - 1; }
+                const rSrc = audioCtx.createBufferSource(); rSrc.buffer = rBuf;
+                const rFilter = audioCtx.createBiquadFilter();
+                rFilter.type = 'bandpass'; rFilter.frequency.value = 1750; rFilter.Q.value = 1.2;
+                const rGain = audioCtx.createGain();
+                rGain.gain.setValueAtTime(vel * 1.8, now);
+                rGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+                rSrc.connect(rFilter); rFilter.connect(rGain); rGain.connect(out);
+                rSrc.start(now); rSrc.stop(now + 0.05);
+                const rTone = audioCtx.createOscillator();
+                const rToneGain = audioCtx.createGain();
+                rTone.type = 'square'; rTone.frequency.value = 420;
+                rToneGain.gain.setValueAtTime(vel * 0.5, now);
+                rToneGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+                rTone.connect(rToneGain); rToneGain.connect(out);
+                rTone.start(now); rTone.stop(now + 0.03);
+            } else if (partId === 'COWBELL') {
+                // カウベル：2つの金属音の重なり、ファンクの定番
+                const cbFilter = audioCtx.createBiquadFilter();
+                cbFilter.type = 'bandpass'; cbFilter.frequency.value = 720; cbFilter.Q.value = 1.1;
+                const cbGain = audioCtx.createGain();
+                cbGain.gain.setValueAtTime(vel * 1.1, now);
+                cbGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+                cbFilter.connect(cbGain); cbGain.connect(out);
+                [587, 845].forEach(function(f) {
+                    const o = audioCtx.createOscillator();
+                    o.type = 'square'; o.frequency.value = f;
+                    o.connect(cbFilter); o.start(now); o.stop(now + 0.28);
+                });
+            } else if (partId === 'SHAKER') {
+                // シェイカー：短いノイズのうねり
+                const shDur = 0.11;
+                const shBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * shDur, audioCtx.sampleRate);
+                const shData = shBuf.getChannelData(0);
+                for (let i = 0; i < shData.length; i++) { shData[i] = Math.random() * 2 - 1; }
+                const shSrc = audioCtx.createBufferSource(); shSrc.buffer = shBuf;
+                const shFilter = audioCtx.createBiquadFilter();
+                shFilter.type = 'highpass'; shFilter.frequency.value = 6200;
+                const shGain = audioCtx.createGain();
+                shGain.gain.setValueAtTime(0.0001, now);
+                shGain.gain.exponentialRampToValueAtTime(vel * 0.8, now + 0.025);
+                shGain.gain.exponentialRampToValueAtTime(0.0001, now + shDur);
+                shSrc.connect(shFilter); shFilter.connect(shGain); shGain.connect(out);
+                shSrc.start(now); shSrc.stop(now + shDur);
             } else if (partId === 'SNARE') {
                 const shell = audioCtx.createOscillator();
                 const shellGain = audioCtx.createGain();
@@ -1976,7 +2051,7 @@ return audioCtx;
         }
 
         function playBassManualNote(noteName) {
-            const expr = { note: noteName, duration: currentNoteDuration, velocity: currentParams.velocity, style: 'single', tone: bassTone };
+            const expr = { note: noteName, duration: currentNoteDuration, velocity: currentParams.velocity, style: 'single', tone: 'deep' };
             playSoundWithExpression('bass', expr);
             // 再生中＋記録モードなら、テンポに合わせて今流れているマスへ打ち込む（リズム打ち込み）
             if (isGlobalPlaying && isRecordMode) {
