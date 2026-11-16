@@ -530,6 +530,7 @@
 </h3>
 <span class="text-[10px] text-mvCyan font-mono">今の音色で録音</span>
 </div>
+<button id="melodyLayerBtn" onclick="toggleMelodyLayer()" class="w-full bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">🎵 メロディ上乗せ：OFF（鍵盤はベースに入ります）</button>
 <p class="text-[10px] text-mvCyan font-bold">▼ 低い音（低音ド〜）</p>
 <div class="grid grid-cols-8 gap-1 bg-gray-950 p-2 rounded-xl border border-mvCyan/60">
 <button onclick="playBassManualNote('C2')" class="key-btn bg-cyan-950 border border-mvCyan/60 text-white py-3 rounded-lg flex flex-col items-center justify-center transition"><span class="text-[9px] text-mvCyan">C2</span><span class="text-xs font-bold">ド</span></button>
@@ -742,6 +743,17 @@ let fxState = { reverb: false, delay: false, lowpass: false, highpass: false};
 let currentGenre = 'popping';
 let bassSubOn = false;
 let bassTone = 'electric';
+let melodyLayerOn = false;
+function toggleMelodyLayer() {
+    melodyLayerOn = !melodyLayerOn;
+    const btn = document.getElementById('melodyLayerBtn');
+    if (btn) {
+        btn.innerText = melodyLayerOn ? '🎵 メロディ上乗せ：ON（鍵盤が高く鳴ってピアノに入ります）' : '🎵 メロディ上乗せ：OFF（鍵盤はベースに入ります）';
+        btn.className = melodyLayerOn
+            ? "w-full bg-mvPink/30 border border-mvPink text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95"
+            : "w-full bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95";
+    }
+}
 
 function setBassTone(t) {
     bassTone = t;
@@ -1559,7 +1571,7 @@ return audioCtx;
             'C2': 65.41, 'D2': 73.42, 'E2': 82.41, 'F2': 87.31, 'G2': 98.00, 'A2': 110.00, 'B2': 123.47,
             'C3': 130.81, 'D3': 146.83, 'E3': 164.81, 'F3': 174.61, 'G3': 196.00, 'A3': 220.00, 'B3': 246.94,
             'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00, 'A4': 440.00, 'B4': 493.88, 'C5': 523.25,
-            'D5': 587.33, 'E5': 659.25, 'F5': 698.46, 'G5': 783.99, 'A5': 880.00
+            'D5': 587.33, 'E5': 659.25, 'F5': 698.46, 'G5': 783.99, 'A5': 880.00, 'B5': 987.77, 'C6': 1046.50
         };
 
         function playSingleFreq(trackType, freq, duration, velocity, toneOverride) {
@@ -1986,6 +1998,25 @@ return audioCtx;
         }
 
         function playBassManualNote(noteName) {
+            if (melodyLayerOn) {
+                const upMap = { 'C2': 'C4', 'D2': 'D4', 'E2': 'E4', 'F2': 'F4', 'G2': 'G4', 'A2': 'A4', 'B2': 'B4', 'C3': 'C5', 'D3': 'D5', 'E3': 'E5', 'F3': 'F5', 'G3': 'G5', 'A3': 'A5', 'B3': 'B5', 'C4': 'C6' };
+                const mExpr = { note: upMap[noteName] || noteName, duration: currentNoteDuration, velocity: currentParams.velocity, style: 'single' };
+                playSoundWithExpression('piano', mExpr);
+                if (isGlobalPlaying && isRecordMode) {
+                    tracksData['piano'][liveBarIdx][liveStepIdx] = mExpr;
+                    if (liveBarIdx === activeBar - 1 && activeTrack === 'piano') renderStepGrid();
+                    return;
+                }
+                tracksData['piano'][activeBar - 1][currentStepPointer] = mExpr;
+                if (activeTrack === 'piano') renderStepGrid();
+                currentStepPointer++;
+                if (currentStepPointer >= currentStepsPerBar) {
+                    currentStepPointer = 0;
+                    if (activeBar < totalBars) { activeBar++; renderBarSelector(); renderStepGrid(); }
+                }
+                updatePointerDisplay();
+                return;
+            }
             const expr = { note: noteName, duration: currentNoteDuration, velocity: currentParams.velocity, style: 'single', tone: bassTone };
             playSoundWithExpression('bass', expr);
             // 再生中＋記録モードなら、テンポに合わせて今流れているマスへ打ち込む（リズム打ち込み）
