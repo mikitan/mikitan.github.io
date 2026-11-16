@@ -227,6 +227,22 @@
 </button>
 </div>
 
+<!-- ベース＋ドラム土台 -->
+<div class="bg-gray-900/60 border border-mvCyan/50 p-3 rounded-xl space-y-2">
+<div class="flex items-center justify-between">
+<h4 class="text-xs font-bold text-white flex items-center space-x-1.5">
+<i class="fa-solid fa-layer-group text-mvCyan"></i>
+<span>ベース＋ドラム土台（メロディは手作曲）</span>
+</h4>
+<span class="text-[9px] text-mvCyan font-mono">Bass &amp; Drums Base</span>
+</div>
+<button onclick="loadBassDrumBase()" class="w-full bg-gradient-to-r from-mvCyan to-mvAccent text-white text-xs py-2 rounded-lg font-black shadow-lg hover:brightness-110 active:scale-95 transition flex items-center justify-center space-x-1.5">
+<i class="fa-solid fa-drum"></i>
+<span>ベース＋ドラムの土台を作る（今のジャンルで）</span>
+</button>
+<p class="text-[9px] text-gray-500">ベース・ドラム・タンバリンだけを作ります。メロディのトラックはそのまま残るので、上に手でメロディを作れます。</p>
+</div>
+
 <button onclick="clearAllTracksData()" class="w-full bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-400 text-xs py-2 rounded-xl font-bold transition flex items-center justify-center space-x-1.5 active:scale-95">
 <i class="fa-solid fa-trash-can"></i>
 <span>全音楽データ一括クリア</span>
@@ -748,8 +764,57 @@ function loadBassSettings() {
     } catch (e) {}
 }
 
-/* 🎸 ベースメロディAI作成：ジャンルのコード進行に沿って、今の音色らしいベースラインを全小節に作る */
+/* 🎸 ベースライン生成ヘルパー：ルート・5度・オクターブ・次のコードへのアプローチ音で「それらしい」ラインを作る */
+const BASS_FIFTH = { 'A3': 'E4', 'C3': 'G3', 'F3': 'C4', 'G3': 'D4', 'D3': 'A3', 'E3': 'B3' };
+const BASS_OCT = { 'A3': 'A4', 'C3': 'C4', 'F3': 'F4', 'G3': 'G4', 'D3': 'D4', 'E3': 'E4' };
+const BASS_APPROACH = { 'A3': 'B3', 'C3': 'D3', 'F3': 'G3', 'G3': 'A3', 'D3': 'E3', 'E3': 'F3' };
+function buildBassBar(root, nextRoot, isLight, barIdx) {
+    const steps = currentStepsPerBar;
+    const mid = Math.floor(steps / 2);
+    const fifth = BASS_FIFTH[root] || root;
+    const oct = BASS_OCT[root] || root;
+    const approach = BASS_APPROACH[nextRoot] || nextRoot;
+    const dur = (bassTone === 'chopper') ? 0.09 : currentNoteDuration;
+    let bs = new Array(steps).fill(null);
+    const put = function(i, note, v, d) { if (i >= 0 && i < steps) bs[i] = { note: note, duration: (d || dur), velocity: v }; };
+    if (bassTone === 'deep' || bassTone === 'elec') {
+        put(0, root, 1.0, 0.9);
+        put(mid, root, 0.95, 0.7);
+        put(steps - 2, approach, 0.8, 0.25);
+    } else if (bassTone === 'chopper') {
+        put(0, root, 1.0); put(3, root, 0.8); put(5, fifth, 0.75);
+        put(mid, root, 1.0); put(mid + 3, oct, 0.7);
+        put(steps - 2, approach, 0.85);
+    } else {
+        put(0, root, 1.0);
+        put(isLight ? 4 : 3, fifth, 0.85);
+        put(mid, root, 0.95);
+        put(mid + (isLight ? 4 : 3), oct, 0.8);
+        put(steps - 2, approach, 0.85);
+        if (barIdx % 2 === 1) put(steps - 5, root, 0.7);
+        if (barIdx % 4 === 3) { put(steps - 4, fifth, 0.8); put(steps - 3, oct, 0.85); }
+    }
+    bs.forEach(function(e){ if (e) e.tone = bassTone; });
+    return bs;
+}
+
+/* 🎸 ベースメロディAI作成：ジャンルのコード進行に沿って、動きのあるベースラインを全小節に作る */
 function generateBassMelody() {
+    getAudioContext();
+    const conf = GENRE_CONF[currentGenre] || GENRE_CONF['popping'];
+    const roots = conf.bass;
+    for (let b = 0; b < totalBars; b++) {
+        const root = roots[b % roots.length];
+        const nextRoot = roots[(b + 1) % roots.length];
+        tracksData['bass'][b] = buildBassBar(root, nextRoot, conf.light, b);
+    }
+    renderStepGrid();
+    alert("🎸 ベースメロディを作りました！（音色：" + bassTone + "）");
+}
+
+/* 🥁 ベース＋ドラム土台：リズム隊だけを作り、メロディのトラックはそのまま残す（上に手でメロディを作る用） */
+function loadBassDrumBase() {
+    if (!confirm("ベースとドラムの土台を作ります。\n今のベース・ドラム・タンバリンは置き換わります。\nメロディのトラックはそのまま残ります。よろしいですか？")) return;
     getAudioContext();
     const conf = GENRE_CONF[currentGenre] || GENRE_CONF['popping'];
     const isPops = conf.light;
@@ -758,35 +823,40 @@ function generateBassMelody() {
     const mid = Math.floor(steps / 2);
     for (let b = 0; b < totalBars; b++) {
         const root = roots[b % roots.length];
-        let bs = new Array(steps).fill(null);
-        if (bassTone === 'chopper') {
-            bs[0] = { note: root, duration: 0.1, velocity: 1.0 };
-            bs[3] = { note: root, duration: 0.08, velocity: 0.8 };
-            bs[6] = { note: root, duration: 0.08, velocity: 0.7 };
-            bs[mid] = { note: root, duration: 0.1, velocity: 1.0 };
-            bs[mid + 3] = { note: root, duration: 0.08, velocity: 0.7 };
-            bs[steps - 2] = { note: root, duration: 0.08, velocity: 0.85 };
-        } else if (bassTone === 'deep' || bassTone === 'elec') {
-            bs[0] = { note: root, duration: 0.9, velocity: 1.0 };
-            bs[mid] = { note: root, duration: 0.7, velocity: 0.95 };
-        } else if (bassTone === 'finger') {
-            const fifthMap = { 'A3': 'E4', 'C3': 'G3', 'F3': 'C4', 'G3': 'D4', 'D3': 'A3', 'E3': 'B3' };
-            const octMap = { 'A3': 'A4', 'C3': 'C4', 'F3': 'F4', 'G3': 'G4', 'D3': 'D4', 'E3': 'E4' };
-            bs[0] = { note: root, duration: currentNoteDuration, velocity: 1.0 };
-            bs[4] = { note: fifthMap[root] || root, duration: currentNoteDuration, velocity: 0.85 };
-            bs[mid] = { note: root, duration: currentNoteDuration, velocity: 0.95 };
-            bs[steps - 3] = { note: octMap[root] || root, duration: currentNoteDuration, velocity: 0.8 };
+        const nextRoot = roots[(b + 1) % roots.length];
+        tracksData['bass'][b] = buildBassBar(root, nextRoot, isPops, b);
+        let dSteps = new Array(steps).fill(null);
+        const kick = { note: 'KICK', duration: 0.2, velocity: 1.0 };
+        const snare = { note: 'SNARE', duration: 0.2, velocity: 1.0 };
+        const hat = { note: 'HH', duration: 0.12, velocity: 0.7 };
+        if (currentGenre === 'black') {
+            dSteps[0] = kick; dSteps[3] = hat; dSteps[7] = kick;
+            dSteps[mid] = snare; dSteps[mid + 3] = hat; dSteps[steps - 2] = snare;
+            dSteps[2] = hat; dSteps[steps - 5] = kick;
+        } else if (currentGenre === 'contemporary') {
+            dSteps[0] = kick; dSteps[mid] = snare;
+            dSteps[4] = hat; dSteps[mid + 4] = hat; dSteps[steps - 2] = kick;
+        } else if (isPops) {
+            dSteps[0] = kick; dSteps[2] = hat; dSteps[4] = hat;
+            dSteps[mid - 3] = kick; dSteps[mid] = snare;
+            dSteps[mid + 2] = hat; dSteps[mid + 4] = hat; dSteps[steps - 2] = kick;
         } else {
-            const fifthMap2 = { 'A3': 'E4', 'C3': 'G3', 'F3': 'C4', 'G3': 'D4', 'D3': 'A3', 'E3': 'B3' };
-            bs[0] = { note: root, duration: currentNoteDuration, velocity: 1.0 };
-            if (isPops) { bs[mid] = { note: fifthMap2[root] || root, duration: currentNoteDuration, velocity: 0.9 }; bs[steps - 2] = { note: root, duration: currentNoteDuration, velocity: 0.85 }; }
-            else { bs[3] = { note: root, duration: currentNoteDuration, velocity: 0.9 }; bs[mid] = { note: fifthMap2[root] || root, duration: currentNoteDuration, velocity: 1.0 }; bs[steps - 2] = { note: root, duration: currentNoteDuration, velocity: 0.85 }; }
+            dSteps[0] = kick; dSteps[2] = hat; dSteps[4] = hat; dSteps[6] = hat;
+            dSteps[mid - 2] = kick; dSteps[mid] = snare;
+            dSteps[mid + 1] = hat; dSteps[mid + 3] = hat; dSteps[steps - 4] = kick; dSteps[steps - 1] = snare;
         }
-        bs.forEach(function(e){ if (e) e.tone = bassTone; });
-        tracksData['bass'][b] = bs;
+        tracksData['drums'][b] = dSteps;
+        let tSteps = new Array(steps).fill(null);
+        if (isPops) {
+            tSteps[4] = { note: 'HH', duration: 0.1, velocity: 0.5 };
+            tSteps[mid + 4] = { note: 'HH', duration: 0.1, velocity: 0.5 };
+        } else {
+            for (let s = 2; s < steps; s += 4) tSteps[s] = { note: 'HH', duration: 0.1, velocity: 0.5 };
+        }
+        tracksData['tambourine'][b] = tSteps;
     }
     renderStepGrid();
-    alert("🎸 ベースメロディを作りました！（音色：" + bassTone + "）");
+    alert("🥁 ベース＋ドラムの土台ができました！（" + conf.label + "）\nメロディのトラックはそのままです。上に手でメロディを作ってください。");
 }
 
 let totalBars = 38;
