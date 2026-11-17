@@ -262,16 +262,6 @@
 <button onclick="loadAsadoraSong(5)" class="py-2 rounded-xl text-[11px] font-bold bg-gray-900 border border-gray-700 text-gray-200 transition active:scale-95">5 家族の笑顔</button>
 </div>
 <p class="text-[9px] text-gray-500">押すと、その曲が土台に入ります（今の曲は置き換わります）。上に手で付け足して作曲できます。</p>
-<button onclick="loadRockBase()" class="w-full bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs py-2 rounded-lg font-black shadow-lg hover:brightness-110 active:scale-95 transition flex items-center justify-center space-x-1.5">
-<i class="fa-solid fa-guitar"></i>
-<span>Rock土台（速いテンポ・ギター＆ドラム）</span>
-</button>
-<p class="text-[9px] text-gray-500">BPM160の速いロック土台。エレキギターの刻み、電子バーンのパワーコード、重低音ベース、速いドラムが入ります。他の楽器はそのまま残ります。</p>
-<button onclick="loadPoppingBase()" class="w-full bg-gradient-to-r from-mvPink to-purple-600 text-white text-xs py-2 rounded-lg font-black shadow-lg hover:brightness-110 active:scale-95 transition flex items-center justify-center space-x-1.5">
-<i class="fa-solid fa-bolt"></i>
-<span>Popping Dance土台（シンセベース・ヒット・メロディ）</span>
-</button>
-<p class="text-[9px] text-gray-500">BPM116。重低音シンセベースがドラムのヒットに合わせて打ちます（4小節ごとにダイナストップ）。ピアノとバイオリンのメロディ土台、シンセの刺し入り。他の楽器はそのまま残ります。</p>
 <button onclick="loadDanceBase()" class="w-full bg-gradient-to-r from-cyan-500 to-mvPink text-white text-xs py-2 rounded-lg font-black shadow-lg hover:brightness-110 active:scale-95 transition flex items-center justify-center space-x-1.5">
 <i class="fa-solid fa-trumpet"></i>
 <span>Dance土台（ディスコ）</span>
@@ -1096,117 +1086,7 @@ function loadDanceBase() {
     alert("🪩 Dance土台（ディスコ）ができました！（BPM120）\nオクターブベース＋四つ打ち＋ギターカッティング＋ホーンとストリングスのキメです。\n上に歌やメロディを付け足してください。");
 }
 
-function loadPoppingBase() {
-    if (!confirm("Popping Dance土台を作ります（BPM116）。\n今のベース・ドラム・タンバリン・ピアノ・バイオリン・シンセは置き換わります。\n他の楽器はそのまま残ります。よろしいですか？")) return;
-    getAudioContext();
-    setGenre('popping');
-    const conf = GENRE_CONF['popping'];
-    const steps = currentStepsPerBar;
-    const RHYTHMS = [[0, 3, 8, 11, 16], [0, 2, 4, 8, 10, 12], [0, 4, 6, 9, 12, 14], [0, 2, 8, 11, 14, 16], [0, 3, 6, 8, 11, 16], [0, 4, 8, 10, 12, 16]];
-    for (let b = 0; b < totalBars; b++) {
-        const chord = conf.prog[b % conf.prog.length];
-        const tones = chordDefinitions[chord] || ['A3', 'C4', 'E4'];
-        const root = conf.bass[b % conf.bass.length];
-        const nextRoot = conf.bass[(b + 1) % conf.bass.length];
-        let bsSteps = new Array(steps).fill(null);
-        const fifth = BASS_FIFTH[root] || root;
-        const approach = BASS_APPROACH[nextRoot] || nextRoot;
-        if (b % 4 === 3) {
-            bsSteps[0] = { note: root, duration: 0.22, velocity: 1.0, tone: 'synth' };
-            if (1 < steps) bsSteps[1] = { note: root, duration: 0.22, velocity: 1.0, tone: 'synth' };
-        } else {
-            [0, 3, 4, 6, 9, 11, 13].forEach(function(s) {
-                if (s < steps) bsSteps[s] = { note: root, duration: 0.22, velocity: (s === 0 || s === 9) ? 1.0 : 0.9, tone: 'synth' };
-            });
-            if (13 < steps) bsSteps[13] = { note: fifth, duration: 0.22, velocity: 0.9, tone: 'synth' };
-            if (16 < steps) bsSteps[16] = { note: approach, duration: 0.2, velocity: 0.85, tone: 'synth' };
-        }
-        tracksData['bass'][b] = bsSteps;
-        let dSteps = new Array(steps).fill(null);
-        if (b % 4 === 3) {
-            dSteps[0] = { note: 'KICK', duration: 0.2, velocity: 1.0 };
-            if (1 < steps) dSteps[1] = { note: 'KICK', duration: 0.2, velocity: 1.0 };
-            if (2 < steps) dSteps[2] = { note: 'SNARE', duration: 0.2, velocity: 1.0 };
-        } else {
-            dSteps[0] = { note: 'KICK', duration: 0.2, velocity: 1.0 };
-            if (4 < steps) dSteps[4] = { note: 'SNARE', duration: 0.2, velocity: 1.0 };
-            if (9 < steps) dSteps[9] = { note: 'KICK', duration: 0.2, velocity: 0.95 };
-            if (13 < steps) dSteps[13] = { note: 'SNARE', duration: 0.2, velocity: 1.0 };
-            if (16 < steps) dSteps[16] = { note: 'KICK', duration: 0.2, velocity: 0.9 };
-            [2, 6, 11, 15].forEach(function(s) {
-                if (s < steps && !dSteps[s]) dSteps[s] = { note: 'HH', duration: 0.1, velocity: 0.6 };
-            });
-        }
-        tracksData['drums'][b] = dSteps;
-        let tSteps = new Array(steps).fill(null);
-        if (b % 4 !== 3) {
-            [2, 6, 11, 15].forEach(function(s) {
-                if (s < steps) tSteps[s] = { note: 'HH', duration: 0.1, velocity: 0.45 };
-            });
-        }
-        tracksData['tambourine'][b] = tSteps;
-        const rhythm = RHYTHMS[b % RHYTHMS.length];
-        let pSteps = new Array(steps).fill(null);
-        let vSteps = new Array(steps).fill(null);
-        rhythm.forEach(function(s, i) {
-            if (s >= steps) return;
-            let note;
-            if (s === 0 && i === 0 && b % 2 === 0) note = chord;
-            else if ((b % 4 === 3) && i === rhythm.length - 1) note = tones[0];
-            else note = tones[(i + b) % tones.length];
-            pSteps[s] = { note: note, duration: currentNoteDuration, velocity: (s % 8 === 0) ? 1.0 : 0.88 };
-            vSteps[s] = { note: tones[(i + b + 1) % tones.length], duration: currentNoteDuration, velocity: 0.65 };
-        });
-        tracksData['piano'][b] = pSteps;
-        tracksData['violin'][b] = vSteps;
-        let sSteps = new Array(steps).fill(null);
-        if (3 < steps) sSteps[3] = { note: chord, duration: 0.2, velocity: 0.8 };
-        if (11 < steps) sSteps[11] = { note: chord, duration: 0.2, velocity: 0.8 };
-        tracksData['synth'][b] = sSteps;
-    }
-    setBpm(116);
-    renderStepGrid();
-    alert("🕺 Popping Dance土台ができました！（BPM116）\n重低音シンセベース＋ヒットドラム（4小節ごとにダイナストップ）＋メロディ土台です。\n上に手で付け足してください。");
-}
 
-function loadRockBase() {
-    if (!confirm("Rock土台を作ります（BPM160）。\n今のギター・電子バーン・ベース・ドラムは置き換わります。\n他の楽器はそのまま残ります。よろしいですか？")) return;
-    getAudioContext();
-    setGenre('rock');
-    const conf = GENRE_CONF['rock'];
-    const steps = currentStepsPerBar;
-    const drive = [0, 2, 4, 6, 9, 11, 13, 16];
-    for (let b = 0; b < totalBars; b++) {
-        const chord = conf.prog[b % conf.prog.length];
-        const root = conf.bass[b % conf.bass.length];
-        let gSteps = new Array(steps).fill(null);
-        drive.forEach(function(s) {
-            if (s < steps) gSteps[s] = { note: chord, duration: 0.28, velocity: (s === 0) ? 1.0 : 0.92 };
-        });
-        tracksData['electric'][b] = gSteps;
-        let eSteps = new Array(steps).fill(null);
-        eSteps[0] = { note: chord, duration: 0.5, velocity: 1.0 };
-        if (b % 4 === 3 && 9 < steps) eSteps[9] = { note: chord, duration: 0.5, velocity: 0.95 };
-        tracksData['elecburn'][b] = eSteps;
-        let bSteps = new Array(steps).fill(null);
-        drive.forEach(function(s) {
-            if (s < steps) bSteps[s] = { note: root, duration: 0.3, velocity: 0.95, tone: 'deep' };
-        });
-        tracksData['bass'][b] = bSteps;
-        let dSteps = new Array(steps).fill(null);
-        dSteps[0] = { note: (b % 4 === 0) ? 'CRASH' : 'KICK', duration: 0.2, velocity: 1.0 };
-        if (9 < steps) dSteps[9] = { note: 'KICK', duration: 0.2, velocity: 1.0 };
-        if (4 < steps) dSteps[4] = { note: 'SNARE', duration: 0.2, velocity: 1.0 };
-        if (13 < steps) dSteps[13] = { note: 'SNARE', duration: 0.2, velocity: 1.0 };
-        [2, 6, 11, 16].forEach(function(s) {
-            if (s < steps && !dSteps[s]) dSteps[s] = { note: 'HH', duration: 0.1, velocity: 0.65 };
-        });
-        tracksData['drums'][b] = dSteps;
-    }
-    setBpm(160);
-    renderStepGrid();
-    alert("🎸 Rock土台ができました！（BPM160）\nギターの刻み＋パワーコード＋重低音ベース＋速いドラムです。\n上にメロディを付け足してください。");
-}
 
 function loadAIMelodyBase() {
     if (!confirm("AIメロディ土台を作ります。\n今のピアノ・バイオリン・エレクトーンは置き換わります。\n他の楽器はそのまま残ります。よろしいですか？")) return;
