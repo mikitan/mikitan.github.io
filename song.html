@@ -2130,6 +2130,11 @@ return audioCtx;
             const expr = { note: noteName, duration: currentNoteDuration, velocity: currentParams.velocity, style: 'single' };
             if (activeTrack === 'bass') expr.tone = bassTone;
             playSoundWithExpression(activeTrack, expr);
+            if (isGlobalPlaying && isRecordMode && activeTrack !== 'drums' && activeTrack !== 'tambourine' && activeTrack !== 'fx' && activeTrack !== 'sleighbell') {
+                tracksData[activeTrack][liveBarIdx][liveStepIdx] = expr;
+                if (liveBarIdx === activeBar - 1) renderStepGrid();
+                return;
+            }
 
             tracksData[activeTrack][activeBar - 1][currentStepPointer] = expr;
             renderStepGrid();
@@ -2909,9 +2914,10 @@ function useLibraryRecAsBacking(id) {
         const tx = db.transaction('backing', 'readwrite');
         tx.objectStore('backing').put({ id: 'current', name: c.name, type: c.type, blob: c.blob });
     }).catch(function() {});
-    const panel = document.getElementById('backingPanel');
-    if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    alert('🎼 「' + c.name + '」を土台にして再生を始めました。\nこの上に鍵盤やAI作曲で新しいメロディを作れます。録音すると新しい曲として永久保存されます。');
+    if (!isGlobalPlaying) { try { startGlobalPlay(); } catch (e) {} }
+    const gridEl = document.getElementById('stepGridContainer');
+    if (gridEl) gridEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    alert('🎼 「' + c.name + '」を土台に再生を始めました。\n再生中に鍵盤やコードを押すと、流れているマスに直接記録されます。そのまま新しい曲を作っていけます。録音すると新しい曲として永久保存されます。');
 }
 async function importFilesToLibrary(event) {
     const files = Array.prototype.slice.call(event.target.files || []);
