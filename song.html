@@ -447,6 +447,14 @@
 <audio id="recLibraryPlayer" controls class="w-full hidden"></audio>
 </div>
 
+<!-- 💿 MICVICTORY BRAND 26曲コレクション -->
+<div class="bg-mvCard border border-mvPink/50 rounded-2xl p-3.5 shadow-xl space-y-2">
+<h3 class="text-xs font-bold text-white flex items-center space-x-2"><i class="fa-solid fa-compact-disc text-mvPink"></i><span>MICVICTORY BRAND 26曲コレクション</span><span id="songCountLabel" class="text-[10px] text-mvPink font-mono">0 / 26曲</span></h3>
+<p class="text-[10px] text-gray-400">作った曲（楽譜データ）を、名前を付けて保存できます。読み込むと、その曲に戻ります。最大26曲まで。</p>
+<button onclick="saveCurrentSongToCollection()" class="w-full bg-gradient-to-r from-mvPink to-mvAccent text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95">💾 今の曲を保存（名前を入れる）</button>
+<div id="songLibraryList" class="space-y-2"></div>
+</div>
+
 <!-- 🎙️ Vocalトラック専用 実マイク録音パネル -->
 <div id="vocalRecorderContainer" class="bg-mvCard border border-mvPink/60 rounded-2xl p-3.5 shadow-xl space-y-3 hidden">
 <div class="flex items-center justify-between">
@@ -946,6 +954,7 @@ async function ensurePersistentStorage() {
 function initApp() {
 ensurePersistentStorage();
 refreshRecLibrary();
+refreshSongLibrary();
 loadBassSettings();
 renderBarSelector();
 renderStepGrid();
@@ -2644,15 +2653,155 @@ function insertEmptyIntroBars(barsCount) {
 const REC_DB_NAME = 'BANDLAND_REC_DB';
 function recDbOpen() {
     return new Promise(function(res, rej) {
-        const r = indexedDB.open(REC_DB_NAME, 2);
+        const r = indexedDB.open(REC_DB_NAME, 3);
         r.onupgradeneeded = function() {
             if (!r.result.objectStoreNames.contains('recordings')) r.result.createObjectStore('recordings', { keyPath: 'id', autoIncrement: true });
             if (!r.result.objectStoreNames.contains('backing')) r.result.createObjectStore('backing', { keyPath: 'id' });
+            if (!r.result.objectStoreNames.contains('songs')) r.result.createObjectStore('songs', { keyPath: 'id', autoIncrement: true });
         };
         r.onsuccess = function() { res(r.result); };
         r.onerror = function() { rej(r.error); };
     });
 }
+/* 💿 MICVICTORY BRAND 26曲コレクション：曲データ（楽譜）を名前付きで保存・読込・削除 */
+function collectCurrentSongData() {
+    return {
+        app: 'MICVICTORY BANDLAND', version: 1,
+        totalBars: totalBars, bpm: currentBpm, genre: currentGenre,
+        bassTone: bassTone, bassSubOn: bassSubOn, bassCutOn: bassCutOn,
+        noteDuration: currentNoteDuration, trackVolumes: trackVolumes,
+        tracksData: tracksData
+    };
+}
+function applySongData(data) {
+    if (!data || !data.tracksData) return false;
+    const nb = Math.max(8, Math.min(64, parseInt(data.totalBars) || 38));
+    Object.keys(tracksData).forEach(function(trackKey) {
+        const srcTrack = data.tracksData[trackKey] || [];
+        const arr = [];
+        for (let i = 0; i < nb; i++) {
+            const srcBar = (srcTrack[i] || []).slice(0, currentStepsPerBar);
+            while (srcBar.length < currentStepsPerBar) srcBar.push(null);
+            arr.push(srcBar);
+        }
+        tracksData[trackKey] = arr;
+    });
+    totalBars = nb;
+    document.getElementById('totalBarsDisplay').innerText = totalBars;
+    document.getElementById('totalBarsLabel2').innerText = totalBars;
+    document.getElementById('totalBarsLabel3').innerText = totalBars;
+    document.querySelectorAll('.bars-btn').forEach(function(b) {
+        const active = parseInt(b.getAttribute('data-bars')) === totalBars;
+        b.className = active
+            ? "bars-btn bg-mvCyan/20 border border-mvCyan text-mvCyan text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95"
+            : "bars-btn bg-gray-900 border border-gray-700 text-gray-300 text-[10px] py-1.5 rounded-lg font-bold transition active:scale-95";
+    });
+    if (activeBar > totalBars) activeBar = totalBars;
+    if (data.bpm) setBpm(data.bpm);
+    if (data.genre) setGenre(data.genre);
+    if (data.noteDuration) updateNoteDuration(data.noteDuration);
+    renderBarSelector();
+    renderStepGrid();
+    return true;
+}
+async function saveCurrentSongToCollection() {
+    try {
+        const db = await recDbOpen();
+        const count = await new Promise(function(res, rej) {
+            const rq = db.transaction('songs', 'readonly').objectStore('songs').count();
+            rq.onsuccess = function() { res(rq.result); };
+            rq.onerror = function() { rej(rq.error); };
+        });
+        if (count >= 26) { alert("26曲いっぱいです。古い曲を削除してから保存してください。"); return; }
+        const name = prompt("曲の名前を入れてください", "");
+        if (name === null) return;
+        const finalName = (name || "").trim() || ("曲" + (count + 1));
+        ensurePersistentStorage();
+        const tx = db.transaction('songs', 'readwrite');
+        tx.objectStore('songs').add({ name: finalName, createdAt: Date.now(), data: collectCurrentSongData() });
+        tx.oncomplete = function() { refreshSongLibrary(); alert("💿 「" + finalName + "」をコレクションに保存しました！"); };
+        tx.onerror = function() { alert("保存に失敗しました。"); };
+    } catch (e) { alert("保存に失敗しました。"); }
+}
+async function refreshSongLibrary() {
+    const list = document.getElementById('songLibraryList');
+    if (!list) return;
+    try {
+        const db = await recDbOpen();
+        const items = await new Promise(function(res, rej) {
+            const out = [];
+            const rq = db.transaction('songs', 'readonly').objectStore('songs').openCursor();
+            rq.onsuccess = function() {
+                const c = rq.result;
+                if (c) { out.push(c.value); c.continue(); } else res(out);
+            };
+            rq.onerror = function() { rej(rq.error); };
+        });
+        const label = document.getElementById('songCountLabel');
+        if (label) label.innerText = items.length + " / 26曲";
+        if (!items.length) {
+            list.innerHTML = '<p class="text-[10px] text-gray-500">まだ保存した曲はありません。「今の曲を保存」で追加できます。</p>';
+            return;
+        }
+        list.innerHTML = items.map(function(it) {
+            const d = new Date(it.createdAt);
+            const ds = d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate();
+            const safeName = String(it.name || "曲").replace(/</g, "&lt;");
+            return '<div class="flex items-center justify-between bg-gray-950 border border-gray-800 rounded-xl px-3 py-2">'
+                + '<div class="min-w-0"><div class="text-[11px] font-bold text-white truncate">💿 ' + safeName + '</div>'
+                + '<div class="text-[9px] text-gray-500">' + ds + '</div></div>'
+                + '<div class="flex space-x-1 shrink-0">'
+                + '<button onclick="loadSongFromCollection(' + it.id + ')" class="bg-mvPink/25 border border-mvPink text-white text-[10px] px-2 py-1.5 rounded-lg font-bold">読込</button>'
+                + '<button onclick="renameSongInCollection(' + it.id + ')" class="bg-gray-900 border border-gray-700 text-gray-300 text-[10px] px-2 py-1.5 rounded-lg font-bold">名前</button>'
+                + '<button onclick="deleteSongFromCollection(' + it.id + ')" class="bg-gray-900 border border-red-500/50 text-red-400 text-[10px] px-2 py-1.5 rounded-lg font-bold">削除</button>'
+                + '</div></div>';
+        }).join("");
+    } catch (e) {
+        list.innerHTML = '<p class="text-[10px] text-red-400">コレクションを読み込めませんでした。</p>';
+    }
+}
+async function getSongFromCollection(id) {
+    const db = await recDbOpen();
+    return new Promise(function(res, rej) {
+        const rq = db.transaction('songs', 'readonly').objectStore('songs').get(id);
+        rq.onsuccess = function() { res(rq.result); };
+        rq.onerror = function() { rej(rq.error); };
+    });
+}
+async function loadSongFromCollection(id) {
+    try {
+        const it = await getSongFromCollection(id);
+        if (!it) { alert("曲が見つかりませんでした。"); return; }
+        if (!confirm("「" + it.name + "」を読み込みます。今の曲は置き換わります。よろしいですか？")) return;
+        if (applySongData(it.data)) alert("💿 「" + it.name + "」を読み込みました！");
+        else alert("読み込みに失敗しました。");
+    } catch (e) { alert("読み込みに失敗しました。"); }
+}
+async function renameSongInCollection(id) {
+    try {
+        const it = await getSongFromCollection(id);
+        if (!it) return;
+        const name = prompt("新しい名前を入れてください", it.name || "");
+        if (name === null) return;
+        const db = await recDbOpen();
+        it.name = (name || "").trim() || it.name;
+        const tx = db.transaction('songs', 'readwrite');
+        tx.objectStore('songs').put(it);
+        tx.oncomplete = function() { refreshSongLibrary(); };
+    } catch (e) { alert("名前の変更に失敗しました。"); }
+}
+async function deleteSongFromCollection(id) {
+    try {
+        const it = await getSongFromCollection(id);
+        if (!it) return;
+        if (!confirm("「" + it.name + "」を削除します。よろしいですか？")) return;
+        const db = await recDbOpen();
+        const tx = db.transaction('songs', 'readwrite');
+        tx.objectStore('songs').delete(id);
+        tx.oncomplete = function() { refreshSongLibrary(); };
+    } catch (e) { alert("削除に失敗しました。"); }
+}
+
 function recFileName(ts) {
     const d = new Date(ts);
     const p = function(n) { return ('0' + n).slice(-2); };
