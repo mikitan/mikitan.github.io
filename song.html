@@ -360,11 +360,11 @@
 </div>
 <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-3">
 <div class="grid grid-cols-2 gap-2">
-<button onclick="toggleFx('reverb')" id="fxBtn-reverb" class="py-2 rounded-xl text-xs font-bold fx-active transition flex items-center justify-center space-x-1.5 border border-purple-400 shadow-md"><i class="fa-solid fa-house-chimney-window"></i><span>リバーブ</span></button>
-<button onclick="toggleFx('delay')" id="fxBtn-delay" class="py-2 rounded-xl text-xs font-bold fx-active transition flex items-center justify-center space-x-1.5 border border-purple-400 shadow-md"><i class="fa-solid fa-wave-square"></i><span>ディレイ</span></button>
+<button onclick="toggleFx('reverb')" id="fxBtn-reverb" class="py-2 rounded-xl text-xs font-bold bg-gray-900 border border-gray-800 text-gray-400 transition flex items-center justify-center space-x-1.5"><i class="fa-solid fa-house-chimney-window"></i><span>リバーブ</span></button>
+<button onclick="toggleFx('delay')" id="fxBtn-delay" class="py-2 rounded-xl text-xs font-bold bg-gray-900 border border-gray-800 text-gray-400 transition flex items-center justify-center space-x-1.5"><i class="fa-solid fa-wave-square"></i><span>ディレイ</span></button>
 </div>
 <div class="grid grid-cols-2 gap-2">
-<button onclick="toggleFx('lowpass')" id="fxBtn-lowpass" class="py-2 rounded-xl text-xs font-bold fx-active transition flex items-center justify-center space-x-1.5 border border-purple-400 shadow-md"><i class="fa-solid fa-filter"></i><span>ローパス</span></button>
+<button onclick="toggleFx('lowpass')" id="fxBtn-lowpass" class="py-2 rounded-xl text-xs font-bold bg-gray-900 border border-gray-800 text-gray-400 transition flex items-center justify-center space-x-1.5"><i class="fa-solid fa-filter"></i><span>ローパス</span></button>
 <button onclick="toggleFx('highpass')" id="fxBtn-highpass" class="py-2 rounded-xl text-xs font-bold fx-active transition flex items-center justify-center space-x-1.5 border border-purple-400 shadow-md"><i class="fa-solid fa-filter-circle-xmark"></i><span>ハイパス</span></button>
 </div>
 </div>
@@ -386,7 +386,7 @@
 <div class="space-y-1 col-span-2"><button onclick="toggleBassSub()" id="bassSubBtn" class="w-full bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">ベース超重低音：OFF</button></div>
 <div class="space-y-1 col-span-2"><div class="flex justify-between text-gray-400"><span>ベース音色</span><span class="text-mvCyan font-bold">ドードー重低音（固定）</span></div></div>
 <div class="space-y-1 col-span-2"><button onclick="toggleBassCut()" id="bassCutBtn" class="w-full bg-gray-900 border border-gray-700 text-gray-300 text-[11px] py-2 rounded-lg font-bold transition active:scale-95">ベースカット（短く切る）：OFF</button></div>
-<div class="space-y-1 col-span-2"><button onclick="generateBassMelody()" class="w-full bg-gradient-to-r from-mvCyan to-mvAccent text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95 shadow">🎸 ベースメロディAI作成（全小節・重低音で）</button></div>
+
 <div class="space-y-0"><div class="flex justify-between text-gray-400"><span>アコギ</span><strong id="vol-acoustic" class="text-white">2.5</strong></div><input type="range" min="0" max="3" step="0.1" value="2.5" oninput="changeTrackVolume('acoustic', this.value)" class="w-full accent-mvGreen"></div>
 <div class="space-y-0"><div class="flex justify-between text-gray-400"><span>エレキ</span><strong id="vol-electric" class="text-white">2.5</strong></div><input type="range" min="0" max="3" step="0.1" value="2.5" oninput="changeTrackVolume('electric', this.value)" class="w-full accent-mvYellow"></div>
 <div class="space-y-0"><div class="flex justify-between text-gray-400"><span>バイオリン</span><strong id="vol-violin" class="text-white">2.5</strong></div><input type="range" min="0" max="3" step="0.1" value="2.5" oninput="changeTrackVolume('violin', this.value)" class="w-full accent-mvAccent"></div>
@@ -728,7 +728,7 @@ piano: 2.5, vocal: 2.5, bass: 2.5, acoustic: 2.5,
 electric: 2.5, violin: 2.5, trumpet: 2.7, drums: 3, tambourine: 2.4, bell: 2.5, gong: 2.5, synth: 2.4, electone: 2.5, trombone: 2.6, tuba: 2.7, fx: 2.5, harmonica: 2.5, elecburn: 2.6, sleighbell: 2.5
 };
 
-let fxState = { reverb: true, delay: true, lowpass: true, highpass: true};
+let fxState = { reverb: false, delay: false, lowpass: false, highpass: true};
 let masterFxNodes = null;
 let currentGenre = 'popping';
 let bassSubOn = false;
@@ -1674,8 +1674,8 @@ return audioCtx;
             'C6': 1046.50
         };
 
-        function playSingleFreq(trackType, freq, duration, velocity, toneOverride) {
-            const now = audioCtx.currentTime;
+        function playSingleFreq(trackType, freq, duration, velocity, toneOverride, startDelay) {
+            const now = audioCtx.currentTime + (startDelay || 0);
             const targetOutputNode = trackGains[trackType] || masterGain;
 
             if (trackType === 'harmonica') {
@@ -2099,8 +2099,8 @@ return audioCtx;
             }
 
             if (chordDefinitions[note]) {
-                chordDefinitions[note].forEach(n => {
-                    playSingleFreq(trackType, notesFreqMap[n] || 261.63, duration, velocity, expr.tone);
+                chordDefinitions[note].forEach((n, ci) => {
+                    playSingleFreq(trackType, notesFreqMap[n] || 261.63, duration, velocity, expr.tone, ci * 0.028);
                 });
             } else {
                 playSingleFreq(trackType, notesFreqMap[note] || 261.63, duration, velocity, expr.tone);
@@ -2506,9 +2506,12 @@ function insertEmptyIntroBars(barsCount) {
                     const list = PATTERN20_STEPS[n];
                     list.forEach(function(s, i) {
                         if (s >= steps) return;
-                        if (n === 12) { arr[s] = { note: chord, duration: currentNoteDuration, velocity: 0.9 }; return; }
-                        const idx = (n === 11) ? ((list.length - 1 - i) % tones.length) : (i % tones.length);
-                        arr[s] = { note: tones[idx], duration: (n === 9) ? Math.max(currentNoteDuration, 0.8) : currentNoteDuration, velocity: 0.9 };
+                        if (n === 10 || n === 11) {
+                            const idx = (n === 11) ? ((list.length - 1 - i) % tones.length) : (i % tones.length);
+                            arr[s] = { note: tones[idx], duration: currentNoteDuration, velocity: 0.9 };
+                            return;
+                        }
+                        arr[s] = { note: chord, duration: (n === 9) ? Math.max(currentNoteDuration, 0.8) : currentNoteDuration, velocity: (s % 4 === 0) ? 1.0 : 0.85 };
                     });
                 }
                 tracksData[activeTrack][b] = arr;
