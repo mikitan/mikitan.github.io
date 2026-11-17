@@ -2322,6 +2322,52 @@ return audioCtx;
                 return;
             }
 
+            if (trackType === 'violin') {
+                // バイオリン：弓で弦をこする「ギー」という音。ゆっくり立ち上がり、後半に震える
+                const vDur = Math.max(duration, 0.3);
+                const vFilter = audioCtx.createBiquadFilter();
+                vFilter.type = 'lowpass'; vFilter.frequency.value = 2600; vFilter.Q.value = 0.4;
+                const vBody = audioCtx.createBiquadFilter();
+                vBody.type = 'peaking'; vBody.frequency.value = 520; vBody.Q.value = 1.0; vBody.gain.value = 4;
+                const vGain = audioCtx.createGain();
+                const vPeak = Math.max(velocity * 0.6, 0.0011);
+                vGain.gain.setValueAtTime(0.0001, now);
+                vGain.gain.exponentialRampToValueAtTime(vPeak, now + 0.09);
+                vGain.gain.setValueAtTime(vPeak, now + Math.max(0.1, vDur - 0.08));
+                vGain.gain.exponentialRampToValueAtTime(0.001, now + vDur);
+                vFilter.connect(vBody); vBody.connect(vGain); vGain.connect(targetOutputNode);
+                [-3, 3].forEach(function(cents) {
+                    const o = audioCtx.createOscillator();
+                    o.type = 'sawtooth'; o.frequency.value = freq;
+                    o.detune.setValueAtTime(cents - 6, now);
+                    o.detune.linearRampToValueAtTime(cents, now + 0.12);
+                    const vib = audioCtx.createOscillator();
+                    vib.type = 'sine'; vib.frequency.value = 5.5;
+                    const vibGain = audioCtx.createGain(); vibGain.gain.value = 0;
+                    vibGain.gain.setValueAtTime(0, now + 0.15);
+                    vibGain.gain.linearRampToValueAtTime(8, now + Math.min(0.7, vDur * 0.8));
+                    vib.connect(vibGain); vibGain.connect(o.detune);
+                    o.connect(vFilter);
+                    o.start(now); o.stop(now + vDur);
+                    vib.start(now); vib.stop(now + vDur);
+                });
+                const nLen = Math.floor(audioCtx.sampleRate * vDur);
+                const nBuf = audioCtx.createBuffer(1, nLen, audioCtx.sampleRate);
+                const nData = nBuf.getChannelData(0);
+                for (let i = 0; i < nLen; i++) { nData[i] = Math.random() * 2 - 1; }
+                const nSrc = audioCtx.createBufferSource(); nSrc.buffer = nBuf;
+                const nFilter = audioCtx.createBiquadFilter();
+                nFilter.type = 'bandpass'; nFilter.frequency.value = Math.min(6000, freq * 4); nFilter.Q.value = 1.2;
+                const nGain = audioCtx.createGain();
+                nGain.gain.setValueAtTime(velocity * 0.14, now);
+                nGain.gain.exponentialRampToValueAtTime(Math.max(velocity * 0.05, 0.001), now + 0.15);
+                nGain.gain.setValueAtTime(Math.max(velocity * 0.05, 0.001), now + Math.max(0.16, vDur - 0.05));
+                nGain.gain.exponentialRampToValueAtTime(0.001, now + vDur);
+                nSrc.connect(nFilter); nFilter.connect(nGain); nGain.connect(targetOutputNode);
+                nSrc.start(now); nSrc.stop(now + vDur);
+                return;
+            }
+
             if (trackType === 'acoustic' || trackType === 'electric') {
                 // 最高級ギター：弦をはじく物理音源（Karplus-Strong）。エレキは軽い歪み付き
                 const isElecG = (trackType === 'electric');
