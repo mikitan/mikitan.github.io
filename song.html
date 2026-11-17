@@ -269,14 +269,14 @@
 <p class="text-[9px] text-gray-500">BPM160の速いロック土台。エレキギターの刻み、電子バーンのパワーコード、重低音ベース、速いドラムが入ります。他の楽器はそのまま残ります。</p>
 <button onclick="loadPoppingBase()" class="w-full bg-gradient-to-r from-mvPink to-purple-600 text-white text-xs py-2 rounded-lg font-black shadow-lg hover:brightness-110 active:scale-95 transition flex items-center justify-center space-x-1.5">
 <i class="fa-solid fa-bolt"></i>
-<span>Popping Dance土台（重低音・ヒット・メロディ）</span>
+<span>Popping Dance土台（シンセベース・ヒット・メロディ）</span>
 </button>
-<p class="text-[9px] text-gray-500">BPM116。重低音ベース、ヒットの効いたドラム（4小節ごとにダイナストップ）、ピアノとバイオリンのメロディ土台、シンセの刺しが入ります。他の楽器はそのまま残ります。</p>
+<p class="text-[9px] text-gray-500">BPM116。重低音シンセベースがドラムのヒットに合わせて打ちます（4小節ごとにダイナストップ）。ピアノとバイオリンのメロディ土台、シンセの刺し入り。他の楽器はそのまま残ります。</p>
 <button onclick="loadDanceBase()" class="w-full bg-gradient-to-r from-cyan-500 to-mvPink text-white text-xs py-2 rounded-lg font-black shadow-lg hover:brightness-110 active:scale-95 transition flex items-center justify-center space-x-1.5">
 <i class="fa-solid fa-trumpet"></i>
-<span>Dance土台（ベース＋トランペット）</span>
+<span>Dance土台（ディスコ）</span>
 </button>
-<p class="text-[9px] text-gray-500">BPM124。うねる重低音ベース、四つ打ちドラム、スッパいトランペットのメロディが入ります。他の楽器はそのまま残ります。</p>
+<p class="text-[9px] text-gray-500">BPM120のディスコ土台。オクターブを行き来する重低音ベース、四つ打ち、ギターのカッティング、トランペットとバイオリンのキメが入ります。他の楽器はそのまま残ります。</p>
 </div>
 
 <button onclick="clearAllTracksData()" class="w-full bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-400 text-xs py-2 rounded-xl font-bold transition flex items-center justify-center space-x-1.5 active:scale-95">
@@ -1025,19 +1025,23 @@ function loadAsadoraSong(n) {
 }
 
 function loadDanceBase() {
-    if (!confirm("Dance土台を作ります（BPM124）。\n今のベース・ドラム・タンバリン・トランペット・ピアノ・シンセは置き換わります。\n他の楽器はそのまま残ります。よろしいですか？")) return;
+    if (!confirm("Dance土台（ディスコ）を作ります（BPM120）。\n今のベース・ドラム・タンバリン・トランペット・バイオリン・ギター・ピアノは置き換わります。\n他の楽器はそのまま残ります。よろしいですか？")) return;
     getAudioContext();
     setGenre('dance');
     const conf = GENRE_CONF['dance'];
     const steps = currentStepsPerBar;
-    const drive = [0, 2, 4, 6, 9, 11, 13, 16];
+    const octUp = function(n) {
+        const mm = n.match(/^([A-G]#?)(\d)$/);
+        return mm ? (mm[1] + (parseInt(mm[2]) + 1)) : n;
+    };
     for (let b = 0; b < totalBars; b++) {
         const chord = conf.prog[b % conf.prog.length];
         const tones = chordDefinitions[chord] || ['A3', 'C4', 'E4'];
         const root = conf.bass[b % conf.bass.length];
+        const up = octUp(root);
         let bSteps = new Array(steps).fill(null);
-        drive.forEach(function(s) {
-            if (s < steps) bSteps[s] = { note: root, duration: 0.3, velocity: 0.95, tone: 'deep' };
+        [0, 2, 4, 6, 9, 11, 13, 16].forEach(function(s, i) {
+            if (s < steps) bSteps[s] = { note: (i % 2 === 0) ? root : up, duration: 0.28, velocity: 0.95, tone: 'deep' };
         });
         tracksData['bass'][b] = bSteps;
         let dSteps = new Array(steps).fill(null);
@@ -1047,39 +1051,49 @@ function loadDanceBase() {
         if (4 < steps) dSteps[4] = { note: 'SNARE', duration: 0.2, velocity: 0.95 };
         if (13 < steps) dSteps[13] = { note: 'SNARE', duration: 0.2, velocity: 0.95 };
         [2, 6, 11, 15].forEach(function(s) {
-            if (s < steps && !dSteps[s]) dSteps[s] = { note: 'HH', duration: 0.1, velocity: 0.6 };
+            if (s < steps && !dSteps[s]) dSteps[s] = { note: 'HH', duration: 0.3, velocity: 0.6 };
         });
         tracksData['drums'][b] = dSteps;
         let tSteps = new Array(steps).fill(null);
-        [2, 6, 11, 15].forEach(function(s) {
-            if (s < steps) tSteps[s] = { note: 'HH', duration: 0.1, velocity: 0.4 };
+        [0, 2, 4, 6, 9, 11, 13, 16].forEach(function(s) {
+            if (s < steps) tSteps[s] = { note: 'HH', duration: 0.08, velocity: 0.35 };
         });
         tracksData['tambourine'][b] = tSteps;
+        let gSteps = new Array(steps).fill(null);
+        gSteps[0] = { note: chord, duration: 0.3, velocity: 0.85 };
+        [2, 6, 11, 15].forEach(function(s) {
+            if (s < steps) gSteps[s] = { note: chord, duration: 0.09, velocity: 0.8 };
+        });
+        tracksData['electric'][b] = gSteps;
         let trSteps = new Array(steps).fill(null);
         if (b % 4 === 3) {
             [8, 10, 12, 14, 16].forEach(function(s, i) {
                 if (s < steps) trSteps[s] = { note: tones[(i + b) % tones.length], duration: currentNoteDuration, velocity: 1.0 };
             });
         } else {
-            [0, 3, 6, 9, 12].forEach(function(s, i) {
+            [0, 3, 9].forEach(function(s, i) {
                 if (s < steps) trSteps[s] = { note: tones[(i + b) % tones.length], duration: 0.4, velocity: 1.0 };
             });
             if (16 < steps) trSteps[16] = { note: tones[0], duration: currentNoteDuration, velocity: 0.95 };
         }
         tracksData['trumpet'][b] = trSteps;
+        let vSteps = new Array(steps).fill(null);
+        vSteps[0] = { note: tones[1], duration: currentNoteDuration, velocity: 0.55 };
+        if (9 < steps) vSteps[9] = { note: tones[2], duration: currentNoteDuration, velocity: 0.55 };
+        if (b % 4 === 3) {
+            [14, 15, 16, 17].forEach(function(s, i) {
+                if (s < steps) vSteps[s] = { note: tones[(i + b) % tones.length], duration: 0.3, velocity: 0.7 };
+            });
+        }
+        tracksData['violin'][b] = vSteps;
         let pSteps = new Array(steps).fill(null);
         pSteps[0] = { note: chord, duration: 0.3, velocity: 0.8 };
         if (9 < steps) pSteps[9] = { note: chord, duration: 0.3, velocity: 0.75 };
         tracksData['piano'][b] = pSteps;
-        let sSteps = new Array(steps).fill(null);
-        [2, 6, 11, 15].forEach(function(s) {
-            if (s < steps) sSteps[s] = { note: chord, duration: 0.18, velocity: 0.7 };
-        });
-        tracksData['synth'][b] = sSteps;
     }
-    setBpm(124);
+    setBpm(120);
     renderStepGrid();
-    alert("💃 Dance土台ができました！（BPM124）\n重低音ベース＋四つ打ち＋スッパいトランペットのメロディです。\n上に歌やメロディを付け足してください。");
+    alert("🪩 Dance土台（ディスコ）ができました！（BPM120）\nオクターブベース＋四つ打ち＋ギターカッティング＋ホーンとストリングスのキメです。\n上に歌やメロディを付け足してください。");
 }
 
 function loadPoppingBase() {
@@ -1094,7 +1108,20 @@ function loadPoppingBase() {
         const tones = chordDefinitions[chord] || ['A3', 'C4', 'E4'];
         const root = conf.bass[b % conf.bass.length];
         const nextRoot = conf.bass[(b + 1) % conf.bass.length];
-        tracksData['bass'][b] = buildBassBar(root, nextRoot, false, b);
+        let bsSteps = new Array(steps).fill(null);
+        const fifth = BASS_FIFTH[root] || root;
+        const approach = BASS_APPROACH[nextRoot] || nextRoot;
+        if (b % 4 === 3) {
+            bsSteps[0] = { note: root, duration: 0.22, velocity: 1.0, tone: 'synth' };
+            if (1 < steps) bsSteps[1] = { note: root, duration: 0.22, velocity: 1.0, tone: 'synth' };
+        } else {
+            [0, 3, 4, 6, 9, 11, 13].forEach(function(s) {
+                if (s < steps) bsSteps[s] = { note: root, duration: 0.22, velocity: (s === 0 || s === 9) ? 1.0 : 0.9, tone: 'synth' };
+            });
+            if (13 < steps) bsSteps[13] = { note: fifth, duration: 0.22, velocity: 0.9, tone: 'synth' };
+            if (16 < steps) bsSteps[16] = { note: approach, duration: 0.2, velocity: 0.85, tone: 'synth' };
+        }
+        tracksData['bass'][b] = bsSteps;
         let dSteps = new Array(steps).fill(null);
         if (b % 4 === 3) {
             dSteps[0] = { note: 'KICK', duration: 0.2, velocity: 1.0 };
@@ -1139,7 +1166,7 @@ function loadPoppingBase() {
     }
     setBpm(116);
     renderStepGrid();
-    alert("🕺 Popping Dance土台ができました！（BPM116）\n重低音ベース＋ヒットドラム（4小節ごとにダイナストップ）＋メロディ土台です。\n上に手で付け足してください。");
+    alert("🕺 Popping Dance土台ができました！（BPM116）\n重低音シンセベース＋ヒットドラム（4小節ごとにダイナストップ）＋メロディ土台です。\n上に手で付け足してください。");
 }
 
 function loadRockBase() {
@@ -1490,7 +1517,7 @@ const GENRE_CONF = {
     christmas:   { label: 'Christmas', prog: ['C', 'Am', 'F', 'G'], bass: ['C3', 'A3', 'F3', 'G3'], pool: ['C', 'Am', 'F', 'G', 'E4', 'G4', 'A4'], light: true },
     blues:       { label: 'Blues', prog: ['Am', 'Am', 'Dm', 'E7'], bass: ['A3', 'A3', 'D3', 'E3'], pool: ['Am', 'Dm', 'E7', 'A4', 'G4', 'E4'], light: false },
     reggae:      { label: 'Reggae', prog: ['Am', 'G', 'Am', 'G'], bass: ['A3', 'G3', 'A3', 'G3'], pool: ['Am', 'G', 'A4', 'E4', 'G4', 'D4'], light: true },
-    dance:       { label: 'Dance', prog: ['Am', 'F', 'C', 'G'], bass: ['A3', 'F3', 'C3', 'G3'], pool: ['Am', 'F', 'C', 'G', 'A4', 'G4', 'E4'], light: false },
+    dance:       { label: 'Dance（ディスコ）', prog: ['Am', 'F', 'C', 'G'], bass: ['A3', 'F3', 'C3', 'G3'], pool: ['Am', 'F', 'C', 'G', 'A4', 'G4', 'E4'], light: false },
     brand:       { label: 'MICVICTORY BRAND', prog: ['Am', 'Am', 'F', 'G', 'Am', 'Am', 'Dm', 'Em'], bass: ['A3', 'A3', 'F3', 'G3', 'A3', 'A3', 'D3', 'E3'], pool: ['Am', 'Am7', 'Dm', 'E7', 'A4', 'E4', 'G4', 'D4'], light: false }
 };
 function setGenre(g) {
@@ -2436,19 +2463,34 @@ return audioCtx;
                     return;
                 }
                 if (bt === 'synth') {
-                    // シンセベース：太い矩形波＋フィルターが閉じる音
+                    // シンセベース（重低音）：矩形波＋ノコギリ波＋サブ、フィルターが閉じてヒットする音
+                    const sDur = Math.max(duration, 0.18);
                     const sOsc = audioCtx.createOscillator();
                     sOsc.type = 'square';
                     sOsc.frequency.setValueAtTime(freq / 2, now);
+                    const sawOsc = audioCtx.createOscillator();
+                    sawOsc.type = 'sawtooth';
+                    sawOsc.frequency.setValueAtTime(freq / 2, now);
+                    const subOsc = audioCtx.createOscillator();
+                    subOsc.type = 'sine';
+                    subOsc.frequency.setValueAtTime(freq / 4, now);
                     const sFilter = audioCtx.createBiquadFilter();
                     sFilter.type = 'lowpass';
-                    sFilter.frequency.setValueAtTime(1400, now);
-                    sFilter.frequency.exponentialRampToValueAtTime(200, now + duration);
+                    sFilter.Q.setValueAtTime(4, now);
+                    sFilter.frequency.setValueAtTime(1800, now);
+                    sFilter.frequency.exponentialRampToValueAtTime(160, now + sDur);
                     const sGain = audioCtx.createGain();
-                    sGain.gain.setValueAtTime(velocity * 1.2, now);
-                    sGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-                    sOsc.connect(sFilter); sFilter.connect(sGain); sGain.connect(targetOutputNode);
-                    sOsc.start(now); sOsc.stop(now + duration);
+                    sGain.gain.setValueAtTime(velocity * 1.1, now);
+                    sGain.gain.exponentialRampToValueAtTime(0.001, now + sDur);
+                    const sawGain = audioCtx.createGain(); sawGain.gain.value = 0.5;
+                    const subGain = audioCtx.createGain(); subGain.gain.value = 0.9;
+                    sOsc.connect(sFilter);
+                    sawOsc.connect(sawGain); sawGain.connect(sFilter);
+                    subOsc.connect(subGain); subGain.connect(sFilter);
+                    sFilter.connect(sGain); sGain.connect(targetOutputNode);
+                    sOsc.start(now); sOsc.stop(now + sDur);
+                    sawOsc.start(now); sawOsc.stop(now + sDur);
+                    subOsc.start(now); subOsc.stop(now + sDur);
                     return;
                 }
                 const mainOsc = audioCtx.createOscillator();
