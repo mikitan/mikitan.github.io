@@ -415,6 +415,12 @@
 <h3 class="text-xs font-bold text-white flex items-center space-x-2"><i class="fa-solid fa-compact-disc text-mvPink"></i><span>MICVICTORY BRAND 26曲コレクション</span><span id="songCountLabel" class="text-[10px] text-mvPink font-mono">0 / 26曲</span></h3>
 <p class="text-[10px] text-gray-400">作った曲（楽譜データ）を、名前を付けて保存できます。読み込むと、その曲に戻ります。最大26曲まで。今の曲は自動でも記憶されるので、閉じても開くと戻ります。</p>
 <button onclick="saveCurrentSongToCollection()" class="w-full bg-gradient-to-r from-mvPink to-mvAccent text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95">💾 今の曲を保存（名前を入れる）</button>
+<div class="grid grid-cols-2 gap-2">
+<button onclick="exportCollection()" class="bg-gray-900 border border-mvCyan/60 text-mvCyan text-[10px] py-2 rounded-lg font-bold transition active:scale-95">📤 コレクション書き出し</button>
+<button onclick="document.getElementById('collectionFileInput').click()" class="bg-gray-900 border border-gray-700 text-gray-200 text-[10px] py-2 rounded-lg font-bold transition active:scale-95">📥 コレクション読み込み</button>
+</div>
+<input type="file" id="collectionFileInput" accept=".json,application/json" style="display:none" onchange="importCollectionFile(event)">
+<p class="text-[9px] text-gray-500">名前つき曲を全部ファイルに書き出せます。サイトで開いた時に読み込めば、曲を引っ越せます。</p>
 <div id="songLibraryList" class="space-y-2"></div>
 </div>
 
@@ -3613,6 +3619,55 @@ async function saveCurrentSongToCollection() {
         tx.oncomplete = function() { refreshSongLibrary(); alert("💿 「" + finalName + "」を" + (existing ? "上書き保存しました！" : "コレクションに保存しました！")); };
         tx.onerror = function() { alert("保存に失敗しました。"); };
     } catch (e) { alert("保存に失敗しました。"); }
+}
+async function exportCollection() {
+    try {
+        const db = await recDbOpen();
+        const items = await new Promise(function(res, rej) {
+            const out = [];
+            const rq = db.transaction('songs', 'readonly').objectStore('songs').openCursor();
+            rq.onsuccess = function() { const c = rq.result; if (c) { out.push({ name: c.value.name, createdAt: c.value.createdAt, data: c.value.data }); c.continue(); } else res(out); };
+            rq.onerror = function() { rej(rq.error); };
+        });
+        if (!items.length) { alert('コレクションに曲がありません。'); return; }
+        downloadFile('micvictory-collection.json', JSON.stringify({ app: 'MICVICTORY BANDLAND', kind: 'collection', songs: items }), 'application/json');
+        alert('📤 名前つき曲 ' + items.length + '曲を書き出しました（ダウンロードに入ります）。');
+    } catch (e) { alert('書き出しに失敗しました。'); }
+}
+async function importCollectionFile(event) {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async function() {
+        try {
+            const parsed = JSON.parse(String(reader.result || ''));
+            const songs = parsed.songs || [];
+            if (!songs.length) { alert('曲データが見つかりませんでした。'); return; }
+            const db = await recDbOpen();
+            const existing = await new Promise(function(res, rej) {
+                const out = [];
+                const rq = db.transaction('songs', 'readonly').objectStore('songs').openCursor();
+                rq.onsuccess = function() { const c = rq.result; if (c) { out.push(c.value); c.continue(); } else res(out); };
+                rq.onerror = function() { rej(rq.error); };
+            });
+            let added = 0, overwritten = 0, skipped = 0;
+            const tx = db.transaction('songs', 'readwrite');
+            const store = tx.objectStore('songs');
+            let count = existing.length;
+            songs.forEach(function(s) {
+                if (!s || !s.data) { skipped++; return; }
+                const nm = String(s.name || '曲');
+                const found = existing.find(function(it) { return it.name === nm; });
+                if (found) { store.put({ id: found.id, name: nm, createdAt: s.createdAt || Date.now(), data: s.data }); overwritten++; }
+                else if (count < 26) { store.add({ name: nm, createdAt: s.createdAt || Date.now(), data: s.data }); count++; added++; }
+                else skipped++;
+            });
+            tx.oncomplete = function() { refreshSongLibrary(); alert('📥 読み込みました。新しく ' + added + '曲、上書き ' + overwritten + '曲' + (skipped ? '、入らなかった ' + skipped + '曲' : '') + '。'); };
+            tx.onerror = function() { alert('読み込みに失敗しました。'); };
+        } catch (e) { alert('読み込みに失敗しました。'); }
+    };
+    reader.readAsText(file);
 }
 async function refreshSongLibrary() {
     const list = document.getElementById('songLibraryList');
