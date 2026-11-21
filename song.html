@@ -415,6 +415,8 @@
 <h3 class="text-xs font-bold text-white flex items-center space-x-2"><i class="fa-solid fa-compact-disc text-mvPink"></i><span>MICVICTORY BRAND 26曲コレクション</span><span id="songCountLabel" class="text-[10px] text-mvPink font-mono">0 / 26曲</span></h3>
 <p class="text-[10px] text-gray-400">作った曲（楽譜データ）を、名前を付けて保存できます。読み込むと、その曲に戻ります。最大26曲まで。今の曲は自動でも記憶されるので、閉じても開くと戻ります。</p>
 <button onclick="saveCurrentSongToCollection()" class="w-full bg-gradient-to-r from-mvPink to-mvAccent text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95">💾 今の曲を保存（名前を入れる）</button>
+<button onclick="shareBackup()" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-[11px] py-2 rounded-lg font-bold transition active:scale-95">📤 バックアップを共有（ドライブに保存）</button>
+<p class="text-[9px] text-gray-500">名前つき曲と今の曲を1つのファイルにします。共有先でGoogleドライブを選ぶと、その場で永久保存できます。</p>
 <div class="grid grid-cols-2 gap-2">
 <button onclick="exportCollection()" class="bg-gray-900 border border-mvCyan/60 text-mvCyan text-[10px] py-2 rounded-lg font-bold transition active:scale-95">📤 コレクション書き出し</button>
 <button onclick="document.getElementById('collectionFileInput').click()" class="bg-gray-900 border border-gray-700 text-gray-200 text-[10px] py-2 rounded-lg font-bold transition active:scale-95">📥 コレクション読み込み</button>
@@ -3620,6 +3622,26 @@ async function saveCurrentSongToCollection() {
         tx.onerror = function() { alert("保存に失敗しました。"); };
     } catch (e) { alert("保存に失敗しました。"); }
 }
+async function shareBackup() {
+    try {
+        const db = await recDbOpen();
+        const items = await new Promise(function(res, rej) {
+            const out = [];
+            const rq = db.transaction('songs', 'readonly').objectStore('songs').openCursor();
+            rq.onsuccess = function() { const c = rq.result; if (c) { out.push({ name: c.value.name, createdAt: c.value.createdAt, data: c.value.data }); c.continue(); } else res(out); };
+            rq.onerror = function() { rej(rq.error); };
+        });
+        const payload = { app: 'MICVICTORY BANDLAND', kind: 'backup', exportedAt: new Date().toISOString(), songs: items, current: collectCurrentSongData() };
+        const text = JSON.stringify(payload);
+        const file = new File([text], 'micvictory-backup.json', { type: 'application/json' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: 'MICVICTORY バックアップ' });
+        } else {
+            downloadFile('micvictory-backup.json', text, 'application/json');
+            alert('📤 バックアップをダウンロードしました（名前つき曲 ' + items.length + '曲＋今の曲）。ドライブに上げると永久保存になります。');
+        }
+    } catch (e) { if (e && e.name === 'AbortError') return; alert('バックアップに失敗しました。'); }
+}
 async function exportCollection() {
     try {
         const db = await recDbOpen();
@@ -3643,6 +3665,7 @@ async function importCollectionFile(event) {
         try {
             const parsed = JSON.parse(String(reader.result || ''));
             const songs = parsed.songs || [];
+            if (parsed.kind === 'backup' && parsed.current && parsed.current.tracksData) { try { applySongData(parsed.current); } catch (e) {} }
             if (!songs.length) { alert('曲データが見つかりませんでした。'); return; }
             const db = await recDbOpen();
             const existing = await new Promise(function(res, rej) {
