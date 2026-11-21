@@ -173,6 +173,11 @@
 <button onclick="switchRecordingSource('vocal')" id="srcBtnVocal" class="w-full py-2 rounded-lg text-xs font-bold text-gray-400 transition flex items-center justify-center space-x-1.5 bg-gray-950 border border-gray-800">
 <span>🎤 ボーカル録音（曲＋声いっしょ）</span>
 </button>
+<div class="bg-gray-950 border border-gray-800 rounded-xl p-2 space-y-1.5">
+<p class="text-[9px] text-gray-400 font-bold">🎚 ボーカル録音の音量バランス</p>
+<div class="flex items-center space-x-2"><span class="text-[9px] text-gray-300 whitespace-nowrap">声</span><input type="range" min="0" max="2" step="0.05" value="1" oninput="setVocalVol('voice', this.value)" class="w-full accent-mvPink"><strong id="vocalVoiceVolLabel" class="text-[9px] text-white w-9 text-right">100%</strong></div>
+<div class="flex items-center space-x-2"><span class="text-[9px] text-gray-300 whitespace-nowrap">曲</span><input type="range" min="0" max="2" step="0.05" value="1" oninput="setVocalVol('track', this.value)" class="w-full accent-mvCyan"><strong id="vocalTrackVolLabel" class="text-[9px] text-white w-9 text-right">100%</strong></div>
+</div>
 
 <div class="flex items-center justify-between pt-1">
 <span id="recStatusLabel" class="text-[10px] text-red-400 font-mono">スタンバイ中</span>
@@ -1188,6 +1193,19 @@ micLive.classList.remove('hidden');
 }
 }
 
+let vocalVoiceVol = 1.0, vocalTrackVol = 1.0;
+function setVocalVol(which, v) {
+    const val = parseFloat(v);
+    if (which === 'voice') {
+        vocalVoiceVol = val;
+        document.getElementById('vocalVoiceVolLabel').innerText = Math.round(val * 100) + '%';
+        if (window.__vocalGains) window.__vocalGains.mic.gain.value = val;
+    } else {
+        vocalTrackVol = val;
+        document.getElementById('vocalTrackVolLabel').innerText = Math.round(val * 100) + '%';
+        if (window.__vocalGains) window.__vocalGains.track.gain.value = val;
+    }
+}
 async function startActiveRecording() {
 getAudioContext();
 if (recordingSource !== 'internal' && !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
@@ -1203,11 +1221,13 @@ targetStream = destStreamNode.stream;
 externalMicStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
 const recDest = audioCtx.createMediaStreamDestination();
 const mixSrc = audioCtx.createMediaStreamSource(destStreamNode.stream);
-mixSrc.connect(recDest);
+const trackGain = audioCtx.createGain(); trackGain.gain.value = vocalTrackVol;
+mixSrc.connect(trackGain); trackGain.connect(recDest);
 const micSrc = audioCtx.createMediaStreamSource(externalMicStream);
-const micGain = audioCtx.createGain(); micGain.gain.value = 1.0;
+const micGain = audioCtx.createGain(); micGain.gain.value = vocalVoiceVol;
 micSrc.connect(micGain); micGain.connect(recDest);
-window.__vocalMixNodes = [mixSrc, micSrc, micGain];
+window.__vocalMixNodes = [mixSrc, micSrc, micGain, trackGain];
+window.__vocalGains = { mic: micGain, track: trackGain };
 targetStream = recDest.stream;
 if (!isGlobalPlaying) { try { startGlobalPlay(); } catch (e) {} }
 } else {
@@ -1241,7 +1261,7 @@ function stopActiveRecording() {
 if (activeRecorder && activeRecorder.state!== 'inactive') {
 activeRecorder.stop();
 if(externalMicStream) { externalMicStream.getTracks().forEach(t => t.stop()); }
-if (window.__vocalMixNodes) { window.__vocalMixNodes.forEach(function(n) { try { n.disconnect(); } catch (e) {} }); window.__vocalMixNodes = null; }
+if (window.__vocalMixNodes) { window.__vocalMixNodes.forEach(function(n) { try { n.disconnect(); } catch (e) {} }); window.__vocalMixNodes = null; window.__vocalGains = null; }
 document.getElementById('startRecBtn').disabled = false;
 document.getElementById('startRecBtn').className = "bg-gradient-to-r from-red-600 to-mvPink text-white text-xs py-2 rounded-xl font-bold flex items-center justify-center space-x-1.5 shadow-lg active:scale-95 transition";
 document.getElementById('stopRecBtn').disabled = true;
