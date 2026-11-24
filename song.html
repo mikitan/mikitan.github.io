@@ -583,6 +583,32 @@
 <p class="text-[9px] text-gray-500">トラック選択で選んだ楽器の音で鳴って、その楽器のグリッドに記録されます（録音モードON）。ドラム・タンバリンの時はピアノの音になります。効果音は鍵盤ごとに違う効果音、トナカイ鈴は音程つきで鳴ります。再生中に押せば、テンポの位置に入ります。</p>
 </div>
 
+
+<div class="bg-gray-900/60 border border-mvPink/50 p-3 rounded-xl space-y-2">
+<div class="flex items-center justify-between">
+<span class="text-xs text-white font-bold">🎵 AI自動メロディ作成</span>
+<span class="text-[9px] text-mvPink font-mono">AI Melody</span>
+</div>
+<button onclick="aiAutoMelody()" class="w-full bg-gradient-to-r from-mvAccent to-mvPink text-white text-xs py-2.5 rounded-lg font-bold shadow-md transition active:scale-95">🎵 AIでメロディを自動作成</button>
+<p class="text-[9px] text-gray-500">今のスタイルのコード進行に沿って、歌えるメロディを全小節に作ります（今選んでいる楽器、ドラム系の時はピアノ）。押すたびに新しいメロディになります。</p>
+</div>
+
+<div class="bg-gray-900/60 border border-yellow-500/50 p-3 rounded-xl space-y-2">
+<div class="flex items-center justify-between">
+<span class="text-xs text-white font-bold">📝 メモ・予定</span>
+<span class="text-[9px] text-yellow-400 font-mono">Memo &amp; Plans</span>
+</div>
+<textarea id="memoText" rows="4" oninput="memoChanged()" placeholder="作曲メモ、曲の構想、歌詞の種など、自由に書けます" class="w-full bg-gray-950 border border-gray-800 rounded-lg text-[11px] text-gray-100 p-2"></textarea>
+<div class="flex space-x-1.5">
+<input id="planInput" type="text" placeholder="予定を書く（例：サビを作る）" class="flex-1 bg-gray-950 border border-gray-800 rounded-lg text-[11px] text-gray-100 px-2 py-2">
+<button onclick="addPlan()" class="bg-yellow-500 text-black text-[11px] px-3 py-2 rounded-lg font-bold transition active:scale-95">追加</button>
+<button onclick="clearAllPlans()" class="bg-gray-800 text-gray-300 text-[11px] px-3 py-2 rounded-lg font-bold transition active:scale-95">全クリア</button>
+</div>
+<div id="planList" class="space-y-1.5"></div>
+<p id="memoStatus" class="text-[9px] text-gray-500">💾 メモと予定は自動保存され、削除するまで残ります</p>
+<p class="text-[9px] text-gray-500">消えないよう4か所に保存しています。「📤 バックアップを共有」でドライブに保存すると、メモと予定も一緒に入ります。</p>
+</div>
+
 <div class="bg-gray-900/60 border border-mvCyan/50 p-3 rounded-xl space-y-2">
 <div class="flex items-center justify-between">
 <span class="text-xs text-white font-bold">🎛 楽器別パターン20（今の楽器に入れる）</span>
@@ -1145,6 +1171,155 @@ async function ensurePersistentStorage() {
     return false;
 }
 
+
+/* 📝 メモ・予定：4重保存（IndexedDB＋localStorage＋ミラー＋Cookie）。削除するまで残る */
+const MEMO_KEY = 'BANDLAND_MEMO_V1';
+let memoData = { memo: '', plans: [] };
+let memoLoaded = false;
+let memoSaveTimer = null;
+function memoScore(d) { if (!d || typeof d !== 'object') return -1; return String(d.memo || '').length + (Array.isArray(d.plans) ? d.plans.length : 0) * 50; }
+function memoSanitize(d) {
+    const out = { memo: '', plans: [] };
+    if (d && typeof d === 'object') {
+        out.memo = String(d.memo || '');
+        if (Array.isArray(d.plans)) out.plans = d.plans.filter(function(p) { return p && typeof p.text === 'string'; }).map(function(p, i) { return { id: p.id || ('p' + i + '_' + Date.now()), text: p.text, done: !!p.done }; });
+    }
+    return out;
+}
+async function loadMemoData() {
+    let best = null;
+    try { const a = localStorage.getItem(MEMO_KEY); if (a) { const d = JSON.parse(a); if (memoScore(d) > memoScore(best)) best = d; } } catch (e) {}
+    try { const a = localStorage.getItem(MEMO_KEY + '_mirror'); if (a) { const d = JSON.parse(a); if (memoScore(d) > memoScore(best)) best = d; } } catch (e) {}
+    try { const m = document.cookie.match(new RegExp('(?:^|; )bl_memo_v1=([^;]*)')); if (m) { const d = JSON.parse(decodeURIComponent(m[1])); if (memoScore(d) > memoScore(best)) best = d; } } catch (e) {}
+    try {
+        const db = await recDbOpen();
+        const rec = await new Promise(function(res) {
+            try {
+                const rq = db.transaction('kv', 'readonly').objectStore('kv').get('memo');
+                rq.onsuccess = function() { res(rq.result || null); };
+                rq.onerror = function() { res(null); };
+            } catch (e) { res(null); }
+        });
+        if (rec && rec.data && memoScore(rec.data) > memoScore(best)) best = rec.data;
+    } catch (e) {}
+    memoData = memoSanitize(best);
+    memoLoaded = true;
+    renderMemo();
+    updateMemoStatus('読み込みました');
+}
+function saveMemoData() {
+    if (!memoLoaded) return;
+    const text = JSON.stringify(memoData);
+    try { localStorage.setItem(MEMO_KEY, text); } catch (e) {}
+    try { localStorage.setItem(MEMO_KEY + '_mirror', text); } catch (e) {}
+    try { document.cookie = 'bl_memo_v1=' + encodeURIComponent(text) + '; max-age=31536000; path=/'; } catch (e) {}
+    recDbOpen().then(function(db) { try { db.transaction('kv', 'readwrite').objectStore('kv').put({ id: 'memo', data: memoData }); } catch (e) {} }).catch(function() {});
+    updateMemoStatus('保存済み');
+}
+function updateMemoStatus(msg) {
+    const el = document.getElementById('memoStatus');
+    if (!el) return;
+    const now = new Date();
+    const hh = ('0' + now.getHours()).slice(-2), mm = ('0' + now.getMinutes()).slice(-2);
+    el.innerText = '💾 ' + msg + '：メモ ' + memoData.memo.length + '文字・予定 ' + memoData.plans.length + '件（' + hh + ':' + mm + '）削除するまで残ります';
+}
+function renderMemo() {
+    const ta = document.getElementById('memoText');
+    if (ta && document.activeElement !== ta) ta.value = memoData.memo;
+    const list = document.getElementById('planList');
+    if (!list) return;
+    list.innerHTML = '';
+    memoData.plans.forEach(function(p) {
+        const row = document.createElement('div');
+        row.className = 'flex items-center space-x-2 bg-gray-950 border border-gray-800 rounded-lg px-2 py-1.5';
+        const chk = document.createElement('input');
+        chk.type = 'checkbox'; chk.checked = !!p.done; chk.className = 'w-4 h-4';
+        chk.onchange = function() { togglePlan(p.id); };
+        const span = document.createElement('span');
+        span.className = 'flex-1 text-[11px] ' + (p.done ? 'text-gray-500 line-through' : 'text-gray-100');
+        span.innerText = p.text;
+        const eb = document.createElement('button');
+        eb.className = 'text-[10px] text-mvCyan font-bold px-1'; eb.innerText = '編集';
+        eb.onclick = function() { editPlan(p.id); };
+        const db2 = document.createElement('button');
+        db2.className = 'text-[10px] text-red-400 font-bold px-1'; db2.innerText = '削除';
+        db2.onclick = function() { deletePlan(p.id); };
+        row.appendChild(chk); row.appendChild(span); row.appendChild(eb); row.appendChild(db2);
+        list.appendChild(row);
+    });
+}
+function memoChanged() {
+    const ta = document.getElementById('memoText');
+    if (ta) memoData.memo = ta.value;
+    if (memoSaveTimer) clearTimeout(memoSaveTimer);
+    memoSaveTimer = setTimeout(saveMemoData, 500);
+}
+function addPlan() {
+    const inp = document.getElementById('planInput');
+    const text = (inp.value || '').trim();
+    if (!text) return;
+    memoData.plans.push({ id: 'p' + Date.now(), text: text, done: false });
+    inp.value = '';
+    saveMemoData(); renderMemo();
+}
+function editPlan(id) {
+    const p = memoData.plans.find(function(x) { return x.id === id; });
+    if (!p) return;
+    const t = prompt('予定を編集', p.text);
+    if (t === null) return;
+    p.text = t;
+    saveMemoData(); renderMemo();
+}
+function deletePlan(id) {
+    memoData.plans = memoData.plans.filter(function(x) { return x.id !== id; });
+    saveMemoData(); renderMemo();
+}
+function togglePlan(id) {
+    const p = memoData.plans.find(function(x) { return x.id === id; });
+    if (p) { p.done = !p.done; saveMemoData(); renderMemo(); }
+}
+function clearAllPlans() {
+    if (!memoData.plans.length) return;
+    if (!confirm('予定を全部クリアしますか？')) return;
+    memoData.plans = [];
+    saveMemoData(); renderMemo();
+}
+
+/* 🎵 AI自動メロディ作成：今のスタイルのコード進行に沿って、歌えるメロディを自動で作る */
+function aiAutoMelody() {
+    const conf = GENRE_CONF[currentGenre] || GENRE_CONF['popping'];
+    let target = activeTrack;
+    if (['drums', 'tambourine', 'fx', 'sleighbell', 'bass'].indexOf(target) >= 0) { target = 'piano'; switchTrack('piano'); }
+    if (!confirm('AI自動メロディを「' + (trackNamesMap[target] || target) + '」に作ります。今の' + (trackNamesMap[target] || target) + 'の中身は置き換わります。よろしいですか？')) return;
+    const RH = conf.rhythms || [[0, 3, 8, 11, 16]];
+    for (let b = 0; b < totalBars; b++) {
+        const chord = conf.prog[b % conf.prog.length];
+        const tones = chordDefinitions[chord] || ['C4', 'E4', 'G4'];
+        let pool = [];
+        tones.forEach(function(n) { pool.push(n); });
+        tones.forEach(function(n) {
+            const m = n.match(/^([A-G]#?)(\d)$/);
+            if (m) { const up = m[1] + (parseInt(m[2]) + 1); if (notesFreqMap[up] && notesFreqMap[up] <= notesFreqMap['A4']) pool.push(up); }
+        });
+        pool = pool.filter(function(v, i) { return pool.indexOf(v) === i; });
+        pool.sort(function(a, c) { return notesFreqMap[a] - notesFreqMap[c]; });
+        const rhythm = RH[b % RH.length];
+        let barSteps = new Array(currentStepsPerBar).fill(null);
+        let idx = Math.min(1, pool.length - 1);
+        rhythm.forEach(function(st, i) {
+            if (st >= currentStepsPerBar) return;
+            if (i === rhythm.length - 1 && b % 4 === 3) idx = 0;
+            barSteps[st] = { note: pool[idx], duration: currentNoteDuration, velocity: (st % 8 === 0) ? 1.0 : 0.85 };
+            idx += [1, -1, 2, 0, -2, 1][Math.floor(Math.random() * 6)];
+            if (idx < 0) idx = 0;
+            if (idx > pool.length - 1) idx = pool.length - 1;
+        });
+        tracksData[target][b] = barSteps;
+    }
+    renderStepGrid();
+    alert('🎵 AI自動メロディを作りました（' + (trackNamesMap[target] || target) + '）。もう一度押すと別のメロディになります。');
+}
+
 function initApp() {
 ensurePersistentStorage();
 refreshRecLibrary();
@@ -1152,6 +1327,7 @@ refreshSongLibrary();
 try { ensureSampleBank('electric'); ensureSampleBank('violin'); } catch (e) {}
 loadBassSettings();
 restoreAutosave();
+loadMemoData();
 window.__bandAutosaveReady = true;
 renderBarSelector();
 renderStepGrid();
@@ -3518,11 +3694,12 @@ function insertEmptyIntroBars(barsCount) {
 const REC_DB_NAME = 'BANDLAND_REC_DB';
 function recDbOpen() {
     return new Promise(function(res, rej) {
-        const r = indexedDB.open(REC_DB_NAME, 3);
+        const r = indexedDB.open(REC_DB_NAME, 4);
         r.onupgradeneeded = function() {
             if (!r.result.objectStoreNames.contains('recordings')) r.result.createObjectStore('recordings', { keyPath: 'id', autoIncrement: true });
             if (!r.result.objectStoreNames.contains('backing')) r.result.createObjectStore('backing', { keyPath: 'id' });
             if (!r.result.objectStoreNames.contains('songs')) r.result.createObjectStore('songs', { keyPath: 'id', autoIncrement: true });
+            if (!r.result.objectStoreNames.contains('kv')) r.result.createObjectStore('kv', { keyPath: 'id' });
         };
         r.onsuccess = function() { res(r.result); };
         r.onerror = function() { rej(r.error); };
@@ -3621,7 +3798,7 @@ async function shareBackup() {
             rq.onsuccess = function() { const c = rq.result; if (c) { out.push({ name: c.value.name, createdAt: c.value.createdAt, data: c.value.data }); c.continue(); } else res(out); };
             rq.onerror = function() { rej(rq.error); };
         });
-        const payload = { app: 'MICVICTORY BANDLAND', kind: 'backup', exportedAt: new Date().toISOString(), songs: items, current: collectCurrentSongData() };
+        const payload = { app: 'MICVICTORY BANDLAND', kind: 'backup', exportedAt: new Date().toISOString(), songs: items, current: collectCurrentSongData(), memo: (typeof memoData !== 'undefined' ? memoData : null) };
         const text = JSON.stringify(payload);
         const file = new File([text], 'micvictory-backup.json', { type: 'application/json' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -3656,6 +3833,7 @@ async function importCollectionFile(event) {
             const parsed = JSON.parse(String(reader.result || ''));
             const songs = parsed.songs || [];
             if (parsed.kind === 'backup' && parsed.current && parsed.current.tracksData) { try { applySongData(parsed.current); } catch (e) {} }
+            if (parsed.memo) { try { const md = memoSanitize(parsed.memo); if (memoScore(md) >= memoScore(memoData)) { memoData = md; memoLoaded = true; saveMemoData(); renderMemo(); } } catch (e) {} }
             if (!songs.length) { alert('曲データが見つかりませんでした。'); return; }
             const db = await recDbOpen();
             const existing = await new Promise(function(res, rej) {
